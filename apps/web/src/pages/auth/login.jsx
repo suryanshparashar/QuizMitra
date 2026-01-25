@@ -64,7 +64,7 @@ export default function Login() {
                         Welcome Back
                     </h1>
                     <p className="text-gray-600 text-lg">
-                        Sign in to your QuizGuard account
+                        Sign in to your QuizMitra account
                     </p>
                 </div>
 

@@ -19,7 +19,7 @@ const uploadOnCloudinary = async (fileBuffer, originalname) => {
         const dataURI = `data:image/${originalname.split(".").pop()};base64,${base64}`
 
         const response = await cloudinary.uploader.upload(dataURI, {
-            folder: "QuizGuard",
+            folder: "QuizMitra",
             resource_type: "image",
         })
 
@@ -40,7 +40,7 @@ const uploadOnCloudinary = async (fileBuffer, originalname) => {
 //         console.log("Local file path:", localFilePath)
 
 //         const response = await cloudinary.uploader.upload(localFilePath, {
-//             folder: "QuizGuard",
+//             folder: "QuizMitra",
 //             resource_type: "image",
 //         })
 
@@ -65,7 +65,7 @@ const uploadOnCloudinary = async (fileBuffer, originalname) => {
 //     }
 // }
 
-const   deleteLocalFile = (localFilePath) => {
+const deleteLocalFile = (localFilePath) => {
     console.log("Deleting local file:", localFilePath)
     fs.unlinkSync(localFilePath)
 }

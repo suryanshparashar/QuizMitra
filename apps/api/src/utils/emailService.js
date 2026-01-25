@@ -22,9 +22,9 @@ const sendVerificationEmail = async (email, fullName, token) => {
         const verificationUrl = `${process.env.FRONTEND_URL}/verify-email/${token}`
 
         const mailOptions = {
-            from: `"QuizGuard" <${process.env.SMTP_FROM_EMAIL}>`,
+            from: `"QuizMitra" <${process.env.SMTP_FROM_EMAIL}>`,
             to: email,
-            subject: "Verify Your QuizGuard Account",
+            subject: "Verify Your QuizMitra Account",
             html: `
                 <!DOCTYPE html>
                 <html>
@@ -44,19 +44,19 @@ const sendVerificationEmail = async (email, fullName, token) => {
                 <body>
                     <div class="container">
                         <div class="header">
-                            <h1>Welcome to QuizGuard!</h1>
+                            <h1>Welcome to QuizMitra!</h1>
                         </div>
                         <div class="content">
                             <h2>Hello ${fullName}!</h2>
-                            <p>Thank you for registering with QuizGuard. To complete your registration, please verify your email address by clicking the button below:</p>
+                            <p>Thank you for registering with QuizMitra. To complete your registration, please verify your email address by clicking the button below:</p>
                             <a href="${verificationUrl}" class="button">Verify Email Address</a>
                             <p>Or copy and paste this link into your browser:</p>
                             <p><a href="${verificationUrl}">${verificationUrl}</a></p>
                             <p><strong>This link will expire in 24 hours.</strong></p>
-                            <p>If you didn't create an account with QuizGuard, please ignore this email.</p>
+                            <p>If you didn't create an account with QuizMitra, please ignore this email.</p>
                         </div>
                         <div class="footer">
-                            <p>&copy; 2025 QuizGuard. All rights reserved.</p>
+                            <p>&copy; 2025 QuizMitra. All rights reserved.</p>
                         </div>
                     </div>
                 </body>
@@ -81,9 +81,9 @@ const sendPasswordResetEmail = async (email, fullName, token) => {
         const resetUrl = `${process.env.FRONTEND_URL}/reset-password/${token}`
 
         const mailOptions = {
-            from: `"QuizGuard" <${process.env.SMTP_FROM_EMAIL}>`,
+            from: `"QuizMitra" <${process.env.SMTP_FROM_EMAIL}>`,
             to: email,
-            subject: "Reset Your QuizGuard Password",
+            subject: "Reset Your QuizMitra Password",
             html: `
                 <!DOCTYPE html>
                 <html>
@@ -107,7 +107,7 @@ const sendPasswordResetEmail = async (email, fullName, token) => {
                         </div>
                         <div class="content">
                             <h2>Hello ${fullName}!</h2>
-                            <p>We received a request to reset your QuizGuard password. Click the button below to reset it:</p>
+                            <p>We received a request to reset your QuizMitra password. Click the button below to reset it:</p>
                             <a href="${resetUrl}" class="button">Reset Password</a>
                             <p>Or copy and paste this link into your browser:</p>
                             <p><a href="${resetUrl}">${resetUrl}</a></p>
@@ -115,7 +115,7 @@ const sendPasswordResetEmail = async (email, fullName, token) => {
                             <p>If you didn't request a password reset, please ignore this email.</p>
                         </div>
                         <div class="footer">
-                            <p>&copy; 2025 QuizGuard. All rights reserved.</p>
+                            <p>&copy; 2025 QuizMitra. All rights reserved.</p>
                         </div>
                     </div>
                 </body>

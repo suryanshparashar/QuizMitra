@@ -14,7 +14,7 @@ export default function Layout() {
         <div>
             <header>
                 <nav>
-                    <Link to="/dashboard">QuizGuard</Link>
+                    <Link to="/dashboard">QuizMitra</Link>
 
                     {user && (
                         <div>
