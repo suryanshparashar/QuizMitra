@@ -1,0 +1,15 @@
+{
+  "name": "quizguard",
+  "version": "1.0.0",
+  "description": "AI Powered Quiz Generator",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "QuizGuard"
+  ],
+  "author": "",
+  "license": "ISC"
+}
