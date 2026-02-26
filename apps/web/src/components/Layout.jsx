@@ -34,7 +34,11 @@ export default function Layout() {
                         to="/dashboard"
                         className="flex items-center gap-2 text-xl font-bold bg-gradient-to-r from-primary-600 to-accent-600 bg-clip-text text-transparent"
                     >
-                        <BookOpen className="w-6 h-6 text-primary-600" />
+                        <img
+                            src="/quizmitra.png"
+                            alt="QuizMitra Logo"
+                            className="w-8 h-8 rounded-lg"
+                        />
                         QuizMitra
                     </Link>
 
