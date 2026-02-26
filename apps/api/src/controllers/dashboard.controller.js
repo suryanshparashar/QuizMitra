@@ -312,7 +312,7 @@ const getFacultyDashboardData = async (facultyId) => {
                 .lean(),
 
             // Quick Stats
-            getFacultyQuickStats(facultyId),
+            getFacultyStats(facultyId),
         ])
 
     // Filter out null results from population
@@ -433,7 +433,7 @@ const getStudentDashboardData = async (studentId) => {
         recentAttempts: recentAttempts.map((attempt) => ({
             ...attempt,
             grade: calculateGrade(attempt.percentage),
-            isPassed: attempt.percentage >= 60,
+            isPassed: attempt.percentage >= 41,
         })),
         recentMessages: messages,
         quickActions: [
@@ -586,43 +586,246 @@ const getTimeUntilDate = (date) => {
 }
 
 const calculateGrade = (percentage) => {
-    if (percentage >= 90) return "A+"
-    if (percentage >= 80) return "A"
-    if (percentage >= 70) return "B+"
-    if (percentage >= 60) return "B"
-    if (percentage >= 50) return "C"
-    if (percentage >= 40) return "D"
+    if (percentage >= 91) return "S"
+    if (percentage >= 81) return "A"
+    if (percentage >= 71) return "B"
+    if (percentage >= 61) return "C"
+    if (percentage >= 51) return "D"
+    if (percentage >= 41) return "E"
     return "F"
 }
 
 const getFacultyStats = async (facultyId, timeframe) => {
-    // Implementation for faculty stats over time
-    return { message: "Faculty stats implementation" }
+    // 1. Calculate Total Students (Unique students across all active classes)
+    const classes = await Class.find({
+        faculty: facultyId,
+        isArchived: false,
+    }).select("students")
+    const uniqueStudentIds = new Set()
+    classes.forEach((c) => {
+        c.students.forEach((s) => {
+            if (s.status === "active") uniqueStudentIds.add(s.user.toString())
+        })
+    })
+    const totalStudents = uniqueStudentIds.size
+
+    // 2. Calculate Average Performance (Across all quizzes created by faculty)
+    const quizzes = await Quiz.find({ userId: facultyId }).select("_id")
+    const quizIds = quizzes.map((q) => q._id)
+
+    const performanceStats = await QuizAttempt.aggregate([
+        { $match: { quiz: { $in: quizIds }, status: "submitted" } },
+        { $group: { _id: null, avgPercentage: { $avg: "$percentage" } } },
+    ])
+    const averagePerformance =
+        performanceStats[0]?.avgPercentage?.toFixed(1) || 0
+
+    // 3. Count Total Classes and Quizzes
+    const totalClasses = classes.length
+    const totalQuizzes = quizzes.length
+
+    // 4. Active Quizzes
+    const activeQuizzes = await Quiz.countDocuments({
+        userId: facultyId,
+        status: "published",
+        scheduledAt: { $lte: new Date() },
+        deadline: { $gte: new Date() },
+    })
+
+    return {
+        totalStudents,
+        averagePerformance,
+        totalClasses,
+        totalQuizzes,
+        activeQuizzes,
+    }
 }
 
 const getStudentStats = async (studentId, timeframe) => {
-    // Implementation for student stats over time
-    return { message: "Student stats implementation" }
+    // 1. Enrolled Classes (Active only)
+    const enrolledClasses = await Class.countDocuments({
+        "students.user": studentId,
+        "students.status": "active",
+        isArchived: false,
+    })
+
+    // 2. Completed Quizzes
+    const completedQuizzes = await QuizAttempt.countDocuments({
+        student: studentId,
+        status: "submitted",
+    })
+
+    // 3. Average Score
+    const avgStats = await QuizAttempt.aggregate([
+        { $match: { student: studentId, status: "submitted" } },
+        { $group: { _id: null, avg: { $avg: "$percentage" } } },
+    ])
+    const averageScore = avgStats[0]?.avg?.toFixed(1) || 0
+
+    // 4. Upcoming Deadlines (Active quizzes closing soon)
+    const upcomingDeadlines = await Quiz.countDocuments({
+        classId: { $in: await getStudentClassIds(studentId) },
+        status: "published",
+        deadline: {
+            $gte: new Date(),
+            $lte: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        }, // Next 7 days
+    })
+
+    return {
+        enrolledClasses,
+        completedQuizzes,
+        averageScore,
+        upcomingDeadlines,
+    }
 }
 
 const getFacultyAnalytics = async (facultyId, period, metric) => {
-    // Implementation for faculty analytics
-    return { message: "Faculty analytics implementation" }
+    // Fetch last 5 quizzes to show performance trend
+    const recentQuizzes = await Quiz.find({ userId: facultyId })
+        .sort({ createdAt: -1 })
+        .limit(5)
+        .select("title _id")
+
+    const quizIds = recentQuizzes.map((q) => q._id)
+
+    const stats = await QuizAttempt.aggregate([
+        { $match: { quiz: { $in: quizIds }, status: "submitted" } },
+        {
+            $group: {
+                _id: "$quiz",
+                avgScore: { $avg: "$percentage" },
+                totalAttempts: { $sum: 1 },
+            },
+        },
+    ])
+
+    // Map stats back to quizzes ensuring order
+    const chartData = recentQuizzes
+        .map((quiz) => {
+            const stat = stats.find(
+                (s) => s._id.toString() === quiz._id.toString()
+            )
+            return {
+                name:
+                    quiz.title.substring(0, 15) +
+                    (quiz.title.length > 15 ? "..." : ""), // Truncate title
+                avgScore: stat?.avgScore ? Math.round(stat.avgScore) : 0,
+                attempts: stat?.totalAttempts || 0,
+            }
+        })
+        .reverse() // Show oldest to newest
+
+    return { chartData }
 }
 
 const getStudentAnalytics = async (studentId, period, metric) => {
-    // Implementation for student analytics
-    return { message: "Student analytics implementation" }
+    // Fetch last 10 quiz attempts for trend line
+    const attempts = await QuizAttempt.find({
+        student: studentId,
+        status: "submitted",
+    })
+        .sort({ submittedAt: -1 })
+        .limit(10)
+        .populate("quiz", "title")
+
+    const chartData = attempts
+        .map((attempt) => ({
+            name:
+                attempt.quiz?.title?.substring(0, 15) +
+                    (attempt.quiz?.title?.length > 15 ? "..." : "") || "Quiz",
+            score: Math.round(attempt.percentage),
+            date: attempt.submittedAt,
+        }))
+        .reverse() // Oldest to newest
+
+    return { chartData }
 }
 
 const getFacultyRecentActivity = async (facultyId, limit) => {
-    // Implementation for faculty recent activity
-    return []
+    // Combine recent quiz creations and student submissions
+    const recentQuizzes = await Quiz.find({ userId: facultyId })
+        .sort({ createdAt: -1 })
+        .limit(limit)
+        .populate("classId", "subjectName")
+
+    const quizIds = (await Quiz.find({ userId: facultyId }).select("_id")).map(
+        (q) => q._id
+    )
+    const recentAttempts = await QuizAttempt.find({ quiz: { $in: quizIds } })
+        .sort({ submittedAt: -1 })
+        .limit(limit)
+        .populate("student", "fullName")
+        .populate("quiz", "title")
+
+    const activities = [
+        ...recentQuizzes.map((q) => ({
+            type: "quiz_created",
+            title: `Created quiz "${q.title}"`,
+            subtitle: q.classId?.subjectName,
+            status: q.status,
+            timestamp: q.createdAt,
+            id: q._id,
+        })),
+        ...recentAttempts.map((a) => ({
+            type: "submission",
+            title: `${a.student.fullName} submitted "${a.quiz.title}"`,
+            subtitle: `Score: ${Math.round(a.percentage)}%`,
+            status: "completed",
+            timestamp: a.submittedAt,
+            id: a._id,
+        })),
+    ]
+        .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+        .slice(0, limit)
+
+    return activities
 }
 
 const getStudentRecentActivity = async (studentId, limit) => {
-    // Implementation for student recent activity
-    return []
+    // 1. Recent Quiz Attempts
+    const attempts = await QuizAttempt.find({
+        student: studentId,
+        status: "submitted",
+    })
+        .sort({ submittedAt: -1 })
+        .limit(limit)
+        .populate("quiz", "title")
+        .populate("class", "subjectName")
+
+    // 2. New Quizzes Published in enrolled classes
+    const enrolledClassIds = await getStudentClassIds(studentId)
+    const newQuizzes = await Quiz.find({
+        classId: { $in: enrolledClassIds },
+        status: "published",
+        createdAt: { $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) }, // Last 7 days
+    })
+        .sort({ createdAt: -1 })
+        .limit(limit)
+        .populate("classId", "subjectName")
+
+    const activities = [
+        ...attempts.map((a) => ({
+            type: "submission",
+            title: `You submitted "${a.quiz.title}"`,
+            subtitle: `Score: ${Math.round(a.percentage)}%`,
+            status: "completed",
+            timestamp: a.submittedAt,
+            id: a._id,
+        })),
+        ...newQuizzes.map((q) => ({
+            type: "new_quiz",
+            title: `New Quiz: "${q.title}"`,
+            subtitle: q.classId?.subjectName,
+            status: "active",
+            timestamp: q.createdAt,
+            id: q._id,
+        })),
+    ]
+        .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+        .slice(0, limit)
+
+    return activities
 }
 
 const getFacultyUpcomingEvents = async (facultyId, limit) => {

@@ -285,16 +285,16 @@ quizAttemptSchema.virtual("accuracy").get(function () {
 
 // ✅ Instance methods (using different names than schema fields)
 quizAttemptSchema.methods.calculateGrade = function () {
-    if (this.percentage >= 90) return "A+"
-    if (this.percentage >= 80) return "A"
-    if (this.percentage >= 70) return "B+"
-    if (this.percentage >= 60) return "B"
-    if (this.percentage >= 50) return "C"
-    if (this.percentage >= 40) return "D"
+    if (this.percentage >= 91) return "S"
+    if (this.percentage >= 81) return "A"
+    if (this.percentage >= 71) return "B"
+    if (this.percentage >= 61) return "C"
+    if (this.percentage >= 51) return "D"
+    if (this.percentage >= 41) return "E"
     return "F"
 }
 
-quizAttemptSchema.methods.checkIfPassed = function (passingScore = 60) {
+quizAttemptSchema.methods.checkIfPassed = function (passingScore = 41) {
     return this.percentage >= passingScore
 }
 
@@ -362,7 +362,7 @@ quizAttemptSchema.statics.getQuizStatistics = function (quizId) {
                 highestScore: { $max: "$percentage" },
                 lowestScore: { $min: "$percentage" },
                 passedCount: {
-                    $sum: { $cond: [{ $gte: ["$percentage", 60] }, 1, 0] },
+                    $sum: { $cond: [{ $gte: ["$percentage", 41] }, 1, 0] },
                 },
             },
         },

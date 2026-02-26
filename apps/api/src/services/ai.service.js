@@ -19,7 +19,7 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY)
 
 const generateQuestionsFromPDF = async (pdfBuffer, requirements) => {
     const model = genAI.getGenerativeModel({
-        model: "gemini-1.5-flash",
+        model: process.env.GOOGLE_LLM_ADVANCED_MODEL,
         generationConfig: {
             temperature: 0.2,
             topP: 0.8,
@@ -68,7 +68,7 @@ const generateQuestionsFromPDF = async (pdfBuffer, requirements) => {
     `
 
     let rawResponseText = ""
-    
+
     try {
         const result = await model.generateContent([prompt, pdfPart])
         rawResponseText = result.response.text()
@@ -125,34 +125,49 @@ const validateAndTransformQuestions = (questions, requirements) => {
     }
 
     if (questions.length !== requirements.numQuestions) {
-        console.warn(`Expected ${requirements.numQuestions} questions, but got ${questions.length}`)
+        console.warn(
+            `Expected ${requirements.numQuestions} questions, but got ${questions.length}`
+        )
     }
 
     return questions.map((q, index) => {
-        if (!q.questionText || !q.options || !Array.isArray(q.options) || !q.correctAnswer) {
-            throw new ApiError(500, `Question at index ${index} is missing required fields`)
+        if (
+            !q.questionText ||
+            !q.options ||
+            !Array.isArray(q.options) ||
+            !q.correctAnswer
+        ) {
+            throw new ApiError(
+                500,
+                `Question at index ${index} is missing required fields`
+            )
         }
 
         if (q.options.length < 2) {
-            throw new ApiError(500, `Question at index ${index} must have at least two options`)
+            throw new ApiError(
+                500,
+                `Question at index ${index} must have at least two options`
+            )
         }
 
         if (!q.options.includes(q.correctAnswer)) {
-            console.warn(`Question at index ${index} has a correctAnswer that does not match any option`)
+            console.warn(
+                `Question at index ${index} has a correctAnswer that does not match any option`
+            )
             q.correctAnswer = q.options[0]
         }
 
         return {
             questionText: q.questionText.trim(),
-            options: q.options.map(opt => opt.trim()),
+            options: q.options.map((opt) => opt.trim()),
             correctAnswer: q.correctAnswer.trim(),
-            correctOptions: q.correctOptions?.map(opt => opt.trim()) || [],
+            correctOptions: q.correctOptions?.map((opt) => opt.trim()) || [],
             _metadata: {
                 difficulty: q.difficulty || requirements.difficultyLevel,
                 explanation: q.explanation?.trim() || "No explanation provided",
                 topic: q.topic || "General",
                 marks: requirements.marksPerQuestion,
-            }
+            },
         }
     })
 }

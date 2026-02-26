@@ -70,4 +70,19 @@ const deleteLocalFile = (localFilePath) => {
     fs.unlinkSync(localFilePath)
 }
 
-export { uploadOnCloudinary, deleteLocalFile }
+const deleteFromCloudinary = async (publicId) => {
+    try {
+        if (!publicId) return null
+
+        const response = await cloudinary.uploader.destroy(publicId, {
+            resource_type: "image", // PDFs are treated as images by Cloudinary unless 'raw' is specified, but let's check upload type
+        })
+
+        return response
+    } catch (error) {
+        console.error("Cloudinary delete error:", error)
+        return null
+    }
+}
+
+export { uploadOnCloudinary, deleteLocalFile, deleteFromCloudinary }

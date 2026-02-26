@@ -1,0 +1,81 @@
+
+// ✅ Get quizzes for logged-in student (across all classes)
+const getStudentQuizzes = asyncHandler(async (req, res) => {
+    const { status } = req.query
+    const studentId = req.user._id
+
+    // 1. Get enrolled active class IDs
+    const classes = await Class.find({
+        "students.user": studentId,
+        "students.status": "active",
+    }).select("_id")
+    const classIds = classes.map((c) => c._id)
+
+    // 2. Base Query
+    const now = new Date()
+    let query = { classId: { $in: classIds }, status: "published" }
+
+    // Optimization: Pre-filter DB query where possible
+    if (status === "upcoming") {
+        query.scheduledAt = { $gt: now }
+    } else if (status === "active") {
+        query.scheduledAt = { $lte: now }
+        query.deadline = { $gte: now }
+    } else if (status === "completed" || status === "missed") {
+        // For completed/missed, we first need quizzes that started/ended
+        // We'll refine this after checking attempts
+    }
+
+    // 3. Fetch Quizzes
+    const quizzes = await Quiz.find(query)
+        .populate("classId", "subjectName subjectCode")
+        .sort({ deadline: 1 }) // Sort by deadline (soonest first)
+        .lean()
+
+    // 4. Fetch Student Attempts for these quizzes
+    const quizIds = quizzes.map((q) => q._id)
+    const attempts = await QuizAttempt.find({
+        student: studentId,
+        quiz: { $in: quizIds },
+    }).select("quiz status percentage createdAt")
+
+    const attemptMap = new Map(attempts.map((a) => [a.quiz.toString(), a]))
+
+    // 5. Compute Status & Filter
+    const processedQuizzes = quizzes.map((quiz) => {
+        const attempt = attemptMap.get(quiz._id.toString())
+        let myStatus = "upcoming"
+
+        if (attempt) {
+            myStatus = "completed"
+        } else if (now > new Date(quiz.deadline)) {
+            myStatus = "missed"
+        } else if (
+            now >= new Date(quiz.scheduledAt) &&
+            now <= new Date(quiz.deadline)
+        ) {
+            myStatus = "active"
+        } else {
+            myStatus = "upcoming"
+        }
+
+        return {
+            ...quiz,
+            myStatus,
+            attempt,
+        }
+    })
+
+    // 6. Final Filter
+    const finalResult = status
+        ? processedQuizzes.filter((q) => q.myStatus === status)
+        : processedQuizzes
+
+    return res.status(200).json(
+        new ApiResponse(
+            200,
+            finalResult,
+            "Student quizzes retrieved successfully"
+        )
+    )
+})

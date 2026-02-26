@@ -140,25 +140,36 @@ const joinClassWithCode = asyncHandler(async (req, res) => {
         throw new ApiError(404, "Class not found")
     }
 
-    // Check if already enrolled
-    const alreadyEnrolled = classDoc.students.some(
-        (s) =>
-            s.user.toString() === req.user._id.toString() &&
-            s.status === "active"
-    )
+    // ✅ Use model method to handle re-joining logic
+    const added = classDoc.addStudent(req.user._id)
 
-    if (alreadyEnrolled) {
+    if (!added) {
         throw new ApiError(409, "You are already enrolled in this class")
     }
 
-    // Add student
-    classDoc.students.push({
-        user: req.user._id,
-        joinedAt: new Date(),
-        status: "active",
-    })
-
     await classDoc.save()
+
+    // ✅ Notify Faculty
+    try {
+        const { NotificationTemplates, createNotification } = await import(
+            "./notification.controller.js"
+        )
+
+        await createNotification({
+            recipient: classDoc.faculty._id,
+            sender: req.user._id, // The student who joined
+            ...NotificationTemplates.CLASS_JOINED,
+            message: NotificationTemplates.CLASS_JOINED.getMessage(
+                req.user.fullName,
+                classDoc.subjectName
+            ),
+            relatedClass: classDoc._id,
+            relatedUser: req.user._id,
+            actionUrl: `/classes/${classDoc.classCode}`,
+        })
+    } catch (error) {
+        console.error("Failed to send notifications:", error)
+    }
 
     return res.status(200).json(
         new ApiResponse(
@@ -180,6 +191,48 @@ const joinClassWithCode = asyncHandler(async (req, res) => {
     )
 })
 
+// ✅ Leave class
+const leaveClass = asyncHandler(async (req, res) => {
+    const { classCode } = req.params
+
+    const classDoc = await Class.findOne({
+        classCode: classCode.toUpperCase(),
+        isArchived: false,
+    })
+
+    if (!classDoc) {
+        throw new ApiError(404, "Class not found")
+    }
+
+    const studentIndex = classDoc.students.findIndex(
+        (s) =>
+            s.user.toString() === req.user._id.toString() &&
+            s.status === "active"
+    )
+
+    if (studentIndex === -1) {
+        throw new ApiError(400, "You are not enrolled in this class")
+    }
+
+    // Mark as removed
+    classDoc.students[studentIndex].status = "removed"
+
+    // If student was CR, remove CR status
+    if (
+        classDoc.classRepresentative &&
+        classDoc.classRepresentative.toString() === req.user._id.toString()
+    ) {
+        classDoc.classRepresentative = undefined
+        classDoc.crPermissions = undefined
+    }
+
+    await classDoc.save()
+
+    return res
+        .status(200)
+        .json(new ApiResponse(200, {}, "Successfully left the class"))
+})
+
 // ✅ Enhanced get class details
 const getClassDetails = asyncHandler(async (req, res) => {
     const { classId } = req.params
@@ -192,6 +245,7 @@ const getClassDetails = asyncHandler(async (req, res) => {
     const classDetails = await Class.findById(classId)
         .populate("faculty", "fullName email") // Only basic faculty info
         .populate("students.user", "fullName email") // Only basic student info
+        .populate("classRepresentative", "fullName email") // Populate CR info
 
     if (!classDetails) {
         throw new ApiError(404, "Class not found")
@@ -221,6 +275,8 @@ const getClassDetails = asyncHandler(async (req, res) => {
         students: classDetails.students.filter((s) => s.status === "active"),
         totalStudents: classDetails.getActiveStudentsCount(),
         isArchived: classDetails.isArchived,
+        classRepresentative: classDetails.classRepresentative,
+        crPermissions: classDetails.crPermissions,
         createdAt: classDetails.createdAt,
     }
 
@@ -281,6 +337,41 @@ const addStudentsToClass = asyncHandler(async (req, res) => {
     }
 
     await classDoc.save()
+
+    // ✅ Notify added students
+    try {
+        if (addedCount > 0) {
+            const { NotificationTemplates, createBulkNotifications } =
+                await import("./notification.controller.js")
+
+            // Filter only the newly added students if possible, or just the ones in list that are now active
+            // For simplicity, we'll notify the IDs passed in `studentIds` that are actually in the class now.
+            // A better way is to track exactly which ones were pushed.
+            const addedStudentIds = studentIds.filter((id) =>
+                classDoc.students.some(
+                    (s) =>
+                        s.user.toString() === id.toString() &&
+                        s.status === "active"
+                )
+            )
+
+            if (addedStudentIds.length > 0) {
+                const notificationData = {
+                    sender: req.user._id,
+                    type: "class_assignment", // Using generic type or adding specific one
+                    title: "📚 Added to Class",
+                    message: `You have been added to the class ${classDoc.subjectName} (${classDoc.subjectCode})`,
+                    relatedClass: classDoc._id,
+                    actionUrl: `/classes/${classDoc.classCode}`,
+                }
+
+                // Use CLASS_JOINED template if preferred, but custom message is fine
+                await createBulkNotifications(addedStudentIds, notificationData)
+            }
+        }
+    } catch (error) {
+        console.error("Failed to send notifications:", error)
+    }
 
     return res.status(200).json(
         new ApiResponse(
@@ -416,6 +507,7 @@ const unarchiveClass = asyncHandler(async (req, res) => {
 // ✅ Assign class representative
 const assignClassRepresentative = asyncHandler(async (req, res) => {
     const { classId, studentId } = req.params
+    const { permissions } = req.body || {}
 
     const classDoc = await Class.findById(classId)
 
@@ -438,9 +530,17 @@ const assignClassRepresentative = asyncHandler(async (req, res) => {
         )
     }
 
-    // ✅ Assign as class representative (keep role as student)
-
+    // ✅ Assign as class representative
     classDoc.classRepresentative = studentId
+
+    // ✅ Set permissions (default or provided)
+    if (permissions) {
+        classDoc.crPermissions = {
+            ...classDoc.crPermissions,
+            ...permissions,
+        }
+    }
+
     await classDoc.save()
 
     await classDoc.populate("classRepresentative", "fullName email studentId")
@@ -450,8 +550,84 @@ const assignClassRepresentative = asyncHandler(async (req, res) => {
             200,
             {
                 classRepresentative: classDoc.classRepresentative,
+                crPermissions: classDoc.crPermissions,
             },
             "Class representative assigned successfully"
+        )
+    )
+})
+
+// ✅ Remove class representative
+const removeClassRepresentative = asyncHandler(async (req, res) => {
+    const { classId } = req.params
+
+    const classDoc = await Class.findById(classId)
+
+    if (!classDoc) {
+        throw new ApiError(404, "Class not found")
+    }
+
+    if (!classDoc.isFaculty(req.user._id)) {
+        throw new ApiError(
+            403,
+            "Only class faculty can remove class representative"
+        )
+    }
+
+    if (!classDoc.classRepresentative) {
+        throw new ApiError(400, "Class does not have a representative")
+    }
+
+    classDoc.classRepresentative = undefined
+    classDoc.crPermissions = undefined // Reset permissions
+
+    await classDoc.save()
+
+    return res
+        .status(200)
+        .json(
+            new ApiResponse(
+                200,
+                {},
+                "Class representative removed successfully"
+            )
+        )
+})
+
+// ✅ Update CR permissions
+const updateCRPermissions = asyncHandler(async (req, res) => {
+    const { classId } = req.params
+    const { permissions } = req.body
+
+    const classDoc = await Class.findById(classId)
+
+    if (!classDoc) {
+        throw new ApiError(404, "Class not found")
+    }
+
+    if (!classDoc.isFaculty(req.user._id)) {
+        throw new ApiError(403, "Only class faculty can manage CR permissions")
+    }
+
+    if (!classDoc.classRepresentative) {
+        throw new ApiError(400, "Class does not have a representative")
+    }
+
+    // ✅ Update permissions
+    classDoc.crPermissions = {
+        ...classDoc.crPermissions,
+        ...permissions,
+    }
+
+    await classDoc.save()
+
+    return res.status(200).json(
+        new ApiResponse(
+            200,
+            {
+                crPermissions: classDoc.crPermissions,
+            },
+            "CR permissions updated successfully"
         )
     )
 })
@@ -542,6 +718,9 @@ export {
     archiveClass,
     unarchiveClass,
     assignClassRepresentative,
+    removeClassRepresentative,
+    updateCRPermissions,
     joinClassWithCode,
+    leaveClass,
     getUserClasses,
 }

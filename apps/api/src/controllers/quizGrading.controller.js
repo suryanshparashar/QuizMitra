@@ -304,6 +304,34 @@ const updateAttemptMarks = asyncHandler(async (req, res) => {
 
     await attempt.save()
 
+    // ✅ Notify Student
+    try {
+        const { NotificationTemplates, createNotification } = await import(
+            "./notification.controller.js"
+        )
+
+        // Only notify if status is reviewed or completed
+        if (attempt.status === "reviewed") {
+            const newGrade = calculateGrade(attempt.percentage)
+
+            await createNotification({
+                recipient: attempt.student,
+                sender: req.user._id,
+                ...NotificationTemplates.QUIZ_GRADED,
+                message: NotificationTemplates.QUIZ_GRADED.getMessage(
+                    attempt.quiz.title,
+                    attempt.percentage.toFixed(1)
+                ),
+                relatedQuiz: attempt.quiz._id,
+                relatedQuizAttempt: attempt._id,
+                relatedClass: attempt.quiz.classId,
+                actionUrl: `/quiz/${attempt.quiz._id}/results`,
+            })
+        }
+    } catch (error) {
+        console.error("Failed to send notifications:", error)
+    }
+
     return res.status(200).json(
         new ApiResponse(
             200,
@@ -349,13 +377,19 @@ const getPendingAttempts = asyncHandler(async (req, res) => {
 
     const skip = (parseInt(page) - 1) * parseInt(limit)
 
-    // ✅ Get attempts that need review
+    // ✅ Build match conditions
+    const matchConditions = {
+        quiz: new mongoose.Types.ObjectId(quizId),
+    }
+
+    if (status !== "all") {
+        matchConditions.status = status
+    }
+
+    // ✅ Get attempts
     const pipeline = [
         {
-            $match: {
-                quiz: new mongoose.Types.ObjectId(quizId),
-                status: status, // 'graded' = auto-graded, 'reviewed' = manually reviewed
-            },
+            $match: matchConditions,
         },
 
         // Populate student details
@@ -378,22 +412,23 @@ const getPendingAttempts = asyncHandler(async (req, res) => {
                 grade: {
                     $switch: {
                         branches: [
-                            { case: { $gte: ["$percentage", 90] }, then: "A+" },
-                            { case: { $gte: ["$percentage", 80] }, then: "A" },
-                            { case: { $gte: ["$percentage", 70] }, then: "B+" },
-                            { case: { $gte: ["$percentage", 60] }, then: "B" },
-                            { case: { $gte: ["$percentage", 50] }, then: "C" },
-                            { case: { $gte: ["$percentage", 40] }, then: "D" },
+                            { case: { $gte: ["$percentage", 91] }, then: "S" },
+                            { case: { $gte: ["$percentage", 81] }, then: "A" },
+                            { case: { $gte: ["$percentage", 71] }, then: "B" },
+                            { case: { $gte: ["$percentage", 61] }, then: "C" },
+                            { case: { $gte: ["$percentage", 51] }, then: "D" },
+                            { case: { $gte: ["$percentage", 41] }, then: "E" },
                         ],
                         default: "F",
                     },
                 },
+                isPassed: { $gte: ["$percentage", 41] },
                 needsReview: {
                     $cond: [
                         {
                             $or: [
                                 { $eq: ["$status", "graded"] },
-                                { $lt: ["$percentage", 40] }, // Poor performance
+                                { $lt: ["$percentage", 41] }, // Poor performance
                                 { $eq: ["$isLateSubmission", true] },
                             ],
                         },
@@ -431,10 +466,7 @@ const getPendingAttempts = asyncHandler(async (req, res) => {
     ]
 
     const attempts = await QuizAttempt.aggregate(pipeline)
-    const totalCount = await QuizAttempt.countDocuments({
-        quiz: quizId,
-        status: status,
-    })
+    const totalCount = await QuizAttempt.countDocuments(matchConditions)
 
     return res.status(200).json(
         new ApiResponse(
@@ -499,6 +531,27 @@ const addFacultyFeedback = asyncHandler(async (req, res) => {
 
     await attempt.save()
 
+    // ✅ Notify Student
+    try {
+        const { NotificationTemplates, createNotification } = await import(
+            "./notification.controller.js"
+        )
+
+        await createNotification({
+            recipient: attempt.student,
+            sender: req.user._id,
+            type: "quiz_graded", // Reuse graded type or create specific feedback type
+            title: "💬 Feedback Added",
+            message: `Faculty added feedback to your attempt for "${attempt.quiz.title}"`,
+            relatedQuiz: attempt.quiz._id,
+            relatedQuizAttempt: attempt._id,
+            relatedClass: attempt.quiz.classId,
+            actionUrl: `/quiz/${attempt.quiz._id}/results`,
+        })
+    } catch (error) {
+        console.error("Failed to send notifications:", error)
+    }
+
     return res.status(200).json(
         new ApiResponse(
             200,
@@ -516,12 +569,12 @@ const addFacultyFeedback = asyncHandler(async (req, res) => {
 
 // Helper function for grade calculation
 const calculateGrade = (percentage) => {
-    if (percentage >= 90) return "A+"
-    if (percentage >= 80) return "A"
-    if (percentage >= 70) return "B+"
-    if (percentage >= 60) return "B"
-    if (percentage >= 50) return "C"
-    if (percentage >= 40) return "D"
+    if (percentage >= 91) return "S"
+    if (percentage >= 81) return "A"
+    if (percentage >= 71) return "B"
+    if (percentage >= 61) return "C"
+    if (percentage >= 51) return "D"
+    if (percentage >= 41) return "E"
     return "F"
 }
 

@@ -599,7 +599,188 @@ const getRecentActivity = async (userId, dateRange) => {
     ])
 }
 
-// More helper functions would go here...
+// ✅ Class Analytics Helpers
+const getClassBasicInfo = async (classId) => {
+    const classDoc = await Class.findById(classId)
+        .select("subjectName subjectCode totalStudents classRepresentative")
+        .populate("classRepresentative", "fullName")
+
+    const totalStudents = await Class.aggregate([
+        { $match: { _id: new mongoose.Types.ObjectId(classId) } },
+        { $unwind: "$students" },
+        { $match: { "students.status": "active" } },
+        { $count: "count" },
+    ])
+
+    return {
+        ...classDoc.toObject(),
+        totalStudents: totalStudents[0]?.count || 0,
+    }
+}
+
+const getClassQuizStats = async (classId, dateRange) => {
+    const quizzes = await Quiz.find({
+        classId,
+        createdAt: { $gte: dateRange.start },
+    })
+    const quizIds = quizzes.map((q) => q._id)
+
+    const stats = await QuizAttempt.aggregate([
+        { $match: { quiz: { $in: quizIds }, status: "submitted" } },
+        {
+            $group: {
+                _id: null,
+                avgScore: { $avg: "$percentage" },
+                avgTime: {
+                    $avg: { $subtract: ["$submittedAt", "$startedAt"] },
+                },
+            },
+        },
+    ])
+
+    return {
+        totalQuizzes: quizzes.length,
+        averageScore: stats[0]?.avgScore?.toFixed(2) || 0,
+        averageTimeSpent: stats[0]?.avgTime
+            ? Math.round(stats[0].avgTime / 60000)
+            : 0, // in minutes
+    }
+}
+
+const getClassStudentPerformance = async (classId, dateRange) => {
+    // Top Performers
+    const topPerformers = await getTopPerformers(
+        [new mongoose.Types.ObjectId(classId)],
+        dateRange
+    )
+
+    // Score Distribution
+    const distribution = await QuizAttempt.aggregate([
+        {
+            $match: {
+                class: new mongoose.Types.ObjectId(classId),
+                createdAt: { $gte: dateRange.start },
+                status: "submitted",
+            },
+        },
+        {
+            $bucket: {
+                groupBy: "$percentage",
+                boundaries: [0, 40, 60, 80, 101],
+                default: "Other",
+                output: { count: { $sum: 1 } },
+            },
+        },
+    ])
+
+    const labels = {
+        0: "Fail (<40%)",
+        40: "Average (40-60%)",
+        60: "Good (60-80%)",
+        80: "Excellent (>80%)",
+    }
+    const scoreDistribution = distribution.map((d) => ({
+        range: labels[d._id],
+        count: d.count,
+    }))
+
+    return {
+        topPerformers,
+        scoreDistribution,
+        passRate: 0, // Calculate if needed
+    }
+}
+
+const getClassAttendanceRate = async (classId, dateRange) => {
+    // Placeholder logic: (Total Attempts / (Total Quizzes * Total Students)) * 100
+    return 85 // Mock for now or implement complex aggregation
+}
+const getClassDifficultyAnalysis = async (classId, dateRange) => {
+    return []
+}
+const getQuizCompletionTrends = async (classId, dateRange) => {
+    return []
+}
+
+// ✅ Student Analytics Helpers
+const getStudentBasicInfo = async (studentId) => {
+    return await User.findById(studentId).select(
+        "fullName email studentId avatar"
+    )
+}
+
+const getStudentProgressTrend = async (studentId, dateRange) => {
+    return await QuizAttempt.find({
+        student: studentId,
+        status: "submitted",
+        createdAt: { $gte: dateRange.start },
+    })
+        .sort({ submittedAt: 1 })
+        .select("percentage submittedAt")
+        .populate("quiz", "title")
+        .lean()
+        .then((attempts) =>
+            attempts.map((a) => ({
+                quiz: a.quiz.title,
+                score: a.percentage,
+                date: a.submittedAt,
+            }))
+        )
+}
+
+const getStudentSubjectWisePerformance = async (studentId, dateRange) => {
+    return []
+}
+const getStudentStrengths = async (studentId, dateRange) => {
+    return []
+}
+const getStudentImprovementAreas = async (studentId, dateRange) => {
+    return []
+}
+const getStudentRecentAttempts = async (userId, dateRange) => {
+    return await QuizAttempt.find({
+        student: userId,
+        createdAt: { $gte: dateRange.start },
+    })
+        .sort({ submittedAt: -1 })
+        .limit(5)
+        .populate("quiz", "title")
+        .lean()
+}
+
+// ✅ Export Logic
+const exportClassPerformanceData = async (filters, userId) => {
+    // Flat list of student results for CSV
+    const { classId } = filters
+    const attempts = await QuizAttempt.find({
+        class: classId,
+        status: "submitted",
+    })
+        .populate("student", "fullName studentId")
+        .populate("quiz", "title totalMarks")
+        .sort({ "quiz.createdAt": 1, "student.studentId": 1 })
+
+    return attempts.map((a) => ({
+        "Student Name": a.student.fullName,
+        "Student ID": a.student.studentId,
+        "Quiz Title": a.quiz.title,
+        Score: a.score,
+        "Total Marks": a.quiz.totalMarks,
+        Percentage: a.percentage + "%",
+        "Submitted At": a.submittedAt?.toISOString(),
+    }))
+}
+
+const convertToCSV = (data) => {
+    if (!data.length) return ""
+    const headers = Object.keys(data[0]).join(",")
+    const rows = data.map((row) =>
+        Object.values(row)
+            .map((val) => `"${val}"`)
+            .join(",")
+    )
+    return [headers, ...rows].join("\n")
+}
 
 export {
     getOverallAnalytics,

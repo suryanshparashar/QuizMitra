@@ -15,6 +15,7 @@ import {
     AlertCircle,
     Loader2,
     Edit3,
+    Lock,
 } from "lucide-react"
 
 export default function Profile() {
@@ -27,6 +28,15 @@ export default function Profile() {
     const [loading, setLoading] = useState(false)
     const [message, setMessage] = useState("")
     const [messageType, setMessageType] = useState("")
+
+    const [passwordData, setPasswordData] = useState({
+        currentPassword: "",
+        newPassword: "",
+        confirmPassword: "",
+    })
+    const [loadingPassword, setLoadingPassword] = useState(false)
+    const [messagePassword, setMessagePassword] = useState("")
+    const [messagePasswordType, setMessagePasswordType] = useState("")
 
     useEffect(() => {
         if (user) {
@@ -73,6 +83,42 @@ export default function Profile() {
             console.error("Error updating avatar:", error)
             setMessage("Failed to update avatar")
             setMessageType("error")
+        }
+    }
+
+    const handlePasswordUpdate = async (e) => {
+        e.preventDefault()
+        setLoadingPassword(true)
+        setMessagePassword("")
+
+        if (passwordData.newPassword !== passwordData.confirmPassword) {
+            setMessagePassword("New passwords do not match")
+            setMessagePasswordType("error")
+            setLoadingPassword(false)
+            return
+        }
+
+        try {
+            await api.post("/users/change-password", {
+                currentPassword: passwordData.currentPassword,
+                newPassword: passwordData.newPassword,
+                confirmPassword: passwordData.confirmPassword,
+            })
+            setMessagePassword("Password updated successfully!")
+            setMessagePasswordType("success")
+            setPasswordData({
+                currentPassword: "",
+                newPassword: "",
+                confirmPassword: "",
+            })
+        } catch (error) {
+            console.error("Error updating password:", error)
+            setMessagePassword(
+                error.response?.data?.message || "Failed to update password"
+            )
+            setMessagePasswordType("error")
+        } finally {
+            setLoadingPassword(false)
         }
     }
 
@@ -167,8 +213,8 @@ export default function Profile() {
                         </div>
                     </div>
 
-                    {/* Edit Profile Form */}
-                    <div className="lg:col-span-2">
+                    {/* Edit Profile & Change Password */}
+                    <div className="lg:col-span-2 space-y-8">
                         <div className="bg-white rounded-3xl shadow-xl border border-gray-100 p-8">
                             <div className="flex items-center mb-8">
                                 <Edit3 className="w-6 h-6 mr-3 text-blue-600" />
@@ -305,6 +351,146 @@ export default function Profile() {
                                             <>
                                                 <Save className="w-4 h-4" />
                                                 <span>Update Profile</span>
+                                            </>
+                                        )}
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+
+                        {/* Change Password Card */}
+                        <div className="bg-white rounded-3xl shadow-xl border border-gray-100 p-8">
+                            <div className="flex items-center mb-8">
+                                <Lock className="w-6 h-6 mr-3 text-blue-600" />
+                                <h3 className="text-2xl font-bold text-gray-900">
+                                    Change Password
+                                </h3>
+                            </div>
+
+                            {/* Message */}
+                            {messagePassword && (
+                                <div
+                                    className={`mb-6 rounded-2xl p-4 flex items-start space-x-3 ${
+                                        messagePasswordType === "success"
+                                            ? "bg-green-50 border border-green-200"
+                                            : "bg-red-50 border border-red-200"
+                                    }`}
+                                >
+                                    {messagePasswordType === "success" ? (
+                                        <CheckCircle className="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" />
+                                    ) : (
+                                        <AlertCircle className="w-5 h-5 text-red-500 mt-0.5 flex-shrink-0" />
+                                    )}
+                                    <div>
+                                        <h3
+                                            className={`font-medium ${
+                                                messagePasswordType ===
+                                                "success"
+                                                    ? "text-green-800"
+                                                    : "text-red-800"
+                                            }`}
+                                        >
+                                            {messagePasswordType === "success"
+                                                ? "Success!"
+                                                : "Error"}
+                                        </h3>
+                                        <p
+                                            className={`text-sm mt-1 ${
+                                                messagePasswordType ===
+                                                "success"
+                                                    ? "text-green-700"
+                                                    : "text-red-700"
+                                            }`}
+                                        >
+                                            {messagePassword}
+                                        </p>
+                                    </div>
+                                </div>
+                            )}
+
+                            <form
+                                onSubmit={handlePasswordUpdate}
+                                className="space-y-6"
+                            >
+                                {/* Current Password */}
+                                <div className="space-y-2">
+                                    <label className="block text-sm font-medium text-gray-700">
+                                        Current Password
+                                    </label>
+                                    <input
+                                        type="password"
+                                        placeholder="Enter current password"
+                                        value={passwordData.currentPassword}
+                                        onChange={(e) =>
+                                            setPasswordData({
+                                                ...passwordData,
+                                                currentPassword: e.target.value,
+                                            })
+                                        }
+                                        className="block w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors bg-gray-50 focus:bg-white text-gray-900 placeholder-gray-500"
+                                        required
+                                    />
+                                </div>
+
+                                {/* New Password */}
+                                <div className="space-y-2">
+                                    <label className="block text-sm font-medium text-gray-700">
+                                        New Password
+                                    </label>
+                                    <input
+                                        type="password"
+                                        placeholder="Enter new password (min 8 chars)"
+                                        value={passwordData.newPassword}
+                                        onChange={(e) =>
+                                            setPasswordData({
+                                                ...passwordData,
+                                                newPassword: e.target.value,
+                                            })
+                                        }
+                                        className="block w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors bg-gray-50 focus:bg-white text-gray-900 placeholder-gray-500"
+                                        required
+                                        minLength={8}
+                                    />
+                                </div>
+
+                                {/* Confirm Password */}
+                                <div className="space-y-2">
+                                    <label className="block text-sm font-medium text-gray-700">
+                                        Confirm New Password
+                                    </label>
+                                    <input
+                                        type="password"
+                                        placeholder="Confirm new password"
+                                        value={passwordData.confirmPassword}
+                                        onChange={(e) =>
+                                            setPasswordData({
+                                                ...passwordData,
+                                                confirmPassword: e.target.value,
+                                            })
+                                        }
+                                        className="block w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors bg-gray-50 focus:bg-white text-gray-900 placeholder-gray-500"
+                                        required
+                                    />
+                                </div>
+
+                                {/* Submit Button */}
+                                <div className="pt-6">
+                                    <button
+                                        type="submit"
+                                        disabled={loadingPassword}
+                                        className="w-full py-3 px-4 bg-gray-900 text-white font-medium rounded-xl hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 flex items-center justify-center space-x-2"
+                                    >
+                                        {loadingPassword ? (
+                                            <>
+                                                <Loader2 className="w-4 h-4 animate-spin" />
+                                                <span>
+                                                    Updating Password...
+                                                </span>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Lock className="w-4 h-4" />
+                                                <span>Update Password</span>
                                             </>
                                         )}
                                     </button>

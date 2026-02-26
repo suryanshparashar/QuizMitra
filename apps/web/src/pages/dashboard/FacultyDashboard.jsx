@@ -13,37 +13,48 @@ import {
     CheckCircle,
 } from "lucide-react"
 import { api } from "../../services/api.js"
+import { DashboardSkeleton } from "../../components/LoadingStates"
+import { useAuthStore } from "../../store/authStore"
+import {
+    BarChart,
+    Bar,
+    XAxis,
+    YAxis,
+    CartesianGrid,
+    Tooltip,
+    Legend,
+    ResponsiveContainer,
+    LineChart,
+    Line,
+} from "recharts"
 
 export default function FacultyDashboard() {
+    const { user } = useAuthStore()
     const [dashboardData, setDashboardData] = useState(null)
     const [loading, setLoading] = useState(true)
 
+    const [analyticsData, setAnalyticsData] = useState([])
+
     useEffect(() => {
-        fetchDashboardData()
+        const fetchData = async () => {
+            try {
+                const [dashboardRes, analyticsRes] = await Promise.all([
+                    api.get("/dashboard"),
+                    api.get("/dashboard/analytics"),
+                ])
+                setDashboardData(dashboardRes.data.data)
+                setAnalyticsData(analyticsRes.data.data.chartData)
+            } catch (error) {
+                console.error("Error fetching dashboard:", error)
+            } finally {
+                setLoading(false)
+            }
+        }
+        fetchData()
     }, [])
 
-    const fetchDashboardData = async () => {
-        try {
-            const response = await api.get("/dashboard")
-            setDashboardData(response.data.data)
-        } catch (error) {
-            console.error("Error fetching dashboard:", error)
-        } finally {
-            setLoading(false)
-        }
-    }
-
     if (loading) {
-        return (
-            <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-                <div className="flex flex-col items-center space-y-4">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-                    <p className="text-gray-600 font-medium">
-                        Loading dashboard...
-                    </p>
-                </div>
-            </div>
-        )
+        return <DashboardSkeleton />
     }
 
     const getStatusColor = (status) => {
@@ -74,13 +85,26 @@ export default function FacultyDashboard() {
         <div className="min-h-screen bg-gray-50 py-8">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 {/* Header */}
-                <div className="mb-8">
-                    <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                        Faculty Dashboard
-                    </h1>
-                    <p className="text-gray-600">
-                        Manage your classes, quizzes, and track student progress
-                    </p>
+                <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                        <h1 className="text-3xl font-bold text-gray-900 mb-2">
+                            Faculty Dashboard
+                        </h1>
+                        <p className="text-gray-600">
+                            Manage your classes, quizzes, and track student
+                            progress
+                        </p>
+                    </div>
+                    {user?.facultyId && (
+                        <div className="mt-4 sm:mt-0 flex items-center bg-white px-4 py-2 rounded-lg shadow-sm border border-gray-200">
+                            <span className="text-sm text-gray-500 mr-2">
+                                Faculty ID:
+                            </span>
+                            <span className="font-mono font-medium text-blue-700">
+                                {user.facultyId}
+                            </span>
+                        </div>
+                    )}
                 </div>
 
                 {/* Overview Stats */}
@@ -145,24 +169,116 @@ export default function FacultyDashboard() {
                             <div className="flex items-center justify-between">
                                 <div>
                                     <p className="text-sm font-medium text-gray-600">
-                                        Active Quizzes
+                                        Avg Performance
                                     </p>
                                     <p className="text-3xl font-bold text-gray-900 mt-1">
                                         {dashboardData?.overview
-                                            ?.activeQuizzes || 0}
+                                            ?.averagePerformance || 0}
+                                        %
                                     </p>
                                 </div>
                                 <div className="h-12 w-12 bg-orange-100 rounded-lg flex items-center justify-center">
-                                    <Play className="h-6 w-6 text-orange-600" />
+                                    <TrendingUp className="h-6 w-6 text-orange-600" />
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
 
+                {/* Content Grid */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
+                    {/* Analytics Chart */}
+                    <div className="lg:col-span-2 bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                        <h2 className="text-xl font-semibold text-gray-900 mb-6 flex items-center">
+                            <TrendingUp className="h-5 w-5 mr-2 text-blue-600" />
+                            Performance Trend (Last 5 Quizzes)
+                        </h2>
+                        <div className="h-64">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <BarChart data={analyticsData}>
+                                    <CartesianGrid
+                                        strokeDasharray="3 3"
+                                        vertical={false}
+                                    />
+                                    <XAxis
+                                        dataKey="name"
+                                        axisLine={false}
+                                        tickLine={false}
+                                    />
+                                    <YAxis axisLine={false} tickLine={false} />
+                                    <Tooltip
+                                        contentStyle={{
+                                            borderRadius: "8px",
+                                            border: "none",
+                                            boxShadow:
+                                                "0 4px 6px -1px rgb(0 0 0 / 0.1)",
+                                        }}
+                                    />
+                                    <Bar
+                                        dataKey="avgScore"
+                                        fill="#4F46E5"
+                                        radius={[4, 4, 0, 0]}
+                                        name="Avg Score (%)"
+                                    />
+                                </BarChart>
+                            </ResponsiveContainer>
+                        </div>
+                    </div>
+
+                    {/* Recent Activities Feed */}
+                    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                        <h2 className="text-xl font-semibold text-gray-900 mb-6 flex items-center">
+                            <Clock className="h-5 w-5 mr-2 text-blue-600" />
+                            Recent Activity
+                        </h2>
+                        <div className="space-y-6">
+                            {dashboardData?.recentActivities?.map(
+                                (activity) => (
+                                    <div
+                                        key={activity.id}
+                                        className="flex items-start space-x-3"
+                                    >
+                                        <div
+                                            className={`mt-1 h-2 w-2 rounded-full ${activity.type === "quiz_created" ? "bg-blue-500" : "bg-green-500"}`}
+                                        />
+                                        <div>
+                                            <p className="text-sm font-medium text-gray-900">
+                                                {activity.title}
+                                            </p>
+                                            <p className="text-xs text-gray-500">
+                                                {activity.subtitle}
+                                            </p>
+                                            <p className="text-xs text-gray-400 mt-1">
+                                                {new Date(
+                                                    activity.timestamp
+                                                ).toLocaleDateString(
+                                                    undefined,
+                                                    {
+                                                        month: "short",
+                                                        day: "numeric",
+                                                        hour: "2-digit",
+                                                        minute: "2-digit",
+                                                    }
+                                                )}
+                                            </p>
+                                        </div>
+                                    </div>
+                                )
+                            )}
+                            {(!dashboardData?.recentActivities ||
+                                dashboardData.recentActivities.length ===
+                                    0) && (
+                                <p className="text-sm text-gray-500 text-center py-4">
+                                    No recent activity
+                                </p>
+                            )}
+                        </div>
+                    </div>
+                </div>
+
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                     {/* Your Classes */}
-                    <div className="lg:col-span-2">
+                    <div className="lg:col-span-3">
                         <div className="bg-white rounded-lg shadow-sm border border-gray-200">
                             <div className="p-6 border-b border-gray-200">
                                 <div className="flex items-center justify-between">
@@ -171,7 +287,7 @@ export default function FacultyDashboard() {
                                         Your Classes
                                     </h2>
                                     <Link to="/classes/create">
-                                        <button className="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+                                        <button className="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 cursor-pointer">
                                             <Plus className="h-4 w-4 mr-2" />
                                             Create New Class
                                         </button>
@@ -233,7 +349,7 @@ export default function FacultyDashboard() {
                                                             <Link
                                                                 to={`/classes/${classItem._id}`}
                                                             >
-                                                                <button className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-md transition-colors duration-200">
+                                                                <button className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-md transition-colors duration-200 cursor-pointer">
                                                                     <Eye className="h-4 w-4 mr-1" />
                                                                     View Details
                                                                 </button>
@@ -241,7 +357,7 @@ export default function FacultyDashboard() {
                                                             <Link
                                                                 to={`/quizzes/create?classId=${classItem._id}`}
                                                             >
-                                                                <button className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-green-600 hover:text-green-700 hover:bg-green-50 rounded-md transition-colors duration-200">
+                                                                <button className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-green-600 hover:text-green-700 hover:bg-green-50 rounded-md transition-colors duration-200 cursor-pointer">
                                                                     <Plus className="h-4 w-4 mr-1" />
                                                                     Create Quiz
                                                                 </button>
@@ -257,70 +373,7 @@ export default function FacultyDashboard() {
                         </div>
                     </div>
 
-                    {/* Recent Activities */}
-                    <div className="lg:col-span-1">
-                        <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-                            <div className="p-6 border-b border-gray-200">
-                                <h2 className="text-xl font-semibold text-gray-900 flex items-center">
-                                    <Clock className="h-5 w-5 mr-2 text-blue-600" />
-                                    Recent Activities
-                                </h2>
-                            </div>
-
-                            <div className="p-6">
-                                {dashboardData?.recentActivities?.length ===
-                                0 ? (
-                                    <div className="text-center py-8">
-                                        <Clock className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-                                        <p className="text-gray-500 text-sm">
-                                            No recent activities
-                                        </p>
-                                    </div>
-                                ) : (
-                                    <div className="space-y-4">
-                                        {dashboardData?.recentActivities?.map(
-                                            (activity) => (
-                                                <div
-                                                    key={activity._id}
-                                                    className="border-l-4 border-blue-200 pl-4 py-2"
-                                                >
-                                                    <div className="flex items-start justify-between">
-                                                        <div className="flex-1">
-                                                            <p className="text-sm font-medium text-gray-900 mb-1">
-                                                                {activity.title}
-                                                            </p>
-                                                            <div className="flex items-center mb-2">
-                                                                <span
-                                                                    className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(
-                                                                        activity.status
-                                                                    )}`}
-                                                                >
-                                                                    {getStatusIcon(
-                                                                        activity.status
-                                                                    )}
-                                                                    <span className="ml-1">
-                                                                        {
-                                                                            activity.status
-                                                                        }
-                                                                    </span>
-                                                                </span>
-                                                            </div>
-                                                            <div className="flex items-center text-xs text-gray-500">
-                                                                <Calendar className="h-3 w-3 mr-1" />
-                                                                {new Date(
-                                                                    activity.createdAt
-                                                                ).toLocaleDateString()}
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            )
-                                        )}
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    </div>
+                    {/* Old Activity Section was here, removed in favor of new layout above */}
                 </div>
             </div>
         </div>

@@ -3,12 +3,34 @@ import { useState, useEffect } from "react"
 import { useParams, Link } from "react-router-dom"
 import { api } from "../../services/api.js"
 import { useAuthStore } from "../../store/authStore.js"
+import {
+    ArrowLeft,
+    CheckCircle,
+    AlertCircle,
+    Award,
+    Clock,
+    FileText,
+    Timer,
+    Target,
+    Calendar,
+    BookOpen,
+    Edit,
+    Settings,
+    Play,
+    Eye,
+} from "lucide-react"
 
 export default function QuizDetails() {
     const { quizId } = useParams()
     const { user } = useAuthStore()
     const [quiz, setQuiz] = useState(null)
     const [loading, setLoading] = useState(true)
+
+    // Edit Dates Modal State
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false)
+    const [newScheduledAt, setNewScheduledAt] = useState("")
+    const [newDeadline, setNewDeadline] = useState("")
+    const [savingDates, setSavingDates] = useState(false)
 
     useEffect(() => {
         fetchQuiz()
@@ -31,7 +53,39 @@ export default function QuizDetails() {
             setQuiz({ ...quiz, status: "published", isPublished: true })
         } catch (error) {
             console.log(error)
-            alert("Failed to publish quiz")
+            alert(error.response?.data?.message || "Failed to publish quiz")
+        }
+    }
+
+    const handleOpenEditModal = () => {
+        setNewScheduledAt(new Date(quiz.scheduledAt).toISOString().slice(0, 16))
+        setNewDeadline(new Date(quiz.deadline).toISOString().slice(0, 16))
+        setIsEditModalOpen(true)
+    }
+
+    const handleSaveDates = async () => {
+        if (!newScheduledAt || !newDeadline) {
+            alert("Please provide both dates.")
+            return
+        }
+        setSavingDates(true)
+        try {
+            await api.patch(`/quizzes/${quizId}`, {
+                scheduledAt: newScheduledAt,
+                deadline: newDeadline,
+            })
+            // Update local state to reflect changes without full refetch immediately
+            setQuiz({
+                ...quiz,
+                scheduledAt: newScheduledAt,
+                deadline: newDeadline,
+            })
+            setIsEditModalOpen(false)
+        } catch (error) {
+            console.log(error)
+            alert(error.response?.data?.message || "Failed to save dates")
+        } finally {
+            setSavingDates(false)
         }
     }
 
@@ -288,16 +342,43 @@ export default function QuizDetails() {
                             <div className="space-y-4">
                                 {/* Faculty Controls */}
                                 {user?.role === "faculty" &&
-                                    quiz.userId === user._id && (
+                                    (quiz.userId?._id === user._id ||
+                                        quiz.userId === user._id) && (
                                         <>
-                                            {quiz.status === "draft" && (
-                                                <button
-                                                    onClick={handlePublish}
-                                                    className="w-full inline-flex items-center justify-center px-4 py-3 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
-                                                >
-                                                    <Play className="h-4 w-4 mr-2" />
-                                                    Publish Quiz
-                                                </button>
+                                            {(quiz.status === "draft" ||
+                                                new Date(quiz.deadline) <
+                                                    new Date()) && (
+                                                <>
+                                                    <button
+                                                        onClick={handlePublish}
+                                                        className="w-full inline-flex items-center justify-center px-4 py-3 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 mb-3"
+                                                    >
+                                                        <Play className="h-4 w-4 mr-2" />
+                                                        {quiz.status === "draft"
+                                                            ? "Publish Quiz"
+                                                            : "Re-publish Quiz"}
+                                                    </button>
+
+                                                    <Link
+                                                        to={`/quizzes/${quizId}/edit`}
+                                                        className="block mb-3"
+                                                    >
+                                                        <button className="w-full inline-flex items-center justify-center px-4 py-3 bg-white text-gray-700 border border-gray-300 text-sm font-medium rounded-lg hover:bg-gray-50 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2">
+                                                            <Edit className="h-4 w-4 mr-2" />
+                                                            Edit Questions
+                                                        </button>
+                                                    </Link>
+
+                                                    <button
+                                                        onClick={
+                                                            handleOpenEditModal
+                                                        }
+                                                        className="w-full inline-flex items-center justify-center px-4 py-3 bg-white text-gray-700 border border-gray-300 text-sm font-medium rounded-lg hover:bg-gray-50 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 mb-3"
+                                                    >
+                                                        <Calendar className="h-4 w-4 mr-2" />
+                                                        Edit Timings
+                                                    </button>
+                                                </>
                                             )}
 
                                             <Link
@@ -313,18 +394,47 @@ export default function QuizDetails() {
                                     )}
 
                                 {/* Student Controls */}
-                                {user?.role === "student" &&
-                                    quiz.canTakeQuiz && (
-                                        <Link
-                                            to={`/quizzes/${quizId}/take`}
-                                            className="block"
-                                        >
-                                            <button className="w-full inline-flex items-center justify-center px-4 py-3 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
-                                                <Play className="h-4 w-4 mr-2" />
-                                                Take Quiz
-                                            </button>
-                                        </Link>
-                                    )}
+                                {user?.role === "student" && (
+                                    <div className="space-y-3">
+                                        {quiz.userAttempt ? (
+                                            <div className="bg-green-50 text-green-800 p-4 rounded-lg flex flex-col border border-green-200">
+                                                <div className="flex items-center mb-2">
+                                                    <CheckCircle className="h-5 w-5 mr-2 flex-shrink-0" />
+                                                    <p className="font-medium text-sm">
+                                                        You have already
+                                                        completed this quiz.
+                                                    </p>
+                                                </div>
+                                                <Link
+                                                    to={`/quiz-results/${quiz.userAttempt._id}`}
+                                                    className="inline-flex items-center justify-center px-4 py-2 mt-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition-colors duration-200"
+                                                >
+                                                    <Eye className="h-4 w-4 mr-2" />
+                                                    View Results
+                                                </Link>
+                                            </div>
+                                        ) : !quiz.canTakeQuiz ? (
+                                            <div className="bg-yellow-50 text-yellow-800 p-4 rounded-lg flex items-center border border-yellow-200">
+                                                <Clock className="h-5 w-5 mr-2 flex-shrink-0" />
+                                                <p className="font-medium text-sm">
+                                                    This quiz is not currently
+                                                    active. Check the schedule
+                                                    above.
+                                                </p>
+                                            </div>
+                                        ) : (
+                                            <Link
+                                                to={`/quizzes/${quizId}/take`}
+                                                className="block"
+                                            >
+                                                <button className="w-full inline-flex items-center justify-center px-4 py-3 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
+                                                    <Play className="h-4 w-4 mr-2" />
+                                                    Take Quiz
+                                                </button>
+                                            </Link>
+                                        )}
+                                    </div>
+                                )}
                             </div>
 
                             {/* Quiz Stats */}
@@ -363,6 +473,85 @@ export default function QuizDetails() {
                     </div>
                 </div>
             </div>
+
+            {/* Edit Dates Modal */}
+            {isEditModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center overflow-x-hidden overflow-y-auto outline-none focus:outline-none">
+                    <div
+                        className="fixed inset-0 bg-black/50 backdrop-blur-sm transition-opacity"
+                        onClick={() => setIsEditModalOpen(false)}
+                    ></div>
+                    <div className="relative w-full max-w-md p-6 mx-auto bg-white rounded-xl shadow-2xl z-10">
+                        <div className="flex items-center justify-between mb-5">
+                            <h3 className="text-xl font-bold text-gray-900">
+                                Edit Timings
+                            </h3>
+                            <button
+                                className="text-gray-400 hover:text-gray-500 focus:outline-none"
+                                onClick={() => setIsEditModalOpen(false)}
+                            >
+                                <span className="sr-only">Close</span>
+                                <svg
+                                    className="w-6 h-6"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor"
+                                >
+                                    <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={2}
+                                        d="M6 18L18 6M6 6l12 12"
+                                    />
+                                </svg>
+                            </button>
+                        </div>
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    Scheduled Start Time
+                                </label>
+                                <input
+                                    type="datetime-local"
+                                    value={newScheduledAt}
+                                    onChange={(e) =>
+                                        setNewScheduledAt(e.target.value)
+                                    }
+                                    className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    Deadline (End Time)
+                                </label>
+                                <input
+                                    type="datetime-local"
+                                    value={newDeadline}
+                                    onChange={(e) =>
+                                        setNewDeadline(e.target.value)
+                                    }
+                                    className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                />
+                            </div>
+                        </div>
+                        <div className="mt-6 flex justify-end space-x-3">
+                            <button
+                                onClick={() => setIsEditModalOpen(false)}
+                                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleSaveDates}
+                                disabled={savingDates}
+                                className="inline-flex justify-center px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                            >
+                                {savingDates ? "Saving..." : "Save Dates"}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     )
 }

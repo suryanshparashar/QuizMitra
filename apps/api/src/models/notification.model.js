@@ -265,7 +265,6 @@ notificationSchema.index({ recipient: 1, isStarred: 1, createdAt: -1 })
 notificationSchema.index({ groupKey: 1, recipient: 1 })
 notificationSchema.index({ scheduledFor: 1, isScheduled: 1 })
 notificationSchema.index({ createdAt: -1 })
-notificationSchema.index({ expiresAt: 1 }, { sparse: true })
 
 // ✅ Virtual Fields
 notificationSchema.virtual("isRecent").get(function () {

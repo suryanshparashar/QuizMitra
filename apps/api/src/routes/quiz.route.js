@@ -3,10 +3,11 @@ import { Router } from "express"
 import { verifyJWT } from "../middlewares/auth.middleware.js"
 import { upload } from "../middlewares/multer.middleware.js"
 import {
-    generateQuizFromPDF,
+    generateQuiz,
     getQuiz,
     publishQuiz,
     getUserQuizzes,
+    getStudentQuizzes,
     deleteQuiz,
     updateQuiz,
     duplicateQuiz,
@@ -23,12 +24,11 @@ const router = Router()
 router.use(verifyJWT)
 
 // Quiz creation and management
-router
-    .route("/generate-from-pdf")
-    .post(upload.single("pdf"), generateQuizFromPDF)
+router.route("/generate").post(upload.single("pdf"), generateQuiz)
 
 // router.route("/create-manual").post(createQuizManual) // Manual quiz creation
 router.route("/my-quizzes").get(getUserQuizzes) // User's created quizzes
+router.route("/student/quizzes").get(getStudentQuizzes) // Student's assigned quizzes
 router.route("/class/:classId/quizzes").get(getClassQuizzes) // Class quizzes
 
 // Individual quiz operations

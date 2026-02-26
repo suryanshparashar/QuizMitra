@@ -11,6 +11,7 @@ import {
     Loader2,
     GraduationCap,
 } from "lucide-react"
+import { showToast } from "../../components/Toast"
 
 export default function Login() {
     const [formData, setFormData] = useState({ email: "", password: "" })
@@ -38,12 +39,12 @@ export default function Login() {
 
         try {
             await login(formData.email, formData.password)
-            console.log("Login successful")
+            showToast.success("Welcome back!")
             navigate("/dashboard")
         } catch (err) {
-            console.error("Login failed:", err.message)
-            setError(err.response?.data?.message || "Login failed")
-            console.error("Login error:", err.response.data.message)
+            const msg = err.response?.data?.message || "Login failed"
+            setError(msg)
+            showToast.error(msg)
             setTimeout(() => setError(""), 5000)
         } finally {
             setLoading(false)

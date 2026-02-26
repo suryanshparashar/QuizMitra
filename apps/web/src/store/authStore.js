@@ -38,6 +38,24 @@ export const useAuthStore = create()(
                 console.log("Registration response:", response)
             },
 
+            // Send OTP
+            sendOtp: async (email, fullName) => {
+                const response = await api.post("/auth/send-otp", {
+                    email,
+                    fullName,
+                })
+                return response.data
+            },
+
+            // Verify OTP
+            verifyOtp: async (email, otp) => {
+                const response = await api.post("/auth/verify-otp", {
+                    email,
+                    otp,
+                })
+                return response.data
+            },
+
             // Logout
             logout: async () => {
                 try {
@@ -45,7 +63,11 @@ export const useAuthStore = create()(
                 } catch (error) {
                     console.error("Logout error:", error)
                 } finally {
-                    set({ user: null, accessToken: null, isAuthenticated: false })
+                    set({
+                        user: null,
+                        accessToken: null,
+                        isAuthenticated: false,
+                    })
                 }
             },
 
@@ -65,4 +87,3 @@ export const useAuthStore = create()(
         }
     )
 )
-

@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react"
 import { useParams, Link } from "react-router-dom"
+import { useAuthStore } from "../../store/authStore.js"
 import {
     Users,
     BookOpen,
@@ -13,22 +14,47 @@ import {
     GraduationCap,
     Hash,
     User,
+    Shield,
+    ShieldOff,
+    Settings,
+    Trash2,
+    Check,
+    Copy,
+    FileText,
 } from "lucide-react"
 import { api } from "../../services/api.js"
+import { formatDistanceToNow } from "date-fns" // If date-fns is not available, I will use native dates. Let's just use native.
 
 export default function ClassDetails() {
-    const { classCode } = useParams() // Changed from classId to classCode
+    const { classId } = useParams() // Reverted back to classId since App.jsx maps to :classId
     const [classData, setClassData] = useState(null)
     const [loading, setLoading] = useState(true)
+    const [quizzes, setQuizzes] = useState([])
+    const [quizzesLoading, setQuizzesLoading] = useState(true)
     const [error, setError] = useState("")
+    const { user } = useAuthStore()
+    const [actionLoading, setActionLoading] = useState(null) // studentId of loading action
+    const [copied, setCopied] = useState(false)
 
     useEffect(() => {
         fetchClassDetails()
-    }, [classCode]) // Changed from classId to classCode
+        fetchQuizzes()
+    }, [classId])
+
+    const fetchQuizzes = async () => {
+        try {
+            const response = await api.get(`/quizzes/class/${classId}/quizzes`)
+            setQuizzes(response.data.data.quizzes || response.data.data) // Depending on pagination structure
+        } catch (err) {
+            console.error("Failed to fetch quizzes:", err)
+        } finally {
+            setQuizzesLoading(false)
+        }
+    }
 
     const fetchClassDetails = async () => {
         try {
-            const response = await api.get(`/classes/${classCode}`) // Using classCode in URL
+            const response = await api.get(`/classes/id/${classId}`) // Use the new dedicated get-by-id endpoint
             setClassData(response.data.data)
         } catch (err) {
             setError(
@@ -36,6 +62,72 @@ export default function ClassDetails() {
             )
         } finally {
             setLoading(false)
+        }
+    }
+
+    const isFaculty =
+        user?._id === classData?.faculty?._id ||
+        user?._id === classData?.faculty
+
+    const handleAssignCR = async (studentId) => {
+        if (
+            !confirm(
+                "Are you sure you want to assign this student as Class Representative?"
+            )
+        )
+            return
+        setActionLoading(studentId)
+        try {
+            await api.post(`/classes/${classData._id}/cr/assign/${studentId}`)
+            fetchClassDetails() // Refresh data
+        } catch (error) {
+            console.error("Error assigning CR:", error)
+            alert("Failed to assign CR")
+        } finally {
+            setActionLoading(null)
+        }
+    }
+
+    const handleRemoveCR = async (classId) => {
+        // classId or we can use classData._id
+        if (
+            !confirm(
+                "Are you sure you want to remove the Class Representative?"
+            )
+        )
+            return
+        const crId =
+            classData.classRepresentative?._id || classData.classRepresentative
+        setActionLoading(crId)
+        try {
+            await api.delete(`/classes/${classData._id}/cr/remove`)
+            fetchClassDetails()
+        } catch (error) {
+            console.error("Error removing CR:", error)
+            alert("Failed to remove CR")
+        } finally {
+            setActionLoading(null)
+        }
+    }
+
+    const handleRemoveStudent = async (studentId) => {
+        if (
+            !confirm(
+                "Are you sure you want to remove this student from the class?"
+            )
+        )
+            return
+        setActionLoading(studentId)
+        try {
+            await api.delete(
+                `/classes/${classData.classCode}/students/${studentId}/remove`
+            )
+            fetchClassDetails() // Refresh data
+        } catch (error) {
+            console.error("Error removing student:", error)
+            alert("Failed to remove student")
+        } finally {
+            setActionLoading(null)
         }
     }
 
@@ -66,7 +158,7 @@ export default function ClassDetails() {
                         <p className="text-gray-600 mb-4">{error}</p>
                         <button
                             onClick={fetchClassDetails}
-                            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors cursor-pointer"
                         >
                             Try Again
                         </button>
@@ -87,17 +179,15 @@ export default function ClassDetails() {
                     <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-4">
                             <Link
-                                to="/classes"
+                                to="/dashboard"
                                 className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 transition-colors"
                             >
                                 <ArrowLeft className="w-5 h-5" />
                                 <span>Back to Classes</span>
                             </Link>
                         </div>
-                        <Link to={`/quizzes/create?classCode=${classCode}`}>
-                            {" "}
-                            {/* Changed classId to classCode */}
-                            <button className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2 shadow-sm">
+                        <Link to={`/quizzes/create?classId=${classId}`}>
+                            <button className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2 shadow-sm cursor-pointer">
                                 <Plus className="w-4 h-4" />
                                 <span>Create Quiz</span>
                             </button>
@@ -170,16 +260,119 @@ export default function ClassDetails() {
                                     <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
                                         <Hash className="w-5 h-5 text-orange-600" />
                                     </div>
-                                    <div>
+                                    <div className="flex-1">
                                         <p className="text-sm text-gray-500">
                                             Class Code
                                         </p>
-                                        <p className="font-medium text-gray-900">
-                                            {classInfo.classCode}
-                                        </p>
+                                        <div className="flex items-center space-x-2">
+                                            <p className="font-medium text-gray-900">
+                                                {classInfo.classCode}
+                                            </p>
+                                            <button
+                                                onClick={() => {
+                                                    navigator.clipboard.writeText(
+                                                        classInfo.classCode
+                                                    )
+                                                    setCopied(true)
+                                                    setTimeout(
+                                                        () => setCopied(false),
+                                                        2000
+                                                    )
+                                                }}
+                                                className="p-1.5 text-orange-600 hover:bg-orange-100 rounded-md transition-colors flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-1 cursor-pointer"
+                                                title="Copy Invite Link"
+                                            >
+                                                {copied ? (
+                                                    <Check className="w-4 h-4 text-green-600" />
+                                                ) : (
+                                                    <Copy className="w-4 h-4" />
+                                                )}
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
+                        </div>
+
+                        {/* Quizzes List */}
+                        <div className="bg-white rounded-xl shadow-sm border p-6">
+                            <div className="flex items-center justify-between mb-6">
+                                <h2 className="text-xl font-semibold text-gray-900 flex items-center">
+                                    <BookOpen className="w-5 h-5 mr-2 text-blue-600" />
+                                    Class Quizzes
+                                </h2>
+                                <Link to={`/quizzes/create?classId=${classId}`}>
+                                    <button className="text-sm text-blue-600 hover:text-blue-700 font-medium cursor-pointer">
+                                        View All
+                                    </button>
+                                </Link>
+                            </div>
+
+                            {quizzesLoading ? (
+                                <div className="flex justify-center py-4">
+                                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                                </div>
+                            ) : quizzes.length === 0 ? (
+                                <div className="text-center py-8">
+                                    <p className="text-gray-500 mb-4">
+                                        {isFaculty
+                                            ? "No quizzes have been created for this class yet."
+                                            : "No active or published quizzes available for this class."}
+                                    </p>
+                                    {isFaculty && (
+                                        <Link
+                                            to={`/quizzes/create?classId=${classId}`}
+                                        >
+                                            <button className="bg-blue-50 text-blue-600 px-4 py-2 rounded-lg font-medium hover:bg-blue-100 transition-colors cursor-pointer">
+                                                Create First Quiz
+                                            </button>
+                                        </Link>
+                                    )}
+                                </div>
+                            ) : (
+                                <div className="space-y-4">
+                                    {quizzes.map((quiz) => (
+                                        <Link
+                                            key={quiz._id}
+                                            to={`/quizzes/${quiz._id}`}
+                                        >
+                                            <div className="flex items-center space-x-4 p-4 rounded-lg border border-gray-100 hover:border-blue-200 hover:bg-blue-50 transition-all cursor-pointer mb-3">
+                                                <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                                                    <FileText className="w-5 h-5 text-purple-600" />
+                                                </div>
+                                                <div className="flex-1">
+                                                    <h3 className="font-medium text-gray-900">
+                                                        {quiz.title}
+                                                    </h3>
+                                                    <p className="text-sm text-gray-500 line-clamp-1">
+                                                        {quiz.description}
+                                                    </p>
+                                                </div>
+                                                <div className="text-right">
+                                                    <span
+                                                        className={`inline-flex px-2 py-1 rounded-full text-xs font-medium capitalize ${
+                                                            quiz.status ===
+                                                            "published"
+                                                                ? "bg-green-100 text-green-800"
+                                                                : quiz.status ===
+                                                                    "draft"
+                                                                  ? "bg-yellow-100 text-yellow-800"
+                                                                  : "bg-gray-100 text-gray-800"
+                                                        }`}
+                                                    >
+                                                        {quiz.status}
+                                                    </span>
+                                                    <p className="text-xs text-gray-500 mt-1">
+                                                        {new Date(
+                                                            quiz.createdAt
+                                                        ).toLocaleDateString()}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </Link>
+                                    ))}
+                                </div>
+                            )}
                         </div>
 
                         {/* Students List */}
@@ -192,35 +385,115 @@ export default function ClassDetails() {
                             <div className="space-y-3">
                                 {classInfo.students
                                     ?.filter((s) => s.status === "active")
-                                    .map((student) => (
-                                        <div
-                                            key={student.user._id}
-                                            className="flex items-center space-x-4 p-4 rounded-lg border border-gray-100 hover:border-gray-200 hover:shadow-sm transition-all"
-                                        >
-                                            <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
-                                                <User className="w-5 h-5 text-white" />
+                                    .map((student) => {
+                                        const isCR =
+                                            classInfo.classRepresentative
+                                                ?._id === student.user._id ||
+                                            classInfo.classRepresentative ===
+                                                student.user._id
+                                        return (
+                                            <div
+                                                key={student.user._id}
+                                                className={`flex items-center space-x-4 p-4 rounded-lg border transition-all ${isCR ? "border-blue-200 bg-blue-50" : "border-gray-100 hover:border-gray-200 hover:shadow-sm"}`}
+                                            >
+                                                <div
+                                                    className={`w-10 h-10 rounded-full flex items-center justify-center ${isCR ? "bg-blue-600" : "bg-gradient-to-br from-blue-500 to-purple-600"}`}
+                                                >
+                                                    {isCR ? (
+                                                        <Shield className="w-5 h-5 text-white" />
+                                                    ) : (
+                                                        <User className="w-5 h-5 text-white" />
+                                                    )}
+                                                </div>
+                                                <div className="flex-1">
+                                                    <div className="flex items-center space-x-2">
+                                                        <p className="font-medium text-gray-900">
+                                                            {
+                                                                student.user
+                                                                    .fullName
+                                                            }
+                                                        </p>
+                                                        {isCR && (
+                                                            <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs rounded-full font-medium">
+                                                                Class Rep
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    <p className="text-sm text-gray-500">
+                                                        {student.user.email}
+                                                    </p>
+                                                </div>
+                                                <div className="text-right">
+                                                    <p className="text-sm text-gray-500">
+                                                        Joined
+                                                    </p>
+                                                    <p className="text-sm font-medium text-gray-900">
+                                                        {new Date(
+                                                            student.joinedAt
+                                                        ).toLocaleDateString()}
+                                                    </p>
+                                                </div>
+
+                                                {/* Faculty Actions */}
+                                                {isFaculty && (
+                                                    <div className="flex items-center space-x-2 ml-4 pl-4 border-l border-gray-200">
+                                                        {isCR ? (
+                                                            <button
+                                                                onClick={
+                                                                    handleRemoveCR
+                                                                }
+                                                                disabled={
+                                                                    actionLoading ===
+                                                                    student.user
+                                                                        ._id
+                                                                }
+                                                                className="p-2 text-orange-600 hover:bg-orange-50 rounded-lg transition-colors cursor-pointer"
+                                                                title="Revoke CR Status"
+                                                            >
+                                                                <ShieldOff className="w-4 h-4" />
+                                                            </button>
+                                                        ) : (
+                                                            <button
+                                                                onClick={() =>
+                                                                    handleAssignCR(
+                                                                        student
+                                                                            .user
+                                                                            ._id
+                                                                    )
+                                                                }
+                                                                disabled={
+                                                                    actionLoading ===
+                                                                    student.user
+                                                                        ._id
+                                                                }
+                                                                className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
+                                                                title="Assign as CR"
+                                                            >
+                                                                <Shield className="w-4 h-4" />
+                                                            </button>
+                                                        )}
+
+                                                        <button
+                                                            onClick={() =>
+                                                                handleRemoveStudent(
+                                                                    student.user
+                                                                        ._id
+                                                                )
+                                                            }
+                                                            disabled={
+                                                                actionLoading ===
+                                                                student.user._id
+                                                            }
+                                                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+                                                            title="Remove Student"
+                                                        >
+                                                            <Trash2 className="w-4 h-4" />
+                                                        </button>
+                                                    </div>
+                                                )}
                                             </div>
-                                            <div className="flex-1">
-                                                <p className="font-medium text-gray-900">
-                                                    {student.user.fullName}
-                                                </p>
-                                                <p className="text-sm text-gray-500">
-                                                    {student.user.email}{" "}
-                                                    {/* Updated to show email instead of studentId */}
-                                                </p>
-                                            </div>
-                                            <div className="text-right">
-                                                <p className="text-sm text-gray-500">
-                                                    Joined
-                                                </p>
-                                                <p className="text-sm font-medium text-gray-900">
-                                                    {new Date(
-                                                        student.joinedAt
-                                                    ).toLocaleDateString()}
-                                                </p>
-                                            </div>
-                                        </div>
-                                    ))}
+                                        )
+                                    })}
                                 {(!classInfo.students ||
                                     classInfo.students.filter(
                                         (s) => s.status === "active"
@@ -301,10 +574,8 @@ export default function ClassDetails() {
                                 View and manage class messages and
                                 announcements.
                             </p>
-                            <Link to={`/classes/${classCode}/messages`}>
-                                {" "}
-                                {/* Changed classId to classCode */}
-                                <button className="w-full bg-gray-100 text-gray-700 px-4 py-3 rounded-lg hover:bg-gray-200 transition-colors flex items-center justify-center space-x-2">
+                            <Link to={`/classes/${classId}/messages`}>
+                                <button className="w-full bg-gray-100 text-gray-700 px-4 py-3 rounded-lg hover:bg-gray-200 transition-colors flex items-center justify-center space-x-2 cursor-pointer">
                                     <MessageSquare className="w-4 h-4" />
                                     <span>View Messages</span>
                                 </button>

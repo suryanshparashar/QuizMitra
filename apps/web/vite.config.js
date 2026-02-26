@@ -6,10 +6,10 @@ import tailwindcss from "@tailwindcss/vite"
 export default defineConfig({
     server: {
         host: "0.0.0.0",
-        // port: 54000,
+        port: 54000,
         proxy: {
             "/api/v1": {
-                target: "http://localhost:8080",
+                target: "http://localhost:24000",
                 changeOrigin: true,
                 // rewrite: (path) => path.replace(/^\/api\/v1/, "/api/v1"),
             },

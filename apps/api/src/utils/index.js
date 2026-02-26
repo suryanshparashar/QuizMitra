@@ -1,10 +1,15 @@
 import { ApiError } from "./ApiError.js"
 import { ApiResponse } from "./ApiResponse.js"
 import { asyncHandler } from "./asyncHandler.js"
-import { uploadOnCloudinary, deleteLocalFile } from "./cloudinary.js"
+import {
+    uploadOnCloudinary,
+    deleteLocalFile,
+    deleteFromCloudinary,
+} from "./cloudinary.js"
 import {
     sendVerificationEmail,
     sendPasswordResetEmail,
+    sendOTPEmail,
 } from "./emailService.js"
 
 export {
@@ -13,6 +18,8 @@ export {
     asyncHandler,
     uploadOnCloudinary,
     deleteLocalFile,
+    deleteFromCloudinary,
     sendVerificationEmail,
     sendPasswordResetEmail,
+    sendOTPEmail,
 }

@@ -60,14 +60,14 @@ export default function NotFound() {
                     <div className="flex flex-col sm:flex-row gap-4 justify-center">
                         <button
                             onClick={() => window.history.back()}
-                            className="flex items-center justify-center space-x-2 px-6 py-3 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5 font-medium"
+                            className="flex items-center justify-center space-x-2 px-6 py-3 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5 font-medium cursor-pointer"
                         >
                             <ArrowLeft className="w-5 h-5" />
                             <span>Go Back</span>
                         </button>
 
                         <Link to="/dashboard">
-                            <button className="flex items-center justify-center space-x-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:from-blue-700 hover:to-indigo-700 transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 font-medium">
+                            <button className="flex items-center justify-center space-x-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:from-blue-700 hover:to-indigo-700 transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 font-medium cursor-pointer">
                                 <Home className="w-5 h-5" />
                                 <span>Go to Dashboard</span>
                             </button>

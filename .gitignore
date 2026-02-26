@@ -1,7 +1,10 @@
 **/.env
+**/.env.*
 **/node_modules/
 **/dist/
 
 .prettierignore
 .prettierrc
 .vercel
+
+dev.src

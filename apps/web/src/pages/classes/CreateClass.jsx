@@ -59,28 +59,28 @@ export default function CreateClass() {
         {
             key: "subjectCode",
             label: "Subject Code",
-            placeholder: "e.g., CS101",
+            placeholder: "e.g., CSE1001",
             icon: BookOpen,
             type: "text",
         },
         {
             key: "semester",
             label: "Semester",
-            placeholder: "e.g., Fall 2024",
+            placeholder: "e.g., Winter 2025-26",
             icon: Calendar,
             type: "text",
         },
         {
             key: "classSlot",
             label: "Class Slot",
-            placeholder: "e.g., Mon-Wed-Fri 10:00-11:00",
+            placeholder: "e.g., A11 + A12 + A13",
             icon: Clock,
             type: "text",
         },
         {
             key: "venue",
             label: "Venue",
-            placeholder: "e.g., Room 101, Building A",
+            placeholder: "e.g., AB02 019",
             icon: MapPin,
             type: "text",
         },
@@ -94,7 +94,7 @@ export default function CreateClass() {
         {
             key: "academicYear",
             label: "Academic Year",
-            placeholder: "e.g., 2024-2025",
+            placeholder: "e.g., 2025-2026",
             icon: GraduationCap,
             type: "text",
         },
@@ -108,7 +108,7 @@ export default function CreateClass() {
                     <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-4">
                             <Link
-                                to="/classes"
+                                to="/dashboard"
                                 className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 transition-colors group"
                             >
                                 <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
@@ -194,7 +194,7 @@ export default function CreateClass() {
 
                             {/* Form Actions */}
                             <div className="flex items-center justify-end space-x-4 pt-6 border-t border-gray-100">
-                                <Link to="/classes">
+                                <Link to="/dashboard">
                                     <button
                                         type="button"
                                         className="px-6 py-3 border border-gray-300 rounded-xl text-gray-700 font-medium hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors"

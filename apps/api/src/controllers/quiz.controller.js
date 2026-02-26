@@ -3,18 +3,25 @@ import { Class } from "../models/class.model.js"
 import { Quiz } from "../models/quiz.model.js"
 import { QuizAttempt } from "../models/quizAttempt.model.js"
 import { User } from "../models/user.model.js"
-import { asyncHandler, ApiError, ApiResponse } from "../utils/index.js"
-import { generateQuestionsFromPDF } from "../services/ai.service.js"
+import {
+    asyncHandler,
+    ApiError,
+    ApiResponse,
+    uploadOnCloudinary,
+    deleteFromCloudinary,
+} from "../utils/index.js"
+import { generateQuestions } from "../services/quizGraph.service.js"
 import mongoose from "mongoose"
 
 // ✅ Enhanced PDF quiz generation
-const generateQuizFromPDF = asyncHandler(async (req, res) => {
+// ✅ Enhanced Quiz Generation (PDF or Topic)
+const generateQuiz = asyncHandler(async (req, res) => {
     // ✅ Validate faculty role
     if (req.user.role !== "faculty") {
         throw new ApiError(403, "Only faculty members can generate quizzes")
     }
 
-    // ✅ Get data from request body (not params)
+    // ✅ Get data from request body
     const {
         classId,
         title,
@@ -23,6 +30,7 @@ const generateQuizFromPDF = asyncHandler(async (req, res) => {
         duration,
         scheduledAt,
         deadline,
+        topic, // ✅ New field
         tags = [],
         settings = {},
     } = req.body
@@ -36,29 +44,51 @@ const generateQuizFromPDF = asyncHandler(async (req, res) => {
         throw new ApiError(400, "Invalid class ID format")
     }
 
-    if (
-        !title ||
-        !description ||
-        !requirements ||
-        !duration ||
-        !scheduledAt ||
-        !deadline
-    ) {
+    if (!title || !requirements || !duration || !scheduledAt || !deadline) {
         throw new ApiError(400, "All required fields must be provided")
     }
 
-    if (!req.file) {
-        throw new ApiError(400, "PDF file is required")
-    }
+    // ✅ Determine input type
+    let inputObj
+    let inputType
+    let inputName
 
-    // ✅ Validate file type and size
-    if (req.file.mimetype !== "application/pdf") {
-        throw new ApiError(400, "Only PDF files are allowed")
-    }
+    if (req.file) {
+        // PDF Mode
+        if (req.file.mimetype !== "application/pdf") {
+            throw new ApiError(400, "Only PDF files are allowed")
+        }
+        if (req.file.size > 10 * 1024 * 1024) {
+            throw new ApiError(400, "PDF file size cannot exceed 10MB")
+        }
+        inputObj = { type: "pdf", data: req.file.buffer }
+        inputType = "pdf"
+        inputName = req.file.originalname
 
-    if (req.file.size > 10 * 1024 * 1024) {
-        // 10MB
-        throw new ApiError(400, "PDF file size cannot exceed 10MB")
+        // ✅ Upload PDF to Cloudinary
+        const uploadResponse = await uploadOnCloudinary(
+            req.file.buffer,
+            req.file.originalname
+        )
+        if (uploadResponse) {
+            inputObj.pdfFile = {
+                url: uploadResponse.secure_url,
+                publicId: uploadResponse.public_id,
+            }
+        }
+    } else if (topic && topic.trim().length > 0) {
+        // Topic Mode
+        if (topic.length > 200) {
+            throw new ApiError(400, "Topic cannot exceed 200 characters")
+        }
+        inputObj = { type: "topic", data: topic.trim() }
+        inputType = "topic"
+        inputName = topic.trim()
+    } else {
+        throw new ApiError(
+            400,
+            "Either a PDF file or a Valid Topic is required"
+        )
     }
 
     // ✅ Verify class exists and user has permission
@@ -94,7 +124,7 @@ const generateQuizFromPDF = asyncHandler(async (req, res) => {
         "numQuestions",
         "difficultyLevel",
         "questionTypes",
-        "topics",
+        // "topics", // Not required for generic generation
         "marksPerQuestion",
         "totalMarks",
     ]
@@ -141,21 +171,21 @@ const generateQuizFromPDF = asyncHandler(async (req, res) => {
         )
     }
 
-    // ✅ Generate questions from PDF
+    // ✅ Generate questions
     let generatedQuestions
     try {
         console.log(
-            `Generating ${parsedRequirements.numQuestions} questions from PDF...`
+            `Generating ${parsedRequirements.numQuestions} questions from ${inputType}...`
         )
-        generatedQuestions = await generateQuestionsFromPDF(
-            req.file.buffer,
+        generatedQuestions = await generateQuestions(
+            inputObj,
             parsedRequirements
         )
 
         if (!generatedQuestions || generatedQuestions.length === 0) {
             throw new ApiError(
                 500,
-                "No questions could be generated from the PDF"
+                `No questions could be generated from the ${inputType}`
             )
         }
 
@@ -170,7 +200,7 @@ const generateQuizFromPDF = asyncHandler(async (req, res) => {
         if (error.message?.includes("timeout")) {
             throw new ApiError(
                 408,
-                "AI processing timed out. Please try with a smaller PDF."
+                "AI processing timed out. Please try with a smaller input."
             )
         }
 
@@ -187,7 +217,7 @@ const generateQuizFromPDF = asyncHandler(async (req, res) => {
 
         throw new ApiError(
             500,
-            "Failed to generate questions from PDF. Please try again."
+            "Failed to generate questions. Please try again."
         )
     }
 
@@ -196,14 +226,14 @@ const generateQuizFromPDF = asyncHandler(async (req, res) => {
         userId: req.user._id,
         classId: classId,
         title: title.trim(),
-        description: description.trim(),
-        input: req.file.originalname, // ✅ Required field
-        inputType: "pdf", // ✅ Add input type
+        description: description?.trim() || "",
+        input: inputName,
+        inputType: inputType,
         requirements: {
             numQuestions: parsedRequirements.numQuestions,
             difficultyLevel: parsedRequirements.difficultyLevel,
             questionTypes: parsedRequirements.questionTypes,
-            topics: parsedRequirements.topics,
+            topics: parsedRequirements.topics || [],
             marksPerQuestion: parsedRequirements.marksPerQuestion,
             totalMarks: parsedRequirements.totalMarks,
         },
@@ -216,15 +246,16 @@ const generateQuizFromPDF = asyncHandler(async (req, res) => {
             attemptsAllowed: settings.attemptsAllowed || 1,
             shuffleQuestions: settings.shuffleQuestions || false,
             shuffleOptions: settings.shuffleOptions || false,
-            showCorrectAnswers: settings.showCorrectAnswers !== false, // default true
-            showScoreImmediately: settings.showScoreImmediately !== false, // default true
-            allowBackNavigation: settings.allowBackNavigation !== false, // default true
+            showCorrectAnswers: settings.showCorrectAnswers !== false,
+            showScoreImmediately: settings.showScoreImmediately !== false,
+            allowBackNavigation: settings.allowBackNavigation !== false,
             passingScore: settings.passingScore || 60,
-            autoSubmit: settings.autoSubmit !== false, // default true
+            autoSubmit: settings.autoSubmit !== false,
             ...settings,
         },
         status: "draft",
         category: parsedRequirements.category || "quiz",
+        pdfFile: inputObj?.pdfFile || undefined,
     })
 
     await quiz.save()
@@ -237,7 +268,7 @@ const generateQuizFromPDF = asyncHandler(async (req, res) => {
         },
         {
             path: "classId",
-            select: "subjectName subjectCode classSlot semester classCode", // ✅ Fixed field name
+            select: "subjectName subjectCode classSlot semester classCode",
         },
     ])
 
@@ -308,8 +339,28 @@ const getQuiz = asyncHandler(async (req, res) => {
     // ✅ Add computed fields for frontend
     const now = new Date()
     responseQuiz.computedStatus = getQuizStatus(quiz, now)
-    responseQuiz.canTakeQuiz = canUserTakeQuiz(quiz, req.user, now)
-    responseQuiz.timeUntilStart = quiz.scheduledAt > now ? quiz.scheduledAt - now : 0
+
+    // ✅ Check if student has already attempted
+    let userAttempt = null
+    if (req.user.role === "student") {
+        const { QuizAttempt } = await import("../models/quizAttempt.model.js")
+        userAttempt = await QuizAttempt.findOne({
+            quiz: quizId,
+            student: req.user._id,
+        }).lean()
+    }
+    responseQuiz.userAttempt = userAttempt
+
+    const attemptsAllowed = quiz.settings?.attemptsAllowed || 1
+    const attemptsUsed = userAttempt ? 1 : 0 // Since they only have 1 attempt document usually, or we count them
+
+    // ✅ Update canTakeQuiz logic to prevent retakes
+    responseQuiz.canTakeQuiz =
+        canUserTakeQuiz(quiz, req.user, now) &&
+        (!userAttempt || attemptsUsed < attemptsAllowed)
+
+    responseQuiz.timeUntilStart =
+        quiz.scheduledAt > now ? quiz.scheduledAt - now : 0
     responseQuiz.timeRemaining = quiz.deadline > now ? quiz.deadline - now : 0
 
     return res
@@ -395,9 +446,7 @@ const publishQuiz = asyncHandler(async (req, res) => {
 
     // ✅ Validate quiz timing
     const now = new Date()
-    if (quiz.scheduledAt <= now) {
-        validationErrors.push("Quiz scheduled time must be in the future")
-    }
+    // Removed scheduledAt <= now check to allow re-publishing or late publishing
 
     if (quiz.deadline <= quiz.scheduledAt) {
         validationErrors.push("Quiz deadline must be after scheduled time")
@@ -420,8 +469,40 @@ const publishQuiz = asyncHandler(async (req, res) => {
     // ✅ Populate response data
     await quiz.populate([
         { path: "userId", select: "fullName email" },
-        { path: "classId", select: "subjectName subjectCode classSlot" },
+        {
+            path: "classId",
+            select: "subjectName subjectCode classSlot students",
+        },
     ])
+
+    // ✅ Notify students
+    try {
+        const studentIds = quiz.classId.students
+            .filter((s) => s.status === "active")
+            .map((s) => s.user)
+
+        if (studentIds.length > 0) {
+            const { NotificationTemplates, createBulkNotifications } =
+                await import("./notification.controller.js")
+
+            const notificationData = {
+                sender: req.user._id,
+                ...NotificationTemplates.QUIZ_PUBLISHED,
+                message: NotificationTemplates.QUIZ_PUBLISHED.getMessage(
+                    quiz.title,
+                    quiz.classId.subjectName
+                ),
+                relatedQuiz: quiz._id,
+                relatedClass: quiz.classId._id,
+                actionUrl: `/quiz/${quiz._id}`,
+            }
+
+            await createBulkNotifications(studentIds, notificationData)
+        }
+    } catch (error) {
+        console.error("Failed to send notifications:", error)
+        // Don't block response
+    }
 
     return res
         .status(200)
@@ -494,6 +575,11 @@ const deleteQuiz = asyncHandler(async (req, res) => {
         throw new ApiError(400, "Only draft quizzes can be deleted")
     }
 
+    // ✅ Delete PDF from Cloudinary if exists
+    if (quiz.pdfFile?.publicId) {
+        await deleteFromCloudinary(quiz.pdfFile.publicId)
+    }
+
     await Quiz.findByIdAndDelete(quizId)
 
     return res
@@ -540,11 +626,9 @@ const createQuizManual = asyncHandler(async (req, res) => {
         settings = {},
     } = req.body
 
-    // ✅ Validation
     if (
         !classId ||
         !title ||
-        !description ||
         !questions ||
         !duration ||
         !scheduledAt ||
@@ -573,7 +657,7 @@ const createQuizManual = asyncHandler(async (req, res) => {
         userId: req.user._id,
         classId,
         title: title.trim(),
-        description: description.trim(),
+        description: description?.trim() || "",
         input: "manual",
         inputType: "manual",
         questions,
@@ -704,8 +788,8 @@ const updateQuiz = asyncHandler(async (req, res) => {
         throw new ApiError(403, "You can only update your own quizzes")
     }
 
-    if (quiz.status === "published") {
-        throw new ApiError(400, "Cannot update published quiz")
+    if (quiz.status === "published" && new Date(quiz.deadline) >= new Date()) {
+        throw new ApiError(400, "Cannot update an active published quiz")
     }
 
     // ✅ Update allowed fields
@@ -739,11 +823,13 @@ const updateQuiz = asyncHandler(async (req, res) => {
         }
     }
 
-    const updatedQuiz = await Quiz.findByIdAndUpdate(
-        quizId,
-        { $set: filteredData },
-        { new: true, runValidators: true }
-    ).populate("classId", "subjectName subjectCode")
+    Object.assign(quiz, filteredData)
+    await quiz.save()
+
+    const updatedQuiz = await Quiz.findById(quizId).populate(
+        "classId",
+        "subjectName subjectCode"
+    )
 
     return res
         .status(200)
@@ -920,9 +1006,92 @@ const exportQuizData = asyncHandler(async (req, res) => {
         .json(new ApiResponse(200, quiz, "Quiz data exported successfully"))
 })
 
+// ✅ Get quizzes for logged-in student (across all classes)
+const getStudentQuizzes = asyncHandler(async (req, res) => {
+    const { status } = req.query
+    const studentId = req.user._id
+
+    // 1. Get enrolled active class IDs
+    const classes = await Class.find({
+        "students.user": studentId,
+        "students.status": "active",
+    }).select("_id")
+    const classIds = classes.map((c) => c._id)
+
+    // 2. Base Query
+    const now = new Date()
+    let query = { classId: { $in: classIds }, status: "published" }
+
+    // Optimization: Pre-filter DB query where possible
+    if (status === "upcoming") {
+        query.scheduledAt = { $gt: now }
+    } else if (status === "active") {
+        query.scheduledAt = { $lte: now }
+        query.deadline = { $gte: now }
+    }
+    // For completed/missed, we fetch broadly and filter in memory if needed,
+    // or we could optimistically query deadline < now for missed/completed.
+
+    // 3. Fetch Quizzes
+    const quizzes = await Quiz.find(query)
+        .populate("classId", "subjectName subjectCode")
+        .sort({ deadline: 1 }) // Sort by deadline (soonest first)
+        .lean()
+
+    // 4. Fetch Student Attempts for these quizzes
+    const quizIds = quizzes.map((q) => q._id)
+    const attempts = await QuizAttempt.find({
+        student: studentId,
+        quiz: { $in: quizIds },
+    }).select("quiz status percentage createdAt")
+
+    const attemptMap = new Map(attempts.map((a) => [a.quiz.toString(), a]))
+
+    // 5. Compute Status & Filter
+    const processedQuizzes = quizzes.map((quiz) => {
+        const attempt = attemptMap.get(quiz._id.toString())
+        let myStatus = "upcoming"
+
+        if (attempt) {
+            myStatus = "completed"
+        } else if (now > new Date(quiz.deadline)) {
+            myStatus = "missed"
+        } else if (
+            now >= new Date(quiz.scheduledAt) &&
+            now <= new Date(quiz.deadline)
+        ) {
+            myStatus = "active"
+        } else {
+            myStatus = "upcoming"
+        }
+
+        return {
+            ...quiz,
+            myStatus,
+            attempt,
+        }
+    })
+
+    // 6. Final Filter
+    const finalResult = status
+        ? processedQuizzes.filter((q) => q.myStatus === status)
+        : processedQuizzes
+
+    return res
+        .status(200)
+        .json(
+            new ApiResponse(
+                200,
+                finalResult,
+                "Student quizzes retrieved successfully"
+            )
+        )
+})
+
 // ✅ Add to exports
 export {
-    generateQuizFromPDF,
+    getStudentQuizzes,
+    generateQuiz,
     createQuizManual,
     getQuiz,
     getClassQuizzes,

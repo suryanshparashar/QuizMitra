@@ -9,12 +9,16 @@ import {
     logoutUser,
     refreshAccessToken,
     changeCurrentPassword,
+    sendOtp,
+    verifyOtp,
 } from "../controllers/auth.controller.js"
 
 const router = Router()
 
 // Public routes
 router.route("/register").post(registerUser)
+router.route("/send-otp").post(sendOtp)
+router.route("/verify-otp").post(verifyOtp)
 router.route("/verify-email/:token").get(verifyEmail)
 router.route("/resend-verification").post(resendVerificationEmail)
 router.route("/login").post(loginUser)

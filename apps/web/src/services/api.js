@@ -1,7 +1,8 @@
 import axios from "axios"
 
-// Use environment variable with fallback to correct local port (8001)
-const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8001/api/v1"
+// Use environment variable with fallback to correct local port (24000)
+const API_BASE_URL =
+    import.meta.env.VITE_API_URL || "http://localhost:24000/api/v1"
 
 export const api = axios.create({
     baseURL: API_BASE_URL,
@@ -9,7 +10,7 @@ export const api = axios.create({
     headers: {
         "Content-Type": "application/json",
     },
-    timeout: 15000, // 15 seconds
+    timeout: 120000, // 2 minutes (needed for AI generation)
 })
 
 // Helper to get token from Zustand persist storage
@@ -54,4 +55,3 @@ api.interceptors.response.use(
 )
 
 export default api
-

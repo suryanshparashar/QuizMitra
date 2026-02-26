@@ -146,9 +146,7 @@ const userSchema = new Schema(
 )
 
 // ✅ Basic indexes
-userSchema.index({ email: 1 })
-userSchema.index({ facultyId: 1 }, { sparse: true })
-userSchema.index({ studentId: 1 }, { sparse: true })
+// Indexes for email, facultyId, and studentId are automatically created due to 'unique: true'
 
 // ✅ Virtual for display ID
 userSchema.virtual("displayId").get(function () {

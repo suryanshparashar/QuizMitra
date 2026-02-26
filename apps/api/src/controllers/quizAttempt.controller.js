@@ -3,6 +3,8 @@ import { Quiz } from "../models/quiz.model.js"
 import { Class } from "../models/class.model.js"
 import { User } from "../models/user.model.js"
 import { ApiResponse, ApiError, asyncHandler } from "../utils/index.js"
+import { EvaluationService } from "../services/evaluation.service.js"
+import { AdvisoryService } from "../services/advisory.service.js"
 import mongoose from "mongoose"
 
 // Submit quiz answers and calculate score
@@ -67,8 +69,8 @@ const submitQuizAnswers = asyncHandler(async (req, res) => {
     )
 
     if (actualTimeSpent > maxDuration + 30) {
-        // 30 seconds grace period
-        throw new ApiError(400, "Time limit exceeded")
+        // Just flag it, don't throw an error and destroy the student's work
+        console.warn(`Quiz submission exceeded time limit for quiz ${quizId}`)
     }
 
     // ✅ Check if late submission
@@ -99,6 +101,7 @@ const submitQuizAnswers = asyncHandler(async (req, res) => {
             (scoringResults.totalMarks / quiz.requirements.totalMarks) * 100,
         isLateSubmission,
         wasTimeExceeded: actualTimeSpent > maxDuration,
+        advisory: scoringResults.advisory,
         ipAddress: req.ip,
         userAgent: req.get("User-Agent"),
     })
@@ -245,17 +248,17 @@ const getQuizReport = asyncHandler(async (req, res) => {
                 grade: {
                     $switch: {
                         branches: [
-                            { case: { $gte: ["$percentage", 90] }, then: "A+" },
-                            { case: { $gte: ["$percentage", 80] }, then: "A" },
-                            { case: { $gte: ["$percentage", 70] }, then: "B+" },
-                            { case: { $gte: ["$percentage", 60] }, then: "B" },
-                            { case: { $gte: ["$percentage", 50] }, then: "C" },
-                            { case: { $gte: ["$percentage", 40] }, then: "D" },
+                            { case: { $gte: ["$percentage", 91] }, then: "S" },
+                            { case: { $gte: ["$percentage", 81] }, then: "A" },
+                            { case: { $gte: ["$percentage", 71] }, then: "B" },
+                            { case: { $gte: ["$percentage", 61] }, then: "C" },
+                            { case: { $gte: ["$percentage", 51] }, then: "D" },
+                            { case: { $gte: ["$percentage", 41] }, then: "E" },
                         ],
                         default: "F",
                     },
                 },
-                isPassed: { $gte: ["$percentage", 60] },
+                isPassed: { $gte: ["$percentage", 41] },
             },
         },
 
@@ -407,17 +410,17 @@ const getStudentQuizHistory = asyncHandler(async (req, res) => {
                 grade: {
                     $switch: {
                         branches: [
-                            { case: { $gte: ["$percentage", 90] }, then: "A+" },
-                            { case: { $gte: ["$percentage", 80] }, then: "A" },
-                            { case: { $gte: ["$percentage", 70] }, then: "B+" },
-                            { case: { $gte: ["$percentage", 60] }, then: "B" },
-                            { case: { $gte: ["$percentage", 50] }, then: "C" },
-                            { case: { $gte: ["$percentage", 40] }, then: "D" },
+                            { case: { $gte: ["$percentage", 91] }, then: "S" },
+                            { case: { $gte: ["$percentage", 81] }, then: "A" },
+                            { case: { $gte: ["$percentage", 71] }, then: "B" },
+                            { case: { $gte: ["$percentage", 61] }, then: "C" },
+                            { case: { $gte: ["$percentage", 51] }, then: "D" },
+                            { case: { $gte: ["$percentage", 41] }, then: "E" },
                         ],
                         default: "F",
                     },
                 },
-                isPassed: { $gte: ["$percentage", 60] },
+                isPassed: { $gte: ["$percentage", 41] },
             },
         },
 
@@ -429,10 +432,6 @@ const getStudentQuizHistory = asyncHandler(async (req, res) => {
         {
             $project: {
                 _id: 1,
-                quizDetails: 1,
-                classDetails: 1,
-                marksObtained: 1,
-                maxMarks: 1,
                 percentage: { $round: ["$percentage", 2] },
                 grade: 1,
                 isPassed: 1,
@@ -561,47 +560,91 @@ const disputeQuizResult = asyncHandler(async (req, res) => {
     )
 })
 
-// ✅ Helper function to process quiz answers
+// ✅ Helper function to process quiz answers (AI Enhanced)
 const processQuizAnswers = async (quiz, submittedAnswers, timeSpent) => {
     const processedAnswers = []
     let correctCount = 0
     let totalMarks = 0
 
-    for (let i = 0; i < quiz.questions.length; i++) {
-        const question = quiz.questions[i]
+    // ✅ Evaluate answers in parallel (essential for AI speed)
+    const evaluationPromises = quiz.questions.map(async (question, i) => {
         const submittedAnswer = submittedAnswers.find(
             (ans) => ans.questionIndex === i
         )
 
         if (!submittedAnswer) {
-            throw new ApiError(400, `Answer for question ${i + 1} is missing`)
+            // Missing answer handling
+            return {
+                questionIndex: i,
+                questionText: question.questionText,
+                selectedAnswer: "",
+                correctAnswer: question.correctAnswer || "",
+                isCorrect: false,
+                marksAwarded: 0,
+                maxMarks: question.points || quiz.requirements.marksPerQuestion,
+                timeSpent: 0,
+                gradingNotes: "Not answered",
+            }
         }
 
-        const isCorrect =
-            question.correctAnswer === submittedAnswer.selectedAnswer
-        const marksForQuestion = isCorrect
-            ? quiz.requirements.marksPerQuestion
-            : 0
+        // ✅ Use Evaluation Service
+        const evaluation = await EvaluationService.evaluateAnswer(
+            question,
+            submittedAnswer,
+            question.points || quiz.requirements.marksPerQuestion
+        )
 
-        if (isCorrect) correctCount++
-        totalMarks += marksForQuestion
-
-        processedAnswers.push({
+        return {
             questionIndex: i,
             questionText: question.questionText,
             selectedAnswer: submittedAnswer.selectedAnswer,
-            correctAnswer: question.correctAnswer,
-            isCorrect,
-            marksAwarded: marksForQuestion,
-            maxMarks: quiz.requirements.marksPerQuestion,
+            correctAnswer: question.correctAnswer || "Subjective",
+            isCorrect: evaluation.isCorrect,
+            marksAwarded: evaluation.marksAwarded,
+            maxMarks: question.points || quiz.requirements.marksPerQuestion,
             timeSpent: submittedAnswer.timeSpent || 0,
-        })
+            gradingNotes: evaluation.feedback,
+            manuallyGraded: evaluation.manuallyGraded || false,
+        }
+    })
+
+    const results = await Promise.all(evaluationPromises)
+
+    // ✅ Aggregate results
+    results.forEach((res) => {
+        processedAnswers.push(res)
+        if (res.isCorrect) correctCount++
+        totalMarks += res.marksAwarded
+    })
+
+    // Sort by index to maintain order
+    processedAnswers.sort((a, b) => a.questionIndex - b.questionIndex)
+
+    // 5. Generate Advisory Report (AI Agent)
+    let advisoryReport = {}
+    try {
+        advisoryReport = await AdvisoryService.generateAdvisoryReport(
+            quiz,
+            {
+                answers: processedAnswers,
+                marksObtained: totalMarks,
+                maxMarks: quiz.requirements.totalMarks,
+                percentage: (totalMarks / quiz.requirements.totalMarks) * 100,
+                totalQuestions: quiz.questions.length,
+                correctAnswers: correctCount,
+                incorrectAnswers: quiz.questions.length - correctCount,
+            },
+            { fullName: "Student" }
+        ) // We might need to pass actual student object if available in context
+    } catch (err) {
+        console.error("Failed to generate advisory report:", err)
     }
 
     return {
         processedAnswers,
         correctCount,
         totalMarks,
+        advisory: advisoryReport,
     }
 }
 

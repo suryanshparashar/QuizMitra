@@ -3,7 +3,7 @@ import { ApiError } from "./index.js"
 
 // ✅ Create transporter
 const createTransporter = () => {
-    return nodemailer.createTransporter({
+    return nodemailer.createTransport({
         host: process.env.SMTP_HOST,
         port: process.env.SMTP_PORT,
         secure: process.env.SMTP_PORT === "465", // true for 465, false for other ports
@@ -134,4 +134,61 @@ const sendPasswordResetEmail = async (email, fullName, token) => {
     }
 }
 
-export { sendVerificationEmail, sendPasswordResetEmail }
+// ✅ Send OTP verification email
+const sendOTPEmail = async (email, fullName, otp) => {
+    try {
+        const transporter = createTransporter()
+
+        const mailOptions = {
+            from: `"QuizMitra" <${process.env.SMTP_FROM_EMAIL}>`,
+            to: email,
+            subject: "Your QuizMitra Verification Code",
+            html: `
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <meta charset="utf-8">
+                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                    <title>Your Verification Code</title>
+                    <style>
+                        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+                        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+                        .header { background: #4f46e5; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
+                        .content { padding: 30px 20px; background: #f9f9f9; text-align: center; border-radius: 0 0 8px 8px; border: 1px solid #eee; border-top: none; }
+                        .otp-box { background: #e0e7ff; color: #4338ca; font-size: 32px; font-weight: bold; letter-spacing: 5px; padding: 15px 30px; border-radius: 8px; margin: 25px 0; display: inline-block; }
+                        .footer { padding: 20px; text-align: center; font-size: 12px; color: #666; }
+                    </style>
+                </head>
+                <body>
+                    <div class="container">
+                        <div class="header">
+                            <h2>Email Verification</h2>
+                        </div>
+                        <div class="content">
+                            <h3>Hello ${fullName}!</h3>
+                            <p>To complete your registration at QuizMitra, please use the following 6-digit Verification Code:</p>
+                            
+                            <div class="otp-box">${otp}</div>
+                            
+                            <p><strong>This code will expire in 10 minutes.</strong></p>
+                            <p style="color: #666; font-size: 14px; margin-top: 30px;">If you didn't request this code, please ignore this email.</p>
+                        </div>
+                        <div class="footer">
+                            <p>&copy; ${new Date().getFullYear()} QuizMitra. All rights reserved.</p>
+                        </div>
+                    </div>
+                </body>
+                </html>
+            `,
+        }
+
+        const result = await transporter.sendMail(mailOptions)
+        console.log("OTP email sent successfully:", result.messageId)
+        return result
+    } catch (error) {
+        console.error("Email sending error:", error)
+        throw new ApiError(500, "Failed to send OTP email")
+    }
+}
+
+export { sendVerificationEmail, sendPasswordResetEmail, sendOTPEmail }

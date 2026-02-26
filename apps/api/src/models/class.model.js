@@ -91,6 +91,20 @@ const classSchema = new Schema(
             index: true,
         },
 
+        // Class Representative
+        classRepresentative: {
+            type: Schema.Types.ObjectId,
+            ref: "User",
+        },
+
+        // CR Permissions
+        crPermissions: {
+            viewReports: { type: Boolean, default: false },
+            viewAnalytics: { type: Boolean, default: false },
+            viewAPIStats: { type: Boolean, default: false },
+            manageQuizzes: { type: Boolean, default: false },
+        },
+
         // Basic status
         isArchived: {
             type: Boolean,
@@ -103,8 +117,6 @@ const classSchema = new Schema(
 )
 
 // ✅ Basic indexes
-classSchema.index({ faculty: 1 })
-classSchema.index({ classCode: 1 })
 classSchema.index({ "students.user": 1 })
 
 // ✅ Pre-save middleware to generate class code
@@ -117,15 +129,18 @@ classSchema.pre("save", async function (next) {
 
 // ✅ Essential methods only
 classSchema.methods.isFaculty = function (userId) {
-    return this.faculty.toString() === userId.toString()
+    const facultyId = this.faculty?._id || this.faculty
+    return facultyId?.toString() === userId.toString()
 }
 
 classSchema.methods.isStudent = function (userId) {
-    return this.students.some(
-        (student) =>
-            student.user.toString() === userId.toString() &&
+    return this.students.some((student) => {
+        const studentUserId = student.user?._id || student.user
+        return (
+            studentUserId?.toString() === userId.toString() &&
             student.status === "active"
-    )
+        )
+    })
 }
 
 classSchema.methods.generateClassCode = async function () {

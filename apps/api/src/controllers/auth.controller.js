@@ -1,9 +1,88 @@
 // controllers/auth.controller.js
 import { asyncHandler, ApiResponse, ApiError } from "../utils/index.js"
 import { User } from "../models/user.model.js"
-import { uploadOnCloudinary, sendVerificationEmail } from "../utils/index.js"
+import { Otp } from "../models/otp.model.js"
+import {
+    uploadOnCloudinary,
+    sendVerificationEmail,
+    sendOTPEmail,
+} from "../utils/index.js"
 import jwt from "jsonwebtoken"
 import crypto from "crypto"
+
+// ✅ Generate and Send OTP
+const sendOtp = asyncHandler(async (req, res) => {
+    const { email, fullName } = req.body
+
+    if (!email || !fullName) {
+        throw new ApiError(400, "Email and full name are required to send OTP")
+    }
+
+    // Check if user already exists
+    const existingUser = await User.findOne({ email: email.toLowerCase() })
+    if (existingUser) {
+        throw new ApiError(409, "User with this email already exists")
+    }
+
+    // Generate 6-digit OTP
+    const otpCode = Math.floor(100000 + Math.random() * 900000).toString()
+
+    // Save OTP to DB (upsert if exists)
+    await Otp.findOneAndUpdate(
+        { email: email.toLowerCase() },
+        { otp: otpCode, createdAt: Date.now() },
+        { upsert: true, new: true }
+    )
+
+    // Send Email
+    await sendOTPEmail(email, fullName, otpCode)
+
+    return res
+        .status(200)
+        .json(new ApiResponse(200, {}, "OTP sent successfully"))
+})
+
+// ✅ Verify OTP
+const verifyOtp = asyncHandler(async (req, res) => {
+    const { email, otp } = req.body
+
+    if (!email || !otp) {
+        throw new ApiError(400, "Email and OTP are required")
+    }
+
+    const otpRecord = await Otp.findOne({ email: email.toLowerCase() })
+
+    if (!otpRecord) {
+        throw new ApiError(
+            400,
+            "OTP expired or not found. Please request a new one."
+        )
+    }
+
+    if (otpRecord.otp !== otp) {
+        throw new ApiError(400, "Invalid OTP")
+    }
+
+    // Generate a short-lived token to prove verification during registration
+    const verificationToken = jwt.sign(
+        { email: email.toLowerCase(), verified: true },
+        process.env.ACCESS_TOKEN_SECRET,
+        { expiresIn: "30m" }
+    )
+
+    // Cleanup OTP
+    await Otp.deleteOne({ email: email.toLowerCase() })
+
+    return res
+        .status(200)
+        .json(
+            new ApiResponse(
+                200,
+                { verificationToken },
+                "Email verified successfully"
+            )
+        )
+})
 
 // ✅ Fixed token generation
 const generateAccessAndRefreshToken = async (userId) => {
@@ -37,6 +116,7 @@ const registerUser = asyncHandler(async (req, res) => {
         email,
         password,
         confirmPassword,
+        verificationToken,
         // Student fields
         studentId,
         year,
@@ -48,12 +128,37 @@ const registerUser = asyncHandler(async (req, res) => {
     } = req.body
 
     // ✅ Basic validation
-    if (!role || !fullName || !email || !password) {
-        throw new ApiError(400, "All required fields must be provided")
+    if (!role || !fullName || !email || !password || !verificationToken) {
+        throw new ApiError(
+            400,
+            "All required fields including verification token must be provided"
+        )
     }
 
     if (password !== confirmPassword) {
         throw new ApiError(400, "Passwords do not match")
+    }
+
+    // ✅ Verify OTP Verification Token
+    try {
+        const decodedToken = jwt.verify(
+            verificationToken,
+            process.env.ACCESS_TOKEN_SECRET
+        )
+        if (
+            decodedToken.email !== email.toLowerCase() ||
+            !decodedToken.verified
+        ) {
+            throw new ApiError(
+                400,
+                "Email verification proof is invalid or mismatched"
+            )
+        }
+    } catch (error) {
+        throw new ApiError(
+            400,
+            "Invalid or expired email verification token. Please verify email again."
+        )
     }
 
     // ✅ Role-specific validation
@@ -442,6 +547,8 @@ const changeCurrentPassword = asyncHandler(async (req, res) => {
 })
 
 export {
+    sendOtp,
+    verifyOtp,
     generateAccessAndRefreshToken,
     registerUser,
     verifyEmail,
