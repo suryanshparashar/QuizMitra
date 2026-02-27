@@ -11,7 +11,7 @@ import {
     Loader2,
     GraduationCap,
 } from "lucide-react"
-import { showToast } from "../../components/Toast"
+import { showToast } from "../../components/Toast.jsx"
 
 export default function Login() {
     const [formData, setFormData] = useState({ email: "", password: "" })
