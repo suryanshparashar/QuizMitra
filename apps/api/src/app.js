@@ -2,11 +2,13 @@ import cors from "cors"
 import express from "express"
 import cookieParser from "cookie-parser"
 import path from "path"
+import fs from "fs"
 import { fileURLToPath } from "url"
 import { errorHandler } from "./middlewares/errorHandler.middleware.js"
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
+const indexHtmlPath = path.join(__dirname, "..", "public", "index.html")
 
 const app = express()
 
@@ -56,9 +58,14 @@ app.use("/api/v1/search", searchRoutes)
 app.use("/api/v1/notifications", notificationRoutes)
 
 // SPA Fallback — serve index.html for all non-API GET routes
-// This allows React Router to handle client-side navigation on refresh
-app.get(/^(?!\/api\/v1).*$/, (req, res) => {
-    res.sendFile(path.join(__dirname, "..", "public", "index.html"))
+// Only active when the frontend is co-deployed (index.html exists in public/)
+// In production API-only deployments (e.g. Render), this is safely skipped
+app.get(/^(?!\/api\/v1).*$/, (req, res, next) => {
+    if (fs.existsSync(indexHtmlPath)) {
+        res.sendFile(indexHtmlPath)
+    } else {
+        next()
+    }
 })
 
 // Global Error Handler Middleware
