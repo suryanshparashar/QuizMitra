@@ -16,5 +16,9 @@ export default defineConfig({
         },
         logLevel: "info",
     },
+    preview: {
+        port: 54000,
+        historyApiFallback: true,
+    },
     plugins: [react(), tailwindcss()],
 })

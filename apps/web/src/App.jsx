@@ -12,7 +12,7 @@ import Layout from "./components/Layout"
 import ProtectedRoute from "./components/ProtectedRoute"
 
 // Auth Pages
-import Login from "./pages/auth/Login"
+import Login from "./pages/auth/login-old"
 import Register from "./pages/auth/Register"
 import VerifyEmail from "./pages/auth/VerifyEmail"
 
