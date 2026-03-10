@@ -5,11 +5,17 @@ import { ApiError } from "./index.js"
 const createTransporter = () => {
     return nodemailer.createTransport({
         host: process.env.SMTP_HOST,
-        port: process.env.SMTP_PORT,
+        port: parseInt(process.env.SMTP_PORT, 10),
         secure: process.env.SMTP_PORT === "465", // true for 465, false for other ports
         auth: {
             user: process.env.SMTP_USER,
             pass: process.env.SMTP_PASS,
+        },
+        connectionTimeout: 10000, // 10s to establish TCP connection
+        greetingTimeout: 10000, // 10s to receive SMTP greeting
+        socketTimeout: 15000, // 15s of inactivity before giving up
+        tls: {
+            rejectUnauthorized: false, // allow self-signed certs on some SMTP hosts
         },
     })
 }
@@ -139,6 +145,15 @@ const sendOTPEmail = async (email, fullName, otp) => {
     try {
         const transporter = createTransporter()
 
+        // Verify SMTP connection before attempting to send
+        await transporter.verify().catch((err) => {
+            console.error("SMTP connection verification failed:", err.message, {
+                host: process.env.SMTP_HOST,
+                port: process.env.SMTP_PORT,
+            })
+            throw new ApiError(503, `SMTP connection failed: ${err.message}`)
+        })
+
         const mailOptions = {
             from: `"QuizMitra" <${process.env.SMTP_FROM_EMAIL}>`,
             to: email,
@@ -186,7 +201,12 @@ const sendOTPEmail = async (email, fullName, otp) => {
         console.log("OTP email sent successfully:", result.messageId)
         return result
     } catch (error) {
-        console.error("Email sending error:", error)
+        if (error instanceof ApiError) throw error
+        console.error("OTP email sending error:", {
+            message: error.message,
+            code: error.code, // e.g. ECONNREFUSED, ETIMEDOUT, ENOTFOUND
+            command: error.command, // SMTP command that failed
+        })
         throw new ApiError(500, "Failed to send OTP email")
     }
 }
