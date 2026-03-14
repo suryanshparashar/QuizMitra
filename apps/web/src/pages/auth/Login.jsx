@@ -99,6 +99,7 @@ export default function Login() {
                                     </div>
                                     <input
                                         type="email"
+                                        autoComplete="email"
                                         placeholder="Enter your email"
                                         value={formData.email}
                                         onChange={(e) =>
@@ -126,6 +127,7 @@ export default function Login() {
                                         type={
                                             showPassword ? "text" : "password"
                                         }
+                                        autoComplete="current-password"
                                         placeholder="Enter your password"
                                         value={formData.password}
                                         onChange={(e) =>

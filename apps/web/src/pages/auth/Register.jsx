@@ -370,6 +370,7 @@ export default function Register() {
                                                 </div>
                                                 <input
                                                     type="text"
+                                                    autoComplete="name"
                                                     placeholder="Enter your full name"
                                                     value={formData.fullName}
                                                     onChange={(e) =>
@@ -395,6 +396,7 @@ export default function Register() {
                                                 </div>
                                                 <input
                                                     type="email"
+                                                    autoComplete="email"
                                                     placeholder="Enter your email"
                                                     value={formData.email}
                                                     onChange={(e) =>
@@ -439,6 +441,7 @@ export default function Register() {
                                                 </div>
                                                 <input
                                                     type="text"
+                                                    autoComplete="one-time-code"
                                                     placeholder="000000"
                                                     value={otp}
                                                     maxLength={6}
@@ -677,6 +680,7 @@ export default function Register() {
                                                                 ? "text"
                                                                 : "password"
                                                         }
+                                                        autoComplete="new-password"
                                                         placeholder="Create password"
                                                         value={
                                                             formData.password
@@ -730,6 +734,7 @@ export default function Register() {
                                                                 ? "text"
                                                                 : "password"
                                                         }
+                                                        autoComplete="new-password"
                                                         placeholder="Confirm password"
                                                         value={
                                                             formData.confirmPassword

@@ -419,6 +419,7 @@ export default function Profile() {
                                     </label>
                                     <input
                                         type="password"
+                                        autoComplete="current-password"
                                         placeholder="Enter current password"
                                         value={passwordData.currentPassword}
                                         onChange={(e) =>
@@ -439,6 +440,7 @@ export default function Profile() {
                                     </label>
                                     <input
                                         type="password"
+                                        autoComplete="new-password"
                                         placeholder="Enter new password (min 8 chars)"
                                         value={passwordData.newPassword}
                                         onChange={(e) =>
@@ -460,6 +462,7 @@ export default function Profile() {
                                     </label>
                                     <input
                                         type="password"
+                                        autoComplete="new-password"
                                         placeholder="Confirm new password"
                                         value={passwordData.confirmPassword}
                                         onChange={(e) =>
