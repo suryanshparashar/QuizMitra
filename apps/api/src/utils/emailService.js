@@ -1,37 +1,164 @@
 import nodemailer from "nodemailer"
 import { ApiError } from "./index.js"
 
-// ✅ Create transporter
+const DEFAULT_FROM_EMAIL =
+    process.env.EMAIL_FROM ||
+    process.env.RESEND_FROM_EMAIL ||
+    process.env.SMTP_FROM_EMAIL
+
+const getMailProvider = () => {
+    const configuredProvider = process.env.EMAIL_PROVIDER?.toLowerCase()
+
+    if (configuredProvider) {
+        return configuredProvider
+    }
+
+    if (process.env.RESEND_API_KEY) {
+        return "resend"
+    }
+
+    return "smtp"
+}
+
 const createTransporter = () => {
     return nodemailer.createTransport({
         host: process.env.SMTP_HOST,
         port: parseInt(process.env.SMTP_PORT, 10),
-        secure: process.env.SMTP_PORT === "465", // true for 465, false for other ports
+        secure: process.env.SMTP_PORT === "465",
         auth: {
             user: process.env.SMTP_USER,
             pass: process.env.SMTP_PASS,
         },
-        connectionTimeout: 10000, // 10s to establish TCP connection
-        greetingTimeout: 10000, // 10s to receive SMTP greeting
-        socketTimeout: 15000, // 15s of inactivity before giving up
+        connectionTimeout: 10000,
+        greetingTimeout: 10000,
+        socketTimeout: 15000,
         tls: {
-            rejectUnauthorized: false, // allow self-signed certs on some SMTP hosts
+            rejectUnauthorized: false,
         },
     })
 }
 
-// ✅ Send verification email
+const sendWithSmtp = async ({ to, subject, html }) => {
+    const transporter = createTransporter()
+
+    try {
+        await transporter.verify()
+    } catch (error) {
+        console.error("SMTP connection verification failed:", {
+            message: error.message,
+            code: error.code,
+            host: process.env.SMTP_HOST,
+            port: process.env.SMTP_PORT,
+        })
+        throw new ApiError(503, `SMTP connection failed: ${error.message}`)
+    }
+
+    try {
+        const result = await transporter.sendMail({
+            from: `"QuizMitra" <${DEFAULT_FROM_EMAIL}>`,
+            to,
+            subject,
+            html,
+        })
+
+        console.log("SMTP email sent successfully:", result.messageId)
+        return result
+    } catch (error) {
+        console.error("SMTP email sending error:", {
+            message: error.message,
+            code: error.code,
+            command: error.command,
+        })
+        throw new ApiError(500, "Failed to send email")
+    }
+}
+
+const sendWithResend = async ({ to, subject, html }) => {
+    if (!process.env.RESEND_API_KEY) {
+        throw new ApiError(500, "RESEND_API_KEY is not configured")
+    }
+
+    if (!DEFAULT_FROM_EMAIL) {
+        throw new ApiError(
+            500,
+            "EMAIL_FROM, RESEND_FROM_EMAIL, or SMTP_FROM_EMAIL is not configured"
+        )
+    }
+
+    let response
+
+    try {
+        response = await fetch("https://api.resend.com/emails", {
+            method: "POST",
+            headers: {
+                Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+                from: `QuizMitra <${DEFAULT_FROM_EMAIL}>`,
+                to: [to],
+                subject,
+                html,
+            }),
+        })
+    } catch (error) {
+        console.error("Resend request failed:", {
+            message: error.message,
+        })
+        throw new ApiError(
+            503,
+            `Email provider request failed: ${error.message}`
+        )
+    }
+
+    let data = null
+    try {
+        data = await response.json()
+    } catch {
+        data = null
+    }
+
+    if (!response.ok) {
+        console.error("Resend API error:", {
+            status: response.status,
+            body: data,
+        })
+        throw new ApiError(
+            502,
+            data?.message || "Failed to send email via Resend"
+        )
+    }
+
+    console.log("Resend email sent successfully:", data?.id)
+    return data
+}
+
+const sendEmail = async ({ to, subject, html }) => {
+    const provider = getMailProvider()
+
+    if (!DEFAULT_FROM_EMAIL) {
+        throw new ApiError(
+            500,
+            "EMAIL_FROM, RESEND_FROM_EMAIL, or SMTP_FROM_EMAIL is not configured"
+        )
+    }
+
+    if (provider === "resend") {
+        return sendWithResend({ to, subject, html })
+    }
+
+    if (provider === "smtp") {
+        return sendWithSmtp({ to, subject, html })
+    }
+
+    throw new ApiError(500, `Unsupported email provider: ${provider}`)
+}
+
 const sendVerificationEmail = async (email, fullName, token) => {
     try {
-        const transporter = createTransporter()
-
         const verificationUrl = `${process.env.FRONTEND_URL}/verify-email/${token}`
 
-        const mailOptions = {
-            from: `"QuizMitra" <${process.env.SMTP_FROM_EMAIL}>`,
-            to: email,
-            subject: "Verify Your QuizMitra Account",
-            html: `
+        const html = `
                 <!DOCTYPE html>
                 <html>
                 <head>
@@ -67,30 +194,25 @@ const sendVerificationEmail = async (email, fullName, token) => {
                     </div>
                 </body>
                 </html>
-            `,
-        }
+            `
 
-        const result = await transporter.sendMail(mailOptions)
-        console.log("Verification email sent:", result.messageId)
-        return result
+        return await sendEmail({
+            to: email,
+            subject: "Verify Your QuizMitra Account",
+            html,
+        })
     } catch (error) {
+        if (error instanceof ApiError) throw error
         console.error("Email sending error:", error)
         throw new ApiError(500, "Failed to send verification email")
     }
 }
 
-// ✅ Send password reset email
 const sendPasswordResetEmail = async (email, fullName, token) => {
     try {
-        const transporter = createTransporter()
-
         const resetUrl = `${process.env.FRONTEND_URL}/reset-password/${token}`
 
-        const mailOptions = {
-            from: `"QuizMitra" <${process.env.SMTP_FROM_EMAIL}>`,
-            to: email,
-            subject: "Reset Your QuizMitra Password",
-            html: `
+        const html = `
                 <!DOCTYPE html>
                 <html>
                 <head>
@@ -126,39 +248,23 @@ const sendPasswordResetEmail = async (email, fullName, token) => {
                     </div>
                 </body>
                 </html>
-            `,
-        }
+            `
 
-        const result = await transporter.sendMail(mailOptions)
-
-        console.log("Password reset email sent:", result.messageId)
-
-        return result
+        return await sendEmail({
+            to: email,
+            subject: "Reset Your QuizMitra Password",
+            html,
+        })
     } catch (error) {
+        if (error instanceof ApiError) throw error
         console.error("Email sending error:", error)
         throw new ApiError(500, "Failed to send password reset email")
     }
 }
 
-// ✅ Send OTP verification email
 const sendOTPEmail = async (email, fullName, otp) => {
     try {
-        const transporter = createTransporter()
-
-        // Verify SMTP connection before attempting to send
-        await transporter.verify().catch((err) => {
-            console.error("SMTP connection verification failed:", err.message, {
-                host: process.env.SMTP_HOST,
-                port: process.env.SMTP_PORT,
-            })
-            throw new ApiError(503, `SMTP connection failed: ${err.message}`)
-        })
-
-        const mailOptions = {
-            from: `"QuizMitra" <${process.env.SMTP_FROM_EMAIL}>`,
-            to: email,
-            subject: "Your QuizMitra Verification Code",
-            html: `
+        const html = `
                 <!DOCTYPE html>
                 <html>
                 <head>
@@ -194,19 +300,16 @@ const sendOTPEmail = async (email, fullName, otp) => {
                     </div>
                 </body>
                 </html>
-            `,
-        }
+            `
 
-        const result = await transporter.sendMail(mailOptions)
-        console.log("OTP email sent successfully:", result.messageId)
-        return result
+        return await sendEmail({
+            to: email,
+            subject: "Your QuizMitra Verification Code",
+            html,
+        })
     } catch (error) {
         if (error instanceof ApiError) throw error
-        console.error("OTP email sending error:", {
-            message: error.message,
-            code: error.code, // e.g. ECONNREFUSED, ETIMEDOUT, ENOTFOUND
-            command: error.command, // SMTP command that failed
-        })
+        console.error("OTP email sending error:", error)
         throw new ApiError(500, "Failed to send OTP email")
     }
 }
