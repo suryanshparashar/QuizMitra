@@ -6,6 +6,23 @@ const DEFAULT_FROM_EMAIL =
     process.env.ZOHO_USER ||
     process.env.SMTP_FROM_EMAIL
 
+const getZohoDomains = () => {
+    const dc = (process.env.ZOHO_DC || "in").toLowerCase()
+
+    const dcMap = {
+        com: { accountsHost: "accounts.zoho.com", mailHost: "mail.zoho.com" },
+        in: { accountsHost: "accounts.zoho.in", mailHost: "mail.zoho.in" },
+        eu: { accountsHost: "accounts.zoho.eu", mailHost: "mail.zoho.eu" },
+        au: {
+            accountsHost: "accounts.zoho.com.au",
+            mailHost: "mail.zoho.com.au",
+        },
+        jp: { accountsHost: "accounts.zoho.jp", mailHost: "mail.zoho.jp" },
+    }
+
+    return dcMap[dc] || dcMap.in
+}
+
 const getMailProvider = () => {
     const configuredProvider = process.env.EMAIL_PROVIDER?.toLowerCase()
 
@@ -81,6 +98,7 @@ const sendWithSmtp = async ({ to, subject, html }) => {
 const getZohoAccessToken = async () => {
     const { ZOHO_CLIENT_ID, ZOHO_CLIENT_SECRET, ZOHO_REFRESH_TOKEN } =
         process.env
+    const { accountsHost } = getZohoDomains()
 
     if (!ZOHO_CLIENT_ID || !ZOHO_CLIENT_SECRET || !ZOHO_REFRESH_TOKEN) {
         throw new ApiError(
@@ -89,7 +107,7 @@ const getZohoAccessToken = async () => {
         )
     }
 
-    const params = new URLSearchParams({
+    const body = new URLSearchParams({
         refresh_token: ZOHO_REFRESH_TOKEN,
         client_id: ZOHO_CLIENT_ID,
         client_secret: ZOHO_CLIENT_SECRET,
@@ -98,12 +116,13 @@ const getZohoAccessToken = async () => {
 
     let response
     try {
-        response = await fetch(
-            `https://accounts.zoho.com/oauth/v2/token?${params.toString()}`,
-            {
-                method: "POST",
-            }
-        )
+        response = await fetch(`https://${accountsHost}/oauth/v2/token`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/x-www-form-urlencoded",
+            },
+            body: body.toString(),
+        })
     } catch (error) {
         throw new ApiError(503, `Zoho token request failed: ${error.message}`)
     }
@@ -119,10 +138,14 @@ const getZohoAccessToken = async () => {
         console.error("Zoho token API error:", {
             status: response.status,
             body: data,
+            accountsHost,
         })
         throw new ApiError(
             502,
-            data?.error || data?.message || "Failed to get Zoho access token"
+            data?.error ||
+                data?.error_description ||
+                data?.message ||
+                "Failed to get Zoho access token"
         )
     }
 
@@ -131,6 +154,7 @@ const getZohoAccessToken = async () => {
 
 const sendWithZoho = async ({ to, subject, html }) => {
     const { ZOHO_ACCOUNT_ID, ZOHO_USER } = process.env
+    const { mailHost } = getZohoDomains()
 
     if (!ZOHO_ACCOUNT_ID || !ZOHO_USER) {
         throw new ApiError(500, "ZOHO_ACCOUNT_ID and ZOHO_USER are required")
@@ -148,7 +172,7 @@ const sendWithZoho = async ({ to, subject, html }) => {
     let response
     try {
         response = await fetch(
-            `https://mail.zoho.com/api/accounts/${ZOHO_ACCOUNT_ID}/messages`,
+            `https://${mailHost}/api/accounts/${ZOHO_ACCOUNT_ID}/messages`,
             {
                 method: "POST",
                 headers: {
@@ -180,6 +204,7 @@ const sendWithZoho = async ({ to, subject, html }) => {
         console.error("Zoho mail API error:", {
             status: response.status,
             body: data,
+            mailHost,
         })
         throw new ApiError(
             502,
