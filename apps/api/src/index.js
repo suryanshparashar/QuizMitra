@@ -19,8 +19,14 @@ const getActiveEmailProvider = () => {
     if (process.env.EMAIL_PROVIDER) {
         return process.env.EMAIL_PROVIDER.toLowerCase()
     }
-    if (process.env.BREVO_API_KEY) return "brevo"
-    if (process.env.RESEND_API_KEY) return "resend"
+    if (
+        process.env.ZOHO_CLIENT_ID &&
+        process.env.ZOHO_CLIENT_SECRET &&
+        process.env.ZOHO_REFRESH_TOKEN &&
+        process.env.ZOHO_ACCOUNT_ID
+    ) {
+        return "zoho"
+    }
     return "smtp"
 }
 

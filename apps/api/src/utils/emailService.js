@@ -3,7 +3,7 @@ import { ApiError } from "./index.js"
 
 const DEFAULT_FROM_EMAIL =
     process.env.EMAIL_FROM ||
-    process.env.RESEND_FROM_EMAIL ||
+    process.env.ZOHO_USER ||
     process.env.SMTP_FROM_EMAIL
 
 const getMailProvider = () => {
@@ -13,12 +13,13 @@ const getMailProvider = () => {
         return configuredProvider
     }
 
-    if (process.env.RESEND_API_KEY) {
-        return "resend"
-    }
-
-    if (process.env.BREVO_API_KEY) {
-        return "brevo"
+    if (
+        process.env.ZOHO_CLIENT_ID &&
+        process.env.ZOHO_CLIENT_SECRET &&
+        process.env.ZOHO_REFRESH_TOKEN &&
+        process.env.ZOHO_ACCOUNT_ID
+    ) {
+        return "zoho"
     }
 
     return "smtp"
@@ -77,42 +78,34 @@ const sendWithSmtp = async ({ to, subject, html }) => {
     }
 }
 
-const sendWithResend = async ({ to, subject, html }) => {
-    if (!process.env.RESEND_API_KEY) {
-        throw new ApiError(500, "RESEND_API_KEY is not configured")
-    }
+const getZohoAccessToken = async () => {
+    const { ZOHO_CLIENT_ID, ZOHO_CLIENT_SECRET, ZOHO_REFRESH_TOKEN } =
+        process.env
 
-    if (!DEFAULT_FROM_EMAIL) {
+    if (!ZOHO_CLIENT_ID || !ZOHO_CLIENT_SECRET || !ZOHO_REFRESH_TOKEN) {
         throw new ApiError(
             500,
-            "EMAIL_FROM, RESEND_FROM_EMAIL, or SMTP_FROM_EMAIL is not configured"
+            "ZOHO_CLIENT_ID, ZOHO_CLIENT_SECRET, and ZOHO_REFRESH_TOKEN are required"
         )
     }
 
-    let response
+    const params = new URLSearchParams({
+        refresh_token: ZOHO_REFRESH_TOKEN,
+        client_id: ZOHO_CLIENT_ID,
+        client_secret: ZOHO_CLIENT_SECRET,
+        grant_type: "refresh_token",
+    })
 
+    let response
     try {
-        response = await fetch("https://api.resend.com/emails", {
-            method: "POST",
-            headers: {
-                Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-                from: `QuizMitra <${DEFAULT_FROM_EMAIL}>`,
-                to: [to],
-                subject,
-                html,
-            }),
-        })
-    } catch (error) {
-        console.error("Resend request failed:", {
-            message: error.message,
-        })
-        throw new ApiError(
-            503,
-            `Email provider request failed: ${error.message}`
+        response = await fetch(
+            `https://accounts.zoho.com/oauth/v2/token?${params.toString()}`,
+            {
+                method: "POST",
+            }
         )
+    } catch (error) {
+        throw new ApiError(503, `Zoho token request failed: ${error.message}`)
     }
 
     let data = null
@@ -122,57 +115,58 @@ const sendWithResend = async ({ to, subject, html }) => {
         data = null
     }
 
-    if (!response.ok) {
-        console.error("Resend API error:", {
+    if (!response.ok || !data?.access_token) {
+        console.error("Zoho token API error:", {
             status: response.status,
             body: data,
         })
         throw new ApiError(
             502,
-            data?.message || "Failed to send email via Resend"
+            data?.error || data?.message || "Failed to get Zoho access token"
         )
     }
 
-    console.log("Resend email sent successfully:", data?.id)
-    return data
+    return data.access_token
 }
 
-const sendWithBrevo = async ({ to, subject, html }) => {
-    if (!process.env.BREVO_API_KEY) {
-        throw new ApiError(500, "BREVO_API_KEY is not configured")
+const sendWithZoho = async ({ to, subject, html }) => {
+    const { ZOHO_ACCOUNT_ID, ZOHO_USER } = process.env
+
+    if (!ZOHO_ACCOUNT_ID || !ZOHO_USER) {
+        throw new ApiError(500, "ZOHO_ACCOUNT_ID and ZOHO_USER are required")
     }
 
     if (!DEFAULT_FROM_EMAIL) {
         throw new ApiError(
             500,
-            "EMAIL_FROM, RESEND_FROM_EMAIL, or SMTP_FROM_EMAIL is not configured"
+            "EMAIL_FROM, ZOHO_USER, or SMTP_FROM_EMAIL is not configured"
         )
     }
 
-    let response
+    const accessToken = await getZohoAccessToken()
 
+    let response
     try {
-        response = await fetch("https://api.brevo.com/v3/smtp/email", {
-            method: "POST",
-            headers: {
-                "api-key": process.env.BREVO_API_KEY,
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-                sender: {
-                    name: "QuizMitra",
-                    email: DEFAULT_FROM_EMAIL,
+        response = await fetch(
+            `https://mail.zoho.com/api/accounts/${ZOHO_ACCOUNT_ID}/messages`,
+            {
+                method: "POST",
+                headers: {
+                    Authorization: `Zoho-oauthtoken ${accessToken}`,
+                    "Content-Type": "application/json",
                 },
-                to: [{ email: to }],
-                subject,
-                htmlContent: html,
-            }),
-        })
+                body: JSON.stringify({
+                    fromAddress: DEFAULT_FROM_EMAIL,
+                    toAddress: to,
+                    subject,
+                    content: html,
+                    mailFormat: "html",
+                    askReceipt: "no",
+                }),
+            }
+        )
     } catch (error) {
-        console.error("Brevo request failed:", {
-            message: error.message,
-        })
-        throw new ApiError(503, `Email provider request failed: ${error.message}`)
+        throw new ApiError(503, `Zoho mail request failed: ${error.message}`)
     }
 
     let data = null
@@ -182,18 +176,20 @@ const sendWithBrevo = async ({ to, subject, html }) => {
         data = null
     }
 
-    if (!response.ok) {
-        console.error("Brevo API error:", {
+    if (!response.ok || data?.status?.code !== 200) {
+        console.error("Zoho mail API error:", {
             status: response.status,
             body: data,
         })
         throw new ApiError(
             502,
-            data?.message || data?.code || "Failed to send email via Brevo"
+            data?.status?.description ||
+                data?.message ||
+                "Failed to send email via Zoho"
         )
     }
 
-    console.log("Brevo email sent successfully:", data?.messageId)
+    console.log("Zoho email sent successfully")
     return data
 }
 
@@ -203,16 +199,12 @@ const sendEmail = async ({ to, subject, html }) => {
     if (!DEFAULT_FROM_EMAIL) {
         throw new ApiError(
             500,
-            "EMAIL_FROM, RESEND_FROM_EMAIL, or SMTP_FROM_EMAIL is not configured"
+            "EMAIL_FROM, ZOHO_USER, or SMTP_FROM_EMAIL is not configured"
         )
     }
 
-    if (provider === "resend") {
-        return sendWithResend({ to, subject, html })
-    }
-
-    if (provider === "brevo") {
-        return sendWithBrevo({ to, subject, html })
+    if (provider === "zoho") {
+        return sendWithZoho({ to, subject, html })
     }
 
     if (provider === "smtp") {
