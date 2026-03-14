@@ -1,4 +1,3 @@
-import nodemailer from "nodemailer"
 import { ApiError } from "./index.js"
 
 const DEFAULT_FROM_EMAIL =
@@ -40,59 +39,6 @@ const getMailProvider = () => {
     }
 
     return "smtp"
-}
-
-const createTransporter = () => {
-    return nodemailer.createTransport({
-        host: process.env.SMTP_HOST,
-        port: parseInt(process.env.SMTP_PORT, 10),
-        secure: process.env.SMTP_PORT === "465",
-        auth: {
-            user: process.env.SMTP_USER,
-            pass: process.env.SMTP_PASS,
-        },
-        connectionTimeout: 10000,
-        greetingTimeout: 10000,
-        socketTimeout: 15000,
-        tls: {
-            rejectUnauthorized: false,
-        },
-    })
-}
-
-const sendWithSmtp = async ({ to, subject, html }) => {
-    const transporter = createTransporter()
-
-    try {
-        await transporter.verify()
-    } catch (error) {
-        console.error("SMTP connection verification failed:", {
-            message: error.message,
-            code: error.code,
-            host: process.env.SMTP_HOST,
-            port: process.env.SMTP_PORT,
-        })
-        throw new ApiError(503, `SMTP connection failed: ${error.message}`)
-    }
-
-    try {
-        const result = await transporter.sendMail({
-            from: `"QuizMitra" <${DEFAULT_FROM_EMAIL}>`,
-            to,
-            subject,
-            html,
-        })
-
-        console.log("SMTP email sent successfully:", result.messageId)
-        return result
-    } catch (error) {
-        console.error("SMTP email sending error:", {
-            message: error.message,
-            code: error.code,
-            command: error.command,
-        })
-        throw new ApiError(500, "Failed to send email")
-    }
 }
 
 const getZohoAccessToken = async () => {
@@ -180,7 +126,7 @@ const sendWithZoho = async ({ to, subject, html }) => {
                     "Content-Type": "application/json",
                 },
                 body: JSON.stringify({
-                    fromAddress: DEFAULT_FROM_EMAIL,
+                    fromAddress: `QuizMitra <${DEFAULT_FROM_EMAIL}>`,
                     toAddress: to,
                     subject,
                     content: html,
@@ -232,10 +178,6 @@ const sendEmail = async ({ to, subject, html }) => {
         return sendWithZoho({ to, subject, html })
     }
 
-    if (provider === "smtp") {
-        return sendWithSmtp({ to, subject, html })
-    }
-
     throw new ApiError(500, `Unsupported email provider: ${provider}`)
 }
 
@@ -274,7 +216,7 @@ const sendVerificationEmail = async (email, fullName, token) => {
                             <p>If you didn't create an account with QuizMitra, please ignore this email.</p>
                         </div>
                         <div class="footer">
-                            <p>&copy; 2025 QuizMitra. All rights reserved.</p>
+                            <p>&copy; ${new Date().getFullYear()} QuizMitra. All rights reserved.</p>
                         </div>
                     </div>
                 </body>
@@ -328,7 +270,7 @@ const sendPasswordResetEmail = async (email, fullName, token) => {
                             <p>If you didn't request a password reset, please ignore this email.</p>
                         </div>
                         <div class="footer">
-                            <p>&copy; 2025 QuizMitra. All rights reserved.</p>
+                            <p>&copy; ${new Date().getFullYear()} QuizMitra. All rights reserved.</p>
                         </div>
                     </div>
                 </body>

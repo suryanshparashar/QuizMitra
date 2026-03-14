@@ -59,7 +59,7 @@ const verifyOtp = asyncHandler(async (req, res) => {
         )
     }
 
-    if (otpRecord.otp !== otp) {
+    if (otpRecord.otp !== String(otp)) {
         throw new ApiError(400, "Invalid OTP")
     }
 
