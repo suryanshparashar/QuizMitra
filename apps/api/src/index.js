@@ -15,17 +15,28 @@ dotenv.config({
 
 const PORT = process.env.PORT || 8001
 
+const getActiveEmailProvider = () => {
+    if (process.env.EMAIL_PROVIDER) {
+        return process.env.EMAIL_PROVIDER.toLowerCase()
+    }
+    if (process.env.BREVO_API_KEY) return "brevo"
+    if (process.env.RESEND_API_KEY) return "resend"
+    return "smtp"
+}
+
 connectDB()
     .then(() => {
         console.log(`Server connected to MongoDB`)
+        console.log(`Email provider: ${getActiveEmailProvider()}`)
         app.listen(PORT, () => {
-            console.log(`Server running in ${process.env.NODE_ENV} mode on port ${PORT}`)
+            console.log(
+                `Server running in ${process.env.NODE_ENV} mode on port ${PORT}`
+            )
         })
     })
     .catch((error) => {
         console.error("MongoDB connection error: ", error)
         process.exit(1)
     })
-
 
 export default app
