@@ -17,6 +17,10 @@ const getMailProvider = () => {
         return "resend"
     }
 
+    if (process.env.BREVO_API_KEY) {
+        return "brevo"
+    }
+
     return "smtp"
 }
 
@@ -133,6 +137,66 @@ const sendWithResend = async ({ to, subject, html }) => {
     return data
 }
 
+const sendWithBrevo = async ({ to, subject, html }) => {
+    if (!process.env.BREVO_API_KEY) {
+        throw new ApiError(500, "BREVO_API_KEY is not configured")
+    }
+
+    if (!DEFAULT_FROM_EMAIL) {
+        throw new ApiError(
+            500,
+            "EMAIL_FROM, RESEND_FROM_EMAIL, or SMTP_FROM_EMAIL is not configured"
+        )
+    }
+
+    let response
+
+    try {
+        response = await fetch("https://api.brevo.com/v3/smtp/email", {
+            method: "POST",
+            headers: {
+                "api-key": process.env.BREVO_API_KEY,
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+                sender: {
+                    name: "QuizMitra",
+                    email: DEFAULT_FROM_EMAIL,
+                },
+                to: [{ email: to }],
+                subject,
+                htmlContent: html,
+            }),
+        })
+    } catch (error) {
+        console.error("Brevo request failed:", {
+            message: error.message,
+        })
+        throw new ApiError(503, `Email provider request failed: ${error.message}`)
+    }
+
+    let data = null
+    try {
+        data = await response.json()
+    } catch {
+        data = null
+    }
+
+    if (!response.ok) {
+        console.error("Brevo API error:", {
+            status: response.status,
+            body: data,
+        })
+        throw new ApiError(
+            502,
+            data?.message || data?.code || "Failed to send email via Brevo"
+        )
+    }
+
+    console.log("Brevo email sent successfully:", data?.messageId)
+    return data
+}
+
 const sendEmail = async ({ to, subject, html }) => {
     const provider = getMailProvider()
 
@@ -145,6 +209,10 @@ const sendEmail = async ({ to, subject, html }) => {
 
     if (provider === "resend") {
         return sendWithResend({ to, subject, html })
+    }
+
+    if (provider === "brevo") {
+        return sendWithBrevo({ to, subject, html })
     }
 
     if (provider === "smtp") {
