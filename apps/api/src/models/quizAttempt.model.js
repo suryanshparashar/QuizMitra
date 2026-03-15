@@ -134,6 +134,27 @@ const quizAttemptSchema = new Schema(
             max: [100, "Percentage cannot exceed 100"],
         },
 
+        // AI preparation review summary
+        advisory: {
+            strengths: {
+                type: [String],
+                default: [],
+            },
+            weaknesses: {
+                type: [String],
+                default: [],
+            },
+            recommendations: {
+                type: [String],
+                default: [],
+            },
+            motivationalMessage: {
+                type: String,
+                trim: true,
+                default: "",
+            },
+        },
+
         // Status fields
         status: {
             type: String,
@@ -320,6 +341,7 @@ quizAttemptSchema.methods.getDetailedSummary = function () {
             isLateSubmission: this.isLateSubmission,
             wasTimeExceeded: this.wasTimeExceeded,
         },
+        advisory: this.advisory,
         status: this.status,
         isDisputed: this.isDisputed,
     }

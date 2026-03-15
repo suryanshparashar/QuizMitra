@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useParams, useNavigate } from "react-router-dom"
 import {
     Clock,
@@ -28,6 +28,7 @@ export default function TakeQuiz() {
     const [showSubmitModal, setShowSubmitModal] = useState(false)
     const [hasAutoSubmitted, setHasAutoSubmitted] = useState(false)
     const [startTime, setStartTime] = useState(null)
+    const submissionLockRef = useRef(false)
 
     useEffect(() => {
         fetchQuiz()
@@ -155,6 +156,11 @@ export default function TakeQuiz() {
     }
 
     const handleFinalSubmit = async () => {
+        if (submissionLockRef.current || submitting || !startTime) {
+            return
+        }
+
+        submissionLockRef.current = true
         setSubmitting(true)
         setShowSubmitModal(false)
 
@@ -180,7 +186,11 @@ export default function TakeQuiz() {
             navigate(`/quiz-results/${response.data.data.attemptId}`)
         } catch (error) {
             console.error("Error submitting quiz:", error)
-            alert("Failed to submit quiz. Please try again.")
+            alert(
+                error.response?.data?.message ||
+                    "Failed to submit quiz. Please try again."
+            )
+            submissionLockRef.current = false
             setSubmitting(false)
         }
     }

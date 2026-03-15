@@ -3,6 +3,7 @@ import { useState, useEffect } from "react"
 import { useParams, Link } from "react-router-dom"
 import { api } from "../../services/api.js"
 import { useAuthStore } from "../../store/authStore.js"
+import { formatForDateTimeLocal, toUtcIsoString } from "../../utils/datetime.js"
 import {
     ArrowLeft,
     CheckCircle,
@@ -58,8 +59,8 @@ export default function QuizDetails() {
     }
 
     const handleOpenEditModal = () => {
-        setNewScheduledAt(new Date(quiz.scheduledAt).toISOString().slice(0, 16))
-        setNewDeadline(new Date(quiz.deadline).toISOString().slice(0, 16))
+        setNewScheduledAt(formatForDateTimeLocal(quiz.scheduledAt))
+        setNewDeadline(formatForDateTimeLocal(quiz.deadline))
         setIsEditModalOpen(true)
     }
 
@@ -71,14 +72,14 @@ export default function QuizDetails() {
         setSavingDates(true)
         try {
             await api.patch(`/quizzes/${quizId}`, {
-                scheduledAt: newScheduledAt,
-                deadline: newDeadline,
+                scheduledAt: toUtcIsoString(newScheduledAt),
+                deadline: toUtcIsoString(newDeadline),
             })
             // Update local state to reflect changes without full refetch immediately
             setQuiz({
                 ...quiz,
-                scheduledAt: newScheduledAt,
-                deadline: newDeadline,
+                scheduledAt: toUtcIsoString(newScheduledAt),
+                deadline: toUtcIsoString(newDeadline),
             })
             setIsEditModalOpen(false)
         } catch (error) {
@@ -380,6 +381,20 @@ export default function QuizDetails() {
                                                     </button>
                                                 </>
                                             )}
+
+                                            {quiz.status === "published" &&
+                                                new Date(quiz.deadline) >=
+                                                    new Date() && (
+                                                    <button
+                                                        onClick={
+                                                            handleOpenEditModal
+                                                        }
+                                                        className="w-full inline-flex items-center justify-center px-4 py-3 bg-white text-gray-700 border border-gray-300 text-sm font-medium rounded-lg hover:bg-gray-50 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 mb-3"
+                                                    >
+                                                        <Calendar className="h-4 w-4 mr-2" />
+                                                        Edit Timings
+                                                    </button>
+                                                )}
 
                                             <Link
                                                 to={`/quiz-grading/${quizId}`}

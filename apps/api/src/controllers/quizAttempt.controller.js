@@ -58,7 +58,24 @@ const submitQuizAnswers = asyncHandler(async (req, res) => {
     })
 
     if (existingAttempt) {
-        throw new ApiError(400, "You have already attempted this quiz")
+        return res.status(200).json(
+            new ApiResponse(
+                200,
+                {
+                    attemptId: existingAttempt._id,
+                    marksObtained: existingAttempt.marksObtained,
+                    maxMarks: existingAttempt.maxMarks,
+                    percentage: existingAttempt.percentage,
+                    grade: existingAttempt.calculateGrade(),
+                    isPassed: existingAttempt.checkIfPassed(),
+                    correctAnswers: existingAttempt.correctAnswers,
+                    totalQuestions: existingAttempt.totalQuestions,
+                    timeSpent: existingAttempt.timeSpent,
+                    submittedAt: existingAttempt.submittedAt,
+                },
+                "Quiz was already submitted"
+            )
+        )
     }
 
     // ✅ Validate time constraints
@@ -123,7 +140,7 @@ const submitQuizAnswers = asyncHandler(async (req, res) => {
                 maxMarks: quizAttempt.maxMarks,
                 percentage: quizAttempt.percentage,
                 grade: quizAttempt.calculateGrade(),
-                isPassed: quizAttempt.isPassed(),
+                isPassed: quizAttempt.checkIfPassed(),
                 correctAnswers: quizAttempt.correctAnswers,
                 totalQuestions: quizAttempt.totalQuestions,
                 timeSpent: quizAttempt.timeSpent,
@@ -164,7 +181,7 @@ const getMyQuizResult = asyncHandler(async (req, res) => {
             maxMarks: attempt.maxMarks,
             percentage: attempt.percentage,
             grade: attempt.calculateGrade(),
-            isPassed: attempt.isPassed(),
+            isPassed: attempt.checkIfPassed(),
         },
         performance: {
             correctAnswers: attempt.correctAnswers,
@@ -478,7 +495,10 @@ const getAttemptDetails = asyncHandler(async (req, res) => {
 
     const attempt = await QuizAttempt.findById(attemptId).populate([
         { path: "student", select: "fullName studentId email" },
-        { path: "quiz", select: "title requirements duration" },
+        {
+            path: "quiz",
+            select: "title requirements duration questions.topic questions.difficulty questions.questionType",
+        },
         { path: "class", select: "subjectName subjectCode faculty" },
     ])
 
@@ -495,6 +515,40 @@ const getAttemptDetails = asyncHandler(async (req, res) => {
         throw new ApiError(403, "Access denied")
     }
 
+    const hasAdvisory =
+        attempt.advisory?.motivationalMessage ||
+        (Array.isArray(attempt.advisory?.strengths) &&
+            attempt.advisory.strengths.length > 0) ||
+        (Array.isArray(attempt.advisory?.weaknesses) &&
+            attempt.advisory.weaknesses.length > 0) ||
+        (Array.isArray(attempt.advisory?.recommendations) &&
+            attempt.advisory.recommendations.length > 0)
+
+    // Backfill advisory for older attempts created before advisory persistence.
+    if (!hasAdvisory) {
+        try {
+            const generatedAdvisory =
+                await AdvisoryService.generateAdvisoryReport(
+                    attempt.quiz,
+                    {
+                        answers: attempt.answers,
+                        marksObtained: attempt.marksObtained,
+                        maxMarks: attempt.maxMarks,
+                        percentage: attempt.percentage,
+                        totalQuestions: attempt.totalQuestions,
+                        correctAnswers: attempt.correctAnswers,
+                        incorrectAnswers: attempt.incorrectAnswers,
+                    },
+                    { fullName: attempt.student?.fullName || "Student" }
+                )
+
+            attempt.advisory = generatedAdvisory
+            await attempt.save()
+        } catch (error) {
+            console.error("Failed to backfill advisory report:", error)
+        }
+    }
+
     // ✅ Return detailed results
     const detailedResults = attempt.getDetailedSummary()
 
@@ -508,6 +562,7 @@ const getAttemptDetails = asyncHandler(async (req, res) => {
                 class: attempt.class,
                 answers: attempt.answers,
                 facultyFeedback: attempt.facultyFeedback,
+                advisory: attempt.advisory,
             },
             "Attempt details retrieved successfully"
         )
@@ -1017,7 +1072,7 @@ const manualGradeAttempt = asyncHandler(async (req, res) => {
                     marksObtained: attempt.marksObtained,
                     percentage: attempt.percentage,
                     grade: attempt.calculateGrade(),
-                    isPassed: attempt.isPassed(),
+                    isPassed: attempt.checkIfPassed(),
                 },
                 changes: {
                     marksChange: attempt.marksObtained - originalMarks,

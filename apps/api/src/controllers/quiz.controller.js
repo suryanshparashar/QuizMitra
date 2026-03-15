@@ -790,10 +790,6 @@ const updateQuiz = asyncHandler(async (req, res) => {
         throw new ApiError(403, "You can only update your own quizzes")
     }
 
-    if (quiz.status === "published" && new Date(quiz.deadline) >= new Date()) {
-        throw new ApiError(400, "Cannot update an active published quiz")
-    }
-
     // ✅ Update allowed fields
     const allowedFields = [
         "title",
@@ -805,6 +801,7 @@ const updateQuiz = asyncHandler(async (req, res) => {
         "settings",
         "tags",
     ]
+    const scheduleFields = ["scheduledAt", "deadline"]
     const filteredData = {}
 
     allowedFields.forEach((field) => {
@@ -812,6 +809,37 @@ const updateQuiz = asyncHandler(async (req, res) => {
             filteredData[field] = updateData[field]
         }
     })
+
+    const requestedFields = Object.keys(filteredData)
+    const isActivePublishedQuiz =
+        quiz.status === "published" && new Date(quiz.deadline) >= new Date()
+
+    if (
+        isActivePublishedQuiz &&
+        requestedFields.some((field) => !scheduleFields.includes(field))
+    ) {
+        throw new ApiError(
+            400,
+            "Only quiz schedule can be updated after publishing"
+        )
+    }
+
+    const nextScheduledAt =
+        filteredData.scheduledAt !== undefined
+            ? new Date(filteredData.scheduledAt)
+            : new Date(quiz.scheduledAt)
+    const nextDeadline =
+        filteredData.deadline !== undefined
+            ? new Date(filteredData.deadline)
+            : new Date(quiz.deadline)
+
+    if (isNaN(nextScheduledAt.getTime()) || isNaN(nextDeadline.getTime())) {
+        throw new ApiError(400, "Invalid schedule date format")
+    }
+
+    if (nextDeadline <= nextScheduledAt) {
+        throw new ApiError(400, "Deadline must be after scheduled time")
+    }
 
     // ✅ Update requirements if questions changed
     if (filteredData.questions) {

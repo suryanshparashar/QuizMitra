@@ -9,6 +9,26 @@ const getAdvisoryModel = () => {
     })
 }
 
+const extractJsonObject = (content) => {
+    if (typeof content !== "string") {
+        throw new Error("Advisory model did not return text content")
+    }
+
+    const cleanedContent = content
+        .replace(/<think>[\s\S]*?<\/think>/gi, "")
+        .replace(/```json|```/gi, "")
+        .trim()
+
+    const firstBraceIndex = cleanedContent.indexOf("{")
+    const lastBraceIndex = cleanedContent.lastIndexOf("}")
+
+    if (firstBraceIndex === -1 || lastBraceIndex === -1) {
+        throw new Error("No JSON object found in advisory response")
+    }
+
+    return cleanedContent.slice(firstBraceIndex, lastBraceIndex + 1)
+}
+
 export const AdvisoryService = {
     /**
      * Generates a personalized advisory report based on quiz performance.
@@ -20,20 +40,46 @@ export const AdvisoryService = {
     generateAdvisoryReport: async (quiz, attempt, student) => {
         try {
             // 1. Prepare Data Context
-            const incorrectAnswers = attempt.answers
+            const quizTopics = Array.isArray(quiz.requirements?.topics)
+                ? quiz.requirements.topics.filter(Boolean)
+                : []
+
+            const topicPerformance = attempt.answers.map((answer) => {
+                const question = quiz.questions?.[answer.questionIndex]
+
+                return {
+                    topic:
+                        question?.topic ||
+                        question?.difficulty ||
+                        "General understanding",
+                    question: answer.questionText,
+                    isCorrect: answer.isCorrect,
+                    marksAwarded: answer.marksAwarded,
+                    maxMarks: answer.maxMarks,
+                    questionType: question?.questionType || "unknown",
+                }
+            })
+
+            const weakAreas = attempt.answers
                 .filter((a) => !a.isCorrect)
                 .map((a) => ({
+                    topic:
+                        quiz.questions?.[a.questionIndex]?.topic ||
+                        "General understanding",
                     question: a.questionText,
                     studentAnswer: a.selectedAnswer,
                     correctAnswer: a.correctAnswer,
-                    type: "Incorrect",
+                    concern: "Needs stronger conceptual preparation",
                 }))
 
-            const correctTopics = attempt.answers
+            const strongAreas = attempt.answers
                 .filter((a) => a.isCorrect)
                 .map((a) => ({
+                    topic:
+                        quiz.questions?.[a.questionIndex]?.topic ||
+                        "General understanding",
                     question: a.questionText,
-                    type: "Correct",
+                    signal: "Shows good preparation",
                 }))
 
             const performanceSummary = `
@@ -44,27 +90,35 @@ export const AdvisoryService = {
                 Total Questions: ${attempt.totalQuestions}
                 Correct: ${attempt.correctAnswers}
                 Incorrect: ${attempt.incorrectAnswers}
+                Available Quiz Topics: ${quizTopics.join(", ") || "Not explicitly tagged"}
             `
 
             // 2. Construct Prompt
             const prompt = `
                 You are an empathetic and expert academic advisor (QuizMitra). 
-                Analyze the following student's quiz performance and generate a personalized advisory report.
+                Analyze the student's overall preparation level for this quiz and generate a preparation review.
+                This is NOT answer-by-answer grading feedback. Do not explain whether a specific answer was right or wrong.
+                Focus on knowledge readiness, strong topics, weak topics, and how the student should improve before the next assessment.
 
                 **Performance Summary:**
                 ${performanceSummary}
 
-                **Incorrect Answers (Analyze for weaknesses/misconceptions):**
-                ${JSON.stringify(incorrectAnswers, null, 2)}
+                **Topic-Level Performance Signals:**
+                ${JSON.stringify(topicPerformance, null, 2)}
 
-                **Correct Answers (Analyze for strengths):**
-                ${JSON.stringify(correctTopics, null, 2)}
+                **Potential Strong Areas:**
+                ${JSON.stringify(strongAreas, null, 2)}
+
+                **Potential Weak Areas:**
+                ${JSON.stringify(weakAreas, null, 2)}
 
                 **Requirements:**
-                1. Identify 2-3 specific Strengths based on correctly answered questions.
-                2. Identify 2-3 specific Weaknesses or knowledge gaps based on incorrect answers.
-                3. Provide 2-3 actionable Recommendations (study tips, topics to review).
+                1. Identify 2-3 specific Strengths in the student's preparation, preferably in terms of topics or skills.
+                2. Identify 2-3 specific Weaknesses or knowledge gaps, preferably in terms of topics or concepts needing revision.
+                3. Provide 2-3 actionable Recommendations focused on improving preparation for the next quiz.
                 4. Write a short, encouraging Motivational Message (2 sentences max).
+                5. Use preparation language such as "well prepared in", "needs revision in", "should practice", "should review".
+                6. Avoid phrasing like "you got this answer wrong" or detailed answer-correction commentary.
 
                 **Output Format:**
                 Return ONLY a valid JSON object with the following structure:
@@ -85,22 +139,32 @@ export const AdvisoryService = {
             ])
 
             // 4. Parse Response
-            const content = result.content.replace(/```json|```/g, "").trim()
-            const report = JSON.parse(content)
+            const rawContent = Array.isArray(result.content)
+                ? result.content
+                      .map((part) =>
+                          typeof part === "string" ? part : part?.text || ""
+                      )
+                      .join("\n")
+                : result.content
+
+            const report = JSON.parse(extractJsonObject(rawContent))
 
             return report
         } catch (error) {
             console.error("Advisory Generation Error:", error)
             // Fallback in case of error
             return {
-                strengths: ["Completed the quiz attempt."],
+                strengths: [
+                    "You completed the quiz and attempted the material.",
+                ],
                 weaknesses: [
-                    "Unable to analyze specific weaknesses at this time.",
+                    "Detailed topic-wise preparation analysis is unavailable right now.",
                 ],
                 recommendations: [
-                    "Review the quiz answers manually to identify gaps.",
+                    "Review the quiz topic areas and revisit the concepts that felt less confident.",
                 ],
-                motivationalMessage: "Keep practicing and you will improve!",
+                motivationalMessage:
+                    "Keep building your preparation steadily; consistent revision will improve your performance.",
             }
         }
     },

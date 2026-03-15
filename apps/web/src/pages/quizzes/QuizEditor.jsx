@@ -14,6 +14,7 @@ import {
     Calendar,
     Clock,
 } from "lucide-react"
+import { formatForDateTimeLocal, toUtcIsoString } from "../../utils/datetime.js"
 
 export default function QuizEditor() {
     const { quizId } = useParams()
@@ -42,12 +43,10 @@ export default function QuizEditor() {
 
             // Format dates for datetime-local input
             if (data.scheduledAt) {
-                setScheduledAt(
-                    new Date(data.scheduledAt).toISOString().slice(0, 16)
-                )
+                setScheduledAt(formatForDateTimeLocal(data.scheduledAt))
             }
             if (data.deadline) {
-                setDeadline(new Date(data.deadline).toISOString().slice(0, 16))
+                setDeadline(formatForDateTimeLocal(data.deadline))
             }
 
             setQuestions(
@@ -153,8 +152,10 @@ export default function QuizEditor() {
 
             await api.patch(`/quizzes/${quizId}`, {
                 questions: questions,
-                scheduledAt: scheduledAt || undefined,
-                deadline: deadline || undefined,
+                scheduledAt: scheduledAt
+                    ? toUtcIsoString(scheduledAt)
+                    : undefined,
+                deadline: deadline ? toUtcIsoString(deadline) : undefined,
             })
 
             navigate(`/quizzes/${quizId}`)

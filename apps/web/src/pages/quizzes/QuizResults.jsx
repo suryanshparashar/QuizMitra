@@ -118,17 +118,17 @@ export default function QuizResults() {
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                     {/* Main Results */}
                     <div className="lg:col-span-2 space-y-6">
-                        {/* Performance Analysis (Advisory Agent) */}
+                        {/* Preparation Review (Advisory Agent) */}
                         {results.advisory && (
                             <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 mb-8">
                                 <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center">
                                     <Sparkles className="w-5 h-5 mr-2 text-purple-600" />
-                                    AI Performance Analysis
+                                    AI Preparation Review
                                 </h2>
 
                                 <div className="bg-purple-50 border border-purple-100 rounded-xl p-4 mb-6">
                                     <h3 className="text-sm font-semibold text-purple-900 mb-2">
-                                        Motivational Message
+                                        Overall Review
                                     </h3>
                                     <p className="text-purple-800 italic">
                                         "{results.advisory.motivationalMessage}"
@@ -139,7 +139,7 @@ export default function QuizResults() {
                                     <div>
                                         <h3 className="font-semibold text-green-700 flex items-center mb-3">
                                             <CheckCircle className="w-4 h-4 mr-2" />
-                                            Strengths
+                                            Strong Areas
                                         </h3>
                                         <ul className="space-y-2">
                                             {results.advisory.strengths?.map(
@@ -161,7 +161,7 @@ export default function QuizResults() {
                                     <div>
                                         <h3 className="font-semibold text-orange-700 flex items-center mb-3">
                                             <AlertCircle className="w-4 h-4 mr-2" />
-                                            Areas for Improvement
+                                            Weak Areas
                                         </h3>
                                         <ul className="space-y-2">
                                             {results.advisory.weaknesses?.map(
@@ -183,7 +183,7 @@ export default function QuizResults() {
                                     <div>
                                         <h3 className="font-semibold text-blue-700 flex items-center mb-3">
                                             <Lightbulb className="w-4 h-4 mr-2" />
-                                            Recommendations
+                                            How To Improve
                                         </h3>
                                         <ul className="space-y-2">
                                             {results.advisory.recommendations?.map(
@@ -384,49 +384,73 @@ export default function QuizResults() {
                                                 {answer.questionText}
                                             </p>
                                         </div>
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                                            <div className="bg-blue-50 rounded-xl p-4">
-                                                <p className="text-blue-900 font-semibold mb-1">
-                                                    Your Answer:
-                                                </p>
-                                                <p className="text-blue-800 whitespace-pre-wrap">
-                                                    {answer.selectedAnswer || (
-                                                        <i>
-                                                            No answer provided
-                                                        </i>
+                                        <div
+                                            className={`grid grid-cols-1 ${!answer.isCorrect ? "md:grid-cols-2" : ""} gap-4 mb-4`}
+                                        >
+                                            <div
+                                                className={`rounded-xl p-4 flex items-start space-x-3 ${answer.isCorrect ? "bg-green-50" : "bg-red-50"}`}
+                                            >
+                                                <div className="mt-0.5 shrink-0">
+                                                    {answer.isCorrect ? (
+                                                        <CheckCircle className="w-5 h-5 text-green-600" />
+                                                    ) : (
+                                                        <XCircle className="w-5 h-5 text-red-600" />
                                                     )}
-                                                </p>
-                                            </div>
-                                            <div className="bg-green-50 rounded-xl p-4">
-                                                <p className="text-green-900 font-semibold mb-1">
-                                                    Correct Answer / Model:
-                                                </p>
-                                                <p className="text-green-800 whitespace-pre-wrap">
-                                                    {answer.correctAnswer}
-                                                </p>
-                                            </div>
-                                        </div>
-
-                                        {/* AI Feedback / Grading Notes */}
-                                        {answer.gradingNotes && (
-                                            <div className="bg-purple-50 rounded-xl p-4 mb-4 border border-purple-100">
-                                                <div className="flex items-start space-x-2">
-                                                    <div className="mt-1">
-                                                        <Trophy className="w-4 h-4 text-purple-600" />
-                                                    </div>
-                                                    <div>
-                                                        <p className="text-purple-900 font-semibold mb-1">
-                                                            AI Feedback:
-                                                        </p>
-                                                        <p className="text-purple-800">
-                                                            {
-                                                                answer.gradingNotes
-                                                            }
-                                                        </p>
-                                                    </div>
+                                                </div>
+                                                <div>
+                                                    <p
+                                                        className={`font-semibold mb-1 ${answer.isCorrect ? "text-green-900" : "text-red-900"}`}
+                                                    >
+                                                        Your Answer:
+                                                    </p>
+                                                    <p
+                                                        className={`whitespace-pre-wrap ${answer.isCorrect ? "text-green-800" : "text-red-800"}`}
+                                                    >
+                                                        {answer.selectedAnswer || (
+                                                            <i>
+                                                                No answer
+                                                                provided
+                                                            </i>
+                                                        )}
+                                                    </p>
                                                 </div>
                                             </div>
-                                        )}
+                                            {!answer.isCorrect && (
+                                                <div className="bg-green-50 rounded-xl p-4">
+                                                    <p className="text-green-900 font-semibold mb-1">
+                                                        Correct Answer:
+                                                    </p>
+                                                    <p className="text-green-800 whitespace-pre-wrap">
+                                                        {answer.correctAnswer}
+                                                    </p>
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {/* Per-question evaluation notes — only show meaningful faculty feedback */}
+                                        {answer.gradingNotes &&
+                                            answer.gradingNotes
+                                                .trim()
+                                                .toLowerCase() !==
+                                                "correct" && (
+                                                <div className="bg-purple-50 rounded-xl p-4 mb-4 border border-purple-100">
+                                                    <div className="flex items-start space-x-2">
+                                                        <div className="mt-1">
+                                                            <Trophy className="w-4 h-4 text-purple-600" />
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-purple-900 font-semibold mb-1">
+                                                                Evaluation Note:
+                                                            </p>
+                                                            <p className="text-purple-800">
+                                                                {
+                                                                    answer.gradingNotes
+                                                                }
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
                                         <div className="flex items-center justify-between text-sm text-gray-600">
                                             <span>
                                                 Marks: {answer.marksAwarded}/

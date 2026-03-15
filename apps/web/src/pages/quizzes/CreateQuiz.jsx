@@ -16,6 +16,7 @@ import {
     Brain,
 } from "lucide-react"
 import { api } from "../../services/api.js"
+import { toUtcIsoString } from "../../utils/datetime.js"
 
 export default function CreateQuiz() {
     const [searchParams] = useSearchParams()
@@ -98,6 +99,8 @@ export default function CreateQuiz() {
         Object.keys(formData).forEach((key) => {
             if (key === "requirements") {
                 formDataObj.append(key, JSON.stringify(formData[key]))
+            } else if (key === "scheduledAt" || key === "deadline") {
+                formDataObj.append(key, toUtcIsoString(formData[key]) || "")
             } else {
                 formDataObj.append(key, formData[key])
             }
