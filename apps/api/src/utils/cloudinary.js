@@ -1,6 +1,8 @@
 import { v2 as cloudinary } from "cloudinary"
 import fs from "fs"
 import dotenv from "dotenv"
+import { CLOUDINARY_DP_FOLDER } from "../constants.js"
+import { ApiError } from "./ApiError.js"
 
 dotenv.config()
 
@@ -12,21 +14,60 @@ cloudinary.config({
 })
 
 const uploadOnCloudinary = async (fileBuffer, originalname) => {
-    try {
-        if (!fileBuffer) return null
+    if (!fileBuffer) return null
 
+    const extension = String(originalname || "")
+        .split(".")
+        .pop()
+        ?.toLowerCase()
+    const mimeMap = {
+        jpg: "image/jpeg",
+        jpeg: "image/jpeg",
+        png: "image/png",
+        webp: "image/webp",
+    }
+    const mimeType = mimeMap[extension] || "image/jpeg"
+
+    const hasConfig =
+        process.env.CLOUDINARY_CLOUD_NAME &&
+        process.env.CLOUDINARY_API_KEY &&
+        process.env.CLOUDINARY_API_SECRET
+
+    if (!hasConfig) {
+        throw new ApiError(
+            500,
+            "Cloudinary credentials are not fully configured"
+        )
+    }
+
+    try {
         const base64 = fileBuffer.toString("base64")
-        const dataURI = `data:image/${originalname.split(".").pop()};base64,${base64}`
+        const dataURI = `data:${mimeType};base64,${base64}`
 
         const response = await cloudinary.uploader.upload(dataURI, {
-            folder: "QuizMitra",
+            folder: CLOUDINARY_DP_FOLDER,
             resource_type: "image",
         })
 
         return response
     } catch (error) {
-        console.error("Cloudinary buffer upload error:", error)
-        return null
+        console.error("Cloudinary buffer upload error:", {
+            message: error?.message,
+            http_code: error?.http_code,
+            name: error?.name,
+        })
+
+        if (error?.http_code === 403) {
+            throw new ApiError(
+                502,
+                "Cloudinary denied upload (403). Verify API key type/permissions and product environment credentials."
+            )
+        }
+
+        throw new ApiError(
+            502,
+            error?.message || "Cloudinary upload failed unexpectedly"
+        )
     }
 }
 
@@ -40,7 +81,7 @@ const uploadOnCloudinary = async (fileBuffer, originalname) => {
 //         console.log("Local file path:", localFilePath)
 
 //         const response = await cloudinary.uploader.upload(localFilePath, {
-//             folder: "QuizMitra",
+//             folder: CLOUDINARY_DP_FOLDER,
 //             resource_type: "image",
 //         })
 

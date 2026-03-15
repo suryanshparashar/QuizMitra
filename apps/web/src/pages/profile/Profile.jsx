@@ -41,6 +41,8 @@ export default function Profile() {
     const [loadingPassword, setLoadingPassword] = useState(false)
     const [messagePassword, setMessagePassword] = useState("")
     const [messagePasswordType, setMessagePasswordType] = useState("")
+    const [loadingAvatar, setLoadingAvatar] = useState(false)
+    const [avatarVersion, setAvatarVersion] = useState(Date.now())
 
     const syncFormData = (profile) => {
         setFormData({
@@ -123,6 +125,10 @@ export default function Profile() {
         const file = e.target.files[0]
         if (!file) return
 
+        if (loadingAvatar) return
+
+        setLoadingAvatar(true)
+
         const formData = new FormData()
         formData.append("avatar", file)
 
@@ -134,13 +140,33 @@ export default function Profile() {
             if (updatedProfile) {
                 updateUser(updatedProfile)
             }
+
+            // Read back from DB to avoid stale client state after upload.
+            const profileResponse = await api.get("/users/profile")
+            const freshProfile = profileResponse?.data?.data
+            if (freshProfile) {
+                updateUser(freshProfile)
+            }
+
+            setAvatarVersion(Date.now())
             setMessage("Avatar updated successfully!")
             setMessageType("success")
         } catch (error) {
             console.error("Error updating avatar:", error)
-            setMessage("Failed to update avatar")
+            setMessage(
+                error?.response?.data?.message || "Failed to update avatar"
+            )
             setMessageType("error")
+        } finally {
+            setLoadingAvatar(false)
+            e.target.value = ""
         }
+    }
+
+    const getAvatarSrc = () => {
+        if (!user?.avatar) return ""
+        const separator = user.avatar.includes("?") ? "&" : "?"
+        return `${user.avatar}${separator}v=${avatarVersion}`
     }
 
     const handlePasswordUpdate = async (e) => {
@@ -204,20 +230,36 @@ export default function Profile() {
                                     <div className="w-32 h-32 rounded-full overflow-hidden bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-xl">
                                         {user?.avatar ? (
                                             <img
-                                                src={user.avatar}
+                                                src={getAvatarSrc()}
                                                 alt="Avatar"
                                                 className="w-full h-full object-cover"
+                                                onError={() =>
+                                                    setMessage(
+                                                        "Profile image URL is saved, but image delivery failed."
+                                                    )
+                                                }
                                             />
                                         ) : (
                                             <User className="w-16 h-16 text-white" />
                                         )}
                                     </div>
-                                    <label className="absolute bottom-0 right-0 w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center cursor-pointer hover:bg-blue-700 transition-colors shadow-lg">
-                                        <Camera className="w-5 h-5 text-white" />
+                                    <label
+                                        className={`absolute bottom-0 right-0 w-10 h-10 rounded-full flex items-center justify-center transition-colors shadow-lg ${
+                                            loadingAvatar
+                                                ? "bg-blue-400 cursor-not-allowed"
+                                                : "bg-blue-600 cursor-pointer hover:bg-blue-700"
+                                        }`}
+                                    >
+                                        {loadingAvatar ? (
+                                            <Loader2 className="w-5 h-5 text-white animate-spin" />
+                                        ) : (
+                                            <Camera className="w-5 h-5 text-white" />
+                                        )}
                                         <input
                                             type="file"
                                             accept="image/*"
                                             onChange={handleAvatarUpload}
+                                            disabled={loadingAvatar}
                                             className="hidden"
                                         />
                                     </label>

@@ -11,14 +11,14 @@ import {
     deactivateAccount,
     // deleteAccount,
 } from "../controllers/user.controller.js"
-import { upload } from "../middlewares/multer.middleware.js"
+import { uploadImage } from "../middlewares/multer.middleware.js"
 
 const router = Router()
 router.use(verifyJWT)
 
 router.route("/profile").get(getCurrentUser)
 router.route("/update-details").patch(updateAccountDetails)
-router.route("/avatar").patch(upload.single("avatar"), updateUserAvatar)
+router.route("/avatar").patch(uploadImage.single("avatar"), updateUserAvatar)
 router.route("/public/:userId").get(getUserById)
 router.route("/search").get(searchUsers)
 // router.route("/delete-account").delete(deleteAccount)

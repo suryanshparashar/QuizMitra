@@ -3,7 +3,10 @@ import { asyncHandler, ApiResponse, ApiError } from "../utils/index.js"
 import { User } from "../models/user.model.js"
 import { Class } from "../models/class.model.js"
 import { uploadOnCloudinary } from "../utils/index.js"
+import { createDevLogger } from "../utils/devLogger.js"
 import mongoose from "mongoose"
+
+const devLog = createDevLogger("controller.user.avatar")
 
 // ✅ Get current user profile
 const getCurrentUser = asyncHandler(async (req, res) => {
@@ -15,6 +18,11 @@ const getCurrentUser = asyncHandler(async (req, res) => {
     if (!user) {
         throw new ApiError(404, "User not found")
     }
+
+    devLog.info("Profile fetched", {
+        userId: String(user?._id || req.user?._id || ""),
+        avatar: user?.avatar || null,
+    })
 
     return res
         .status(200)
@@ -173,6 +181,13 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
         throw new ApiError(400, "Avatar file is required")
     }
 
+    devLog.info("Avatar upload request received", {
+        userId: String(req.user?._id || ""),
+        originalname: req.file.originalname,
+        mimetype: req.file.mimetype,
+        size: req.file.size,
+    })
+
     // ✅ Validate file type and size
     const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp"]
     if (!allowedTypes.includes(req.file.mimetype)) {
@@ -191,11 +206,28 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
             req.file.originalname
         )
 
+        devLog.info("Cloudinary upload completed", {
+            userId: String(req.user?._id || ""),
+            secureUrl: uploadResult?.secure_url || null,
+            fallbackUrl: uploadResult?.url || null,
+            publicId: uploadResult?.public_id || null,
+        })
+
         if (!uploadResult || !(uploadResult.secure_url || uploadResult.url)) {
             throw new Error("Upload failed")
         }
     } catch (error) {
+        devLog.error("Avatar upload failed", {
+            userId: String(req.user?._id || ""),
+            message: error?.message,
+            statusCode: error?.statusCode,
+            httpCode: error?.http_code,
+            name: error?.name,
+        })
         console.error("Avatar upload error:", error)
+        if (error instanceof ApiError) {
+            throw error
+        }
         throw new ApiError(500, "Failed to upload avatar. Please try again.")
     }
 
@@ -207,6 +239,11 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
     ).select(
         "-password -refreshToken -emailVerificationToken -passwordResetToken"
     )
+
+    devLog.info("Avatar persisted to MongoDB", {
+        userId: String(updatedUser?._id || req.user?._id || ""),
+        avatar: updatedUser?.avatar || null,
+    })
 
     return res
         .status(200)
