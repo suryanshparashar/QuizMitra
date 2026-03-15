@@ -2,6 +2,7 @@ import { useState } from "react"
 import { Outlet, Link, useNavigate } from "react-router-dom"
 import { useAuthStore } from "../store/authStore.js"
 import { useNotification } from "../context/NotificationContext.jsx"
+import { getDashboardPath } from "../utils/getDashboardPath.js"
 import {
     Bell,
     LogOut,
@@ -10,6 +11,7 @@ import {
     PlusCircle,
     Users,
     BookOpen,
+    Shield,
 } from "lucide-react"
 import JoinClassModal from "./JoinClassModal"
 
@@ -31,7 +33,7 @@ export default function Layout() {
                 <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
                     {/* Brand */}
                     <Link
-                        to="/dashboard"
+                        to={getDashboardPath(user?.role)}
                         className="flex items-center gap-2 text-xl font-bold bg-gradient-to-r from-primary-600 to-accent-600 bg-clip-text text-transparent"
                     >
                         <img
@@ -46,12 +48,32 @@ export default function Layout() {
                     {user && (
                         <div className="flex items-center gap-1 sm:gap-3">
                             <Link
-                                to="/dashboard"
+                                to={getDashboardPath(user?.role)}
                                 className="hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium text-gray-700 hover:text-primary-600 hover:bg-primary-50 transition"
                             >
-                                <LayoutDashboard className="w-4 h-4" />
-                                Dashboard
+                                {["admin", "superadmin"].includes(
+                                    user?.role
+                                ) ? (
+                                    <Shield className="w-4 h-4" />
+                                ) : (
+                                    <LayoutDashboard className="w-4 h-4" />
+                                )}
+                                {user?.role === "superadmin"
+                                    ? "Superadmin Dashboard"
+                                    : user?.role === "admin"
+                                      ? "Admin Dashboard"
+                                      : "Dashboard"}
                             </Link>
+
+                            {user?.role === "superadmin" && (
+                                <Link
+                                    to="/admin/dashboard"
+                                    className="hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium text-red-700 bg-red-50 hover:bg-red-100 transition"
+                                >
+                                    <Shield className="w-4 h-4" />
+                                    Admin Dashboard
+                                </Link>
+                            )}
 
                             <Link
                                 to="/profile"

@@ -1,6 +1,7 @@
 // components/ProtectedRoute.jsx
 import { Navigate } from "react-router-dom"
 import { useAuthStore } from "../store/authStore.js"
+import { getDashboardPath } from "../utils/getDashboardPath.js"
 
 export default function ProtectedRoute({ children, requiredRole }) {
     const { isAuthenticated, user, loading } = useAuthStore()
@@ -17,7 +18,7 @@ export default function ProtectedRoute({ children, requiredRole }) {
 
     // Check role-based access
     if (requiredRole && user.role !== requiredRole) {
-        return <Navigate to="/dashboard" replace />
+        return <Navigate to={getDashboardPath(user.role)} replace />
     }
 
     return children

@@ -139,6 +139,13 @@ const registerUser = asyncHandler(async (req, res) => {
         throw new ApiError(400, "Passwords do not match")
     }
 
+    if (role === "admin") {
+        throw new ApiError(
+            403,
+            "Admin registration is restricted. Use the secure admin endpoint."
+        )
+    }
+
     // ✅ Verify OTP Verification Token
     try {
         const decodedToken = jwt.verify(

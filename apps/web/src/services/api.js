@@ -49,6 +49,7 @@ api.interceptors.response.use(
             const requestUrl = String(error?.config?.url || "")
             const isAuthFormRequest =
                 requestUrl.includes("/auth/login") ||
+                requestUrl.includes("/admin/login") ||
                 requestUrl.includes("/auth/register") ||
                 requestUrl.includes("/auth/send-otp") ||
                 requestUrl.includes("/auth/verify-otp")

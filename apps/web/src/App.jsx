@@ -6,6 +6,7 @@ import {
 } from "react-router-dom"
 import { useAuthStore } from "./store/authStore"
 import { useEffect } from "react"
+import { getDashboardPath } from "./utils/getDashboardPath"
 
 // Layout Components
 import Layout from "./components/Layout"
@@ -13,12 +14,15 @@ import ProtectedRoute from "./components/ProtectedRoute"
 
 // Auth Pages
 import Login from "./pages/auth/Login"
+import AdminLogin from "./pages/auth/AdminLogin"
 import Register from "./pages/auth/Register"
 import VerifyEmail from "./pages/auth/VerifyEmail"
 
 // Dashboard Pages
 import FacultyDashboard from "./pages/dashboard/FacultyDashboard"
 import StudentDashboard from "./pages/dashboard/StudentDashboard"
+import AdminDashboard from "./pages/dashboard/AdminDashboard"
+import SuperAdminDashboard from "./pages/dashboard/SuperAdminDashboard"
 
 // Class Pages
 import CreateClass from "./pages/classes/CreateClass"
@@ -62,9 +66,25 @@ function App() {
                             path="/login"
                             element={
                                 isAuthenticated ? (
-                                    <Navigate to="/dashboard" replace />
+                                    <Navigate
+                                        to={getDashboardPath(user?.role)}
+                                        replace
+                                    />
                                 ) : (
                                     <Login />
+                                )
+                            }
+                        />
+                        <Route
+                            path="/admin/login"
+                            element={
+                                isAuthenticated ? (
+                                    <Navigate
+                                        to={getDashboardPath(user?.role)}
+                                        replace
+                                    />
+                                ) : (
+                                    <AdminLogin />
                                 )
                             }
                         />
@@ -72,7 +92,10 @@ function App() {
                             path="/register"
                             element={
                                 isAuthenticated ? (
-                                    <Navigate to="/dashboard" replace />
+                                    <Navigate
+                                        to={getDashboardPath(user?.role)}
+                                        replace
+                                    />
                                 ) : (
                                     <Register />
                                 )
@@ -92,18 +115,79 @@ function App() {
                                 </ProtectedRoute>
                             }
                         >
-                            {/* Dashboard Routes - Role-based */}
+                            {/* Root → role-specific dashboard */}
                             <Route
                                 path="/"
-                                element={<Navigate to="/dashboard" replace />}
+                                element={
+                                    <Navigate
+                                        to={getDashboardPath(user?.role)}
+                                        replace
+                                    />
+                                }
                             />
+
+                            {/* /dashboard → backward-compat redirect for any hardcoded links */}
                             <Route
                                 path="/dashboard"
+                                element={
+                                    <Navigate
+                                        to={getDashboardPath(user?.role)}
+                                        replace
+                                    />
+                                }
+                            />
+
+                            {/* Role-specific dashboard routes */}
+                            <Route
+                                path="/faculty/dashboard"
                                 element={
                                     user?.role === "faculty" ? (
                                         <FacultyDashboard />
                                     ) : (
+                                        <Navigate
+                                            to={getDashboardPath(user?.role)}
+                                            replace
+                                        />
+                                    )
+                                }
+                            />
+                            <Route
+                                path="/student/dashboard"
+                                element={
+                                    user?.role === "student" ? (
                                         <StudentDashboard />
+                                    ) : (
+                                        <Navigate
+                                            to={getDashboardPath(user?.role)}
+                                            replace
+                                        />
+                                    )
+                                }
+                            />
+                            <Route
+                                path="/admin/dashboard"
+                                element={
+                                    user?.role === "admin" ||
+                                    user?.role === "superadmin" ? (
+                                        <AdminDashboard />
+                                    ) : (
+                                        <Navigate
+                                            to={getDashboardPath(user?.role)}
+                                            replace
+                                        />
+                                    )
+                                }
+                            />
+                            <Route
+                                path="/superadmin/dashboard"
+                                element={
+                                    user?.role === "superadmin" ? (
+                                        <SuperAdminDashboard />
+                                    ) : (
+                                        <Navigate
+                                            to={getDashboardPath(user?.role)}
+                                            replace
+                                        />
                                     )
                                 }
                             />

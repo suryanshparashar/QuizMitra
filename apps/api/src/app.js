@@ -42,6 +42,7 @@ import classMessageRoutes from "./routes/classMessage.route.js"
 import analyticsRoutes from "./routes/analytics.route.js"
 import searchRoutes from "./routes/search.route.js"
 import notificationRoutes from "./routes/notification.route.js"
+import adminRoutes from "./routes/admin.route.js"
 
 // Route setup
 app.use("/api/v1/healthcheck", healthcheckRouter)
@@ -56,6 +57,7 @@ app.use("/api/v1/class-messages", classMessageRoutes)
 app.use("/api/v1/analytics", analyticsRoutes)
 app.use("/api/v1/search", searchRoutes)
 app.use("/api/v1/notifications", notificationRoutes)
+app.use("/api/v1/admin", adminRoutes)
 
 // SPA Fallback — serve index.html for all non-API GET routes
 // Only active when the frontend is co-deployed (index.html exists in public/)

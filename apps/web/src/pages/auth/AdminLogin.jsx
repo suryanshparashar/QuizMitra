@@ -3,78 +3,62 @@ import { useNavigate, Link } from "react-router-dom"
 import { useAuthStore } from "../../store/authStore.js"
 import { getDashboardPath } from "../../utils/getDashboardPath.js"
 import {
-    Mail,
     Lock,
     LogIn,
     Eye,
     EyeOff,
     AlertCircle,
     Loader2,
-    GraduationCap,
+    Shield,
 } from "lucide-react"
 import { showToast } from "../../components/Toast.jsx"
 
-export default function Login() {
+export default function AdminLogin() {
     const [formData, setFormData] = useState({ identifier: "", password: "" })
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState("")
     const [showPassword, setShowPassword] = useState(false)
     const navigate = useNavigate()
-    const { login } = useAuthStore()
+    const { loginAdmin } = useAuthStore()
 
     const handleSubmit = async (e) => {
         e.preventDefault()
+        if (loading) return
 
-        console.log("Submitting login for:", formData.identifier)
-
-        if (loading) {
-            setLoading(true)
-            console.log("Login already in progress")
-            return // Prevent multiple submissions
-        }
-
-        console.log("Initiating login process")
         setLoading(true)
         setError("")
-        console.log("Form Data:", formData)
 
         try {
-            await login(formData.identifier, formData.password)
-            showToast.success("Welcome back!")
+            await loginAdmin(formData.identifier, formData.password)
+            showToast.success("Admin login successful")
             const role = useAuthStore.getState().user?.role
             navigate(getDashboardPath(role))
         } catch (err) {
-            const msg = err.response?.data?.message || "Login failed"
+            const msg = err.response?.data?.message || "Admin login failed"
             setError(msg)
             showToast.error(msg)
-            setTimeout(() => setError(""), 5000)
         } finally {
             setLoading(false)
         }
-
-        console.log("Login process completed")
     }
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 flex items-center justify-center p-4">
+        <div className="min-h-screen bg-gradient-to-br from-red-50 via-white to-orange-50 flex items-center justify-center p-4">
             <div className="max-w-md w-full">
-                {/* Header */}
                 <div className="text-center mb-8">
-                    <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-xl">
-                        <GraduationCap className="w-10 h-10 text-white" />
+                    <div className="w-20 h-20 bg-gradient-to-br from-red-600 to-orange-600 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-xl">
+                        <Shield className="w-10 h-10 text-white" />
                     </div>
                     <h1 className="text-4xl font-bold text-gray-900 mb-2">
-                        Welcome Back
+                        Admin Portal
                     </h1>
                     <p className="text-gray-600 text-lg">
-                        Sign in to your QuizMitra account
+                        Sign in with your admin/superadmin ID or email
                     </p>
                 </div>
 
-                {/* Login Form */}
                 <div className="bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden">
                     <div className="p-8">
-                        {/* Error Message */}
                         {error && (
                             <div className="mb-6 bg-red-50 border border-red-200 rounded-2xl p-4 flex items-start space-x-3">
                                 <AlertCircle className="w-5 h-5 text-red-500 mt-0.5 flex-shrink-0" />
@@ -90,19 +74,18 @@ export default function Login() {
                         )}
 
                         <form onSubmit={handleSubmit} className="space-y-6">
-                            {/* Identifier Field */}
                             <div className="space-y-2">
                                 <label className="block text-sm font-medium text-gray-700">
-                                    Faculty/Student ID or Email
+                                    Admin/Superadmin ID or Email
                                 </label>
                                 <div className="relative">
                                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                        <Mail className="w-5 h-5 text-gray-400" />
+                                        <Shield className="w-5 h-5 text-gray-400" />
                                     </div>
                                     <input
                                         type="text"
                                         autoComplete="username"
-                                        placeholder="Enter faculty ID, student ID, or email"
+                                        placeholder="Enter admin ID, superadmin ID, or email"
                                         value={formData.identifier}
                                         onChange={(e) =>
                                             setFormData({
@@ -111,12 +94,11 @@ export default function Login() {
                                             })
                                         }
                                         required
-                                        className="block w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors bg-gray-50 focus:bg-white text-gray-900 placeholder-gray-500"
+                                        className="block w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-colors bg-gray-50 focus:bg-white text-gray-900 placeholder-gray-500"
                                     />
                                 </div>
                             </div>
 
-                            {/* Password Field */}
                             <div className="space-y-2">
                                 <label className="block text-sm font-medium text-gray-700">
                                     Password
@@ -139,7 +121,7 @@ export default function Login() {
                                             })
                                         }
                                         required
-                                        className="block w-full pl-10 pr-12 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors bg-gray-50 focus:bg-white text-gray-900 placeholder-gray-500"
+                                        className="block w-full pl-10 pr-12 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-colors bg-gray-50 focus:bg-white text-gray-900 placeholder-gray-500"
                                     />
                                     <button
                                         type="button"
@@ -157,11 +139,10 @@ export default function Login() {
                                 </div>
                             </div>
 
-                            {/* Submit Button */}
                             <button
                                 type="submit"
                                 disabled={loading}
-                                className="w-full py-3 px-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-medium rounded-xl hover:from-blue-700 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 flex items-center justify-center space-x-2"
+                                className="w-full py-3 px-4 bg-gradient-to-r from-red-600 to-orange-600 text-white font-medium rounded-xl hover:from-red-700 hover:to-orange-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 flex items-center justify-center space-x-2"
                             >
                                 {loading ? (
                                     <>
@@ -171,7 +152,7 @@ export default function Login() {
                                 ) : (
                                     <>
                                         <LogIn className="w-4 h-4" />
-                                        <span>Sign In</span>
+                                        <span>Admin Sign In</span>
                                     </>
                                 )}
                             </button>
@@ -179,26 +160,13 @@ export default function Login() {
                     </div>
                 </div>
 
-                {/* Register Link */}
                 <div className="mt-8 text-center">
-                    <p className="text-gray-600">
-                        Don't have an account?{" "}
-                        <Link
-                            to="/register"
-                            className="text-blue-600 hover:text-blue-700 font-medium transition-colors"
-                        >
-                            Create Account
-                        </Link>
-                    </p>
-                    {/* <p className="text-gray-500 mt-3 text-sm">
-                        Admin or Superadmin?{" "}
-                        <Link
-                            to="/admin/login"
-                            className="text-red-600 hover:text-red-700 font-medium transition-colors"
-                        >
-                            Sign in to Admin Portal
-                        </Link>
-                    </p> */}
+                    <Link
+                        to="/login"
+                        className="text-gray-600 hover:text-gray-800 font-medium transition-colors"
+                    >
+                        Back to standard login
+                    </Link>
                 </div>
             </div>
         </div>

@@ -32,6 +32,17 @@ export const useAuthStore = create()(
                 set({ user, accessToken, isAuthenticated: true })
             },
 
+            // Admin Login
+            loginAdmin: async (identifier, password) => {
+                const response = await api.post("/admin/login", {
+                    identifier,
+                    password,
+                })
+                const { user, accessToken } = response.data.data
+
+                set({ user, accessToken, isAuthenticated: true })
+            },
+
             // Register
             register: async (userData) => {
                 const response = await api.post("/auth/register", userData)
