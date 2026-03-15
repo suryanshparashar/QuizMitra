@@ -19,11 +19,15 @@ import {
 } from "lucide-react"
 
 export default function Profile() {
-    const { user } = useAuthStore()
+    const { user, updateUser } = useAuthStore()
     const [formData, setFormData] = useState({
         fullName: "",
         email: "",
         phoneNumber: "",
+        department: "",
+        designation: "",
+        year: "",
+        branch: "",
     })
     const [loading, setLoading] = useState(false)
     const [message, setMessage] = useState("")
@@ -38,15 +42,43 @@ export default function Profile() {
     const [messagePassword, setMessagePassword] = useState("")
     const [messagePasswordType, setMessagePasswordType] = useState("")
 
+    const syncFormData = (profile) => {
+        setFormData({
+            fullName: profile?.fullName || "",
+            email: profile?.email || "",
+            phoneNumber: profile?.phoneNumber || "",
+            department: profile?.department || "",
+            designation: profile?.designation || "",
+            year:
+                profile?.year !== undefined && profile?.year !== null
+                    ? String(profile.year)
+                    : "",
+            branch: profile?.branch || "",
+        })
+    }
+
     useEffect(() => {
         if (user) {
-            setFormData({
-                fullName: user.fullName || "",
-                email: user.email || "",
-                phoneNumber: user.phoneNumber || "",
-            })
+            syncFormData(user)
         }
     }, [user])
+
+    useEffect(() => {
+        const loadProfile = async () => {
+            try {
+                const response = await api.get("/users/profile")
+                const profile = response?.data?.data
+                if (profile) {
+                    updateUser(profile)
+                    syncFormData(profile)
+                }
+            } catch (error) {
+                console.error("Failed to load profile:", error)
+            }
+        }
+
+        loadProfile()
+    }, [updateUser])
 
     const handleSubmit = async (e) => {
         e.preventDefault()
@@ -54,7 +86,28 @@ export default function Profile() {
         setMessage("")
 
         try {
-            await api.patch("/users/update-details", formData)
+            const payload = {
+                fullName: formData.fullName,
+                email: formData.email,
+                phoneNumber: formData.phoneNumber,
+            }
+
+            if (user?.role === "faculty") {
+                payload.department = formData.department
+                payload.designation = formData.designation
+            }
+
+            if (user?.role === "student") {
+                payload.year = formData.year
+                payload.branch = formData.branch
+            }
+
+            const response = await api.patch("/users/update-details", payload)
+            const updatedProfile = response?.data?.data
+            if (updatedProfile) {
+                updateUser(updatedProfile)
+                syncFormData(updatedProfile)
+            }
             setMessage("Profile updated successfully!")
             setMessageType("success")
         } catch (error) {
@@ -74,9 +127,13 @@ export default function Profile() {
         formData.append("avatar", file)
 
         try {
-            await api.patch("/users/avatar", formData, {
+            const response = await api.patch("/users/avatar", formData, {
                 headers: { "Content-Type": "multipart/form-data" },
             })
+            const updatedProfile = response?.data?.data
+            if (updatedProfile) {
+                updateUser(updatedProfile)
+            }
             setMessage("Avatar updated successfully!")
             setMessageType("success")
         } catch (error) {
@@ -336,6 +393,112 @@ export default function Profile() {
                                 </div>
 
                                 {/* Submit Button */}
+                                {user?.role === "faculty" && (
+                                    <>
+                                        <div className="space-y-2">
+                                            <label className="block text-sm font-medium text-gray-700">
+                                                Department
+                                            </label>
+                                            <div className="relative">
+                                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                                    <Building className="w-5 h-5 text-gray-400" />
+                                                </div>
+                                                <input
+                                                    type="text"
+                                                    placeholder="Enter your department"
+                                                    value={formData.department}
+                                                    onChange={(e) =>
+                                                        setFormData({
+                                                            ...formData,
+                                                            department:
+                                                                e.target.value,
+                                                        })
+                                                    }
+                                                    className="block w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors bg-gray-50 focus:bg-white text-gray-900 placeholder-gray-500"
+                                                />
+                                            </div>
+                                        </div>
+
+                                        <div className="space-y-2">
+                                            <label className="block text-sm font-medium text-gray-700">
+                                                Designation
+                                            </label>
+                                            <div className="relative">
+                                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                                    <Award className="w-5 h-5 text-gray-400" />
+                                                </div>
+                                                <input
+                                                    type="text"
+                                                    placeholder="Enter your designation"
+                                                    value={formData.designation}
+                                                    onChange={(e) =>
+                                                        setFormData({
+                                                            ...formData,
+                                                            designation:
+                                                                e.target.value,
+                                                        })
+                                                    }
+                                                    className="block w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors bg-gray-50 focus:bg-white text-gray-900 placeholder-gray-500"
+                                                />
+                                            </div>
+                                        </div>
+                                    </>
+                                )}
+
+                                {user?.role === "student" && (
+                                    <>
+                                        <div className="space-y-2">
+                                            <label className="block text-sm font-medium text-gray-700">
+                                                Year
+                                            </label>
+                                            <div className="relative">
+                                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                                    <Calendar className="w-5 h-5 text-gray-400" />
+                                                </div>
+                                                <input
+                                                    type="number"
+                                                    min="1"
+                                                    max="8"
+                                                    placeholder="Enter your year"
+                                                    value={formData.year}
+                                                    onChange={(e) =>
+                                                        setFormData({
+                                                            ...formData,
+                                                            year: e.target
+                                                                .value,
+                                                        })
+                                                    }
+                                                    className="block w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors bg-gray-50 focus:bg-white text-gray-900 placeholder-gray-500"
+                                                />
+                                            </div>
+                                        </div>
+
+                                        <div className="space-y-2">
+                                            <label className="block text-sm font-medium text-gray-700">
+                                                Branch
+                                            </label>
+                                            <div className="relative">
+                                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                                    <Building className="w-5 h-5 text-gray-400" />
+                                                </div>
+                                                <input
+                                                    type="text"
+                                                    placeholder="Enter your branch"
+                                                    value={formData.branch}
+                                                    onChange={(e) =>
+                                                        setFormData({
+                                                            ...formData,
+                                                            branch: e.target
+                                                                .value,
+                                                        })
+                                                    }
+                                                    className="block w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors bg-gray-50 focus:bg-white text-gray-900 placeholder-gray-500"
+                                                />
+                                            </div>
+                                        </div>
+                                    </>
+                                )}
+
                                 <div className="pt-6">
                                     <button
                                         type="submit"
