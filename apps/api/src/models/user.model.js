@@ -66,6 +66,12 @@ const userSchema = new Schema(
             },
         },
 
+        phoneNumber: {
+            type: String,
+            trim: true,
+            default: "",
+        },
+
         password: {
             type: String,
             required: [true, "Password is required"],
@@ -116,7 +122,7 @@ const userSchema = new Schema(
 
         accountStatus: {
             type: String,
-            enum: ["active", "pending", "suspended"],
+            enum: ["active", "pending", "suspended", "deactivated"],
             default: "pending",
         },
 

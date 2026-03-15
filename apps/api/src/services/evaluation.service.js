@@ -1,13 +1,12 @@
-import { ChatGoogleGenerativeAI } from "@langchain/google-genai"
-import { z } from "zod"
+import { createChatModel } from "../utils/llmClient.js"
 
-// Initialize Gemini model for evaluation
-const evaluationModel = new ChatGoogleGenerativeAI({
-    model: process.env.GOOGLE_LLM_ADVANCED_MODEL,
-    maxOutputTokens: 1024,
-    temperature: 0.1, // Low temperature for consistent grading
-    apiKey: process.env.GOOGLE_API_KEY,
-})
+const getEvaluationModel = () => {
+    return createChatModel({
+        purpose: "evaluation",
+        maxOutputTokens: 1024,
+        temperature: 0.1,
+    })
+}
 
 /**
  * Service to handle quiz evaluation strategies
@@ -170,7 +169,7 @@ export const EvaluationService = {
             }
             `
 
-            const response = await evaluationModel.invoke(prompt)
+            const response = await getEvaluationModel().invoke(prompt)
             const content = response.content.replace(/```json|```/g, "").trim()
             const result = JSON.parse(content)
 

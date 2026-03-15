@@ -1,41 +1,19 @@
-// class AIService {
-//     constructor() {
-//         this.geminiClient = new GoogleGenerativeAI(process.env.GEMINI_API_KEY)
-//     }
-
-//     async generateQuestions(imput, requirements) {
-//         try {
-
-//         } catch (error) {
-
-//         }
-//     }
-// }
-
-import { GoogleGenerativeAI } from "@google/generative-ai"
+import pdfParse from "pdf-parse"
 import { ApiError } from "../utils/index.js"
-
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY)
+import { createChatModel } from "../utils/llmClient.js"
 
 const generateQuestionsFromPDF = async (pdfBuffer, requirements) => {
-    const model = genAI.getGenerativeModel({
-        model: process.env.GOOGLE_LLM_ADVANCED_MODEL,
-        generationConfig: {
-            temperature: 0.2,
-            topP: 0.8,
-            topK: 40,
-        },
+    const model = createChatModel({
+        purpose: "quizGeneration",
+        temperature: 0.2,
+        maxOutputTokens: 8192,
+        topP: 0.8,
     })
-
-    const pdfPart = {
-        inlineData: {
-            data: pdfBuffer.toString("base64"),
-            mimeType: "application/pdf",
-        },
-    }
+    const pdfData = await pdfParse(pdfBuffer)
+    const extractedContent = pdfData.text.replace(/\n\s*\n/g, "\n").trim()
 
     const prompt = `
-    Analyze the provided PDF document and generate ${requirements.numQuestions} high-quality educational questions.
+    Analyze the provided PDF content and generate ${requirements.numQuestions} high-quality educational questions.
 
     REQUIREMENTS:
     - Difficulty Level: ${requirements.difficultyLevel}
@@ -43,6 +21,9 @@ const generateQuestionsFromPDF = async (pdfBuffer, requirements) => {
     - Topics to Focus: ${requirements.topics.join(", ")}
     - Marks per Question: ${requirements.marksPerQuestion}
     - Total Marks: ${requirements.totalMarks}
+
+    SOURCE CONTENT:
+    ${extractedContent.slice(0, 30000)}
 
     IMPORTANT: Return ONLY a valid JSON array with NO additional text, explanations, or markdown formatting.
 
@@ -70,8 +51,8 @@ const generateQuestionsFromPDF = async (pdfBuffer, requirements) => {
     let rawResponseText = ""
 
     try {
-        const result = await model.generateContent([prompt, pdfPart])
-        rawResponseText = result.response.text()
+        const result = await model.invoke(prompt)
+        rawResponseText = result.content
 
         const cleanedResponse = rawResponseText
             .replace(/``````/g, "")

@@ -64,6 +64,7 @@ const generateQuiz = asyncHandler(async (req, res) => {
         inputObj = { type: "pdf", data: req.file.buffer }
         inputType = "pdf"
         inputName = req.file.originalname
+        inputObj.originalName = req.file.originalname
 
         // ✅ Upload PDF to Cloudinary
         const uploadResponse = await uploadOnCloudinary(
@@ -190,8 +191,9 @@ const generateQuiz = asyncHandler(async (req, res) => {
         }
 
         if (generatedQuestions.length !== parsedRequirements.numQuestions) {
-            console.warn(
-                `Expected ${parsedRequirements.numQuestions} questions, got ${generatedQuestions.length}`
+            throw new ApiError(
+                500,
+                `AI generated ${generatedQuestions.length} out of ${parsedRequirements.numQuestions} required questions. Please retry generation.`
             )
         }
     } catch (error) {

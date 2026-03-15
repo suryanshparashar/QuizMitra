@@ -1,6 +1,8 @@
 import dotenv from "dotenv"
 import { app } from "./app.js"
 import connectDB from "./db/index.js"
+import { getActiveLlmProvider, getChatModelName } from "./utils/llmConfig.js"
+import { getDocumentProcessorDebugInfo } from "./services/documentProcessing.service.js"
 
 dotenv.config({
     path: ".env",
@@ -34,6 +36,13 @@ connectDB()
     .then(() => {
         console.log(`Server connected to MongoDB`)
         console.log(`Email provider: ${getActiveEmailProvider()}`)
+        console.log(
+            `LLM provider: ${getActiveLlmProvider()} (${getChatModelName()})`
+        )
+        const documentProcessor = getDocumentProcessorDebugInfo()
+        console.log(
+            `Document processor: ${documentProcessor.provider} (${documentProcessor.model})`
+        )
         app.listen(PORT, () => {
             console.log(
                 `Server running in ${process.env.NODE_ENV} mode on port ${PORT}`

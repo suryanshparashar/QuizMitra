@@ -8,16 +8,17 @@ import mongoose from "mongoose"
 // ✅ Get current user profile
 const getCurrentUser = asyncHandler(async (req, res) => {
     // User is already available from verifyJWT middleware
-    const user = await User.findById(req.user._id)
-        .select("-password -refreshToken -emailVerificationToken -passwordResetToken")
+    const user = await User.findById(req.user._id).select(
+        "-password -refreshToken -emailVerificationToken -passwordResetToken"
+    )
 
     if (!user) {
         throw new ApiError(404, "User not found")
     }
 
-    return res.status(200).json(
-        new ApiResponse(200, user, "User profile retrieved successfully")
-    )
+    return res
+        .status(200)
+        .json(new ApiResponse(200, user, "User profile retrieved successfully"))
 })
 
 // ✅ Get user by ID (public profile)
@@ -28,8 +29,9 @@ const getUserById = asyncHandler(async (req, res) => {
         throw new ApiError(400, "Invalid user ID")
     }
 
-    const user = await User.findById(userId)
-        .select("fullName email role facultyId studentId avatar facultyDetails.department facultyDetails.designation studentDetails.year studentDetails.branch")
+    const user = await User.findById(userId).select(
+        "fullName role facultyId studentId avatar department designation year branch"
+    )
 
     if (!user) {
         throw new ApiError(404, "User not found")
@@ -41,48 +43,42 @@ const getUserById = asyncHandler(async (req, res) => {
         fullName: user.fullName,
         role: user.role,
         avatar: user.avatar,
-        displayId: user.displayId
+        displayId: user.displayId,
     }
 
     // ✅ Add role-specific public information
-    if (user.role === 'faculty') {
-        publicProfile.department = user.facultyDetails?.department
-        publicProfile.designation = user.facultyDetails?.designation
+    if (user.role === "faculty") {
+        publicProfile.department = user.department
+        publicProfile.designation = user.designation
     } else {
-        publicProfile.year = user.studentDetails?.year
-        publicProfile.branch = user.studentDetails?.branch
+        publicProfile.year = user.year
+        publicProfile.branch = user.branch
     }
 
-    return res.status(200).json(
-        new ApiResponse(200, publicProfile, "User profile retrieved successfully")
-    )
+    return res
+        .status(200)
+        .json(
+            new ApiResponse(
+                200,
+                publicProfile,
+                "User profile retrieved successfully"
+            )
+        )
 })
 
 // ✅ Update account details with proper schema fields
 const updateAccountDetails = asyncHandler(async (req, res) => {
-    const { 
-        fullName, 
-        email, 
-        phoneNumber,
-        // Faculty-specific fields
-        department,
-        designation,
-        specialization,
-        officeLocation,
-        // Student-specific fields
-        year,
-        semester,
-        section,
-        guardianName,
-        guardianPhone,
-        // Common fields
-        address
-    } = req.body
+    const { fullName, email, phoneNumber, department, designation, year } =
+        req.body
 
-    // ✅ At least one field must be provided
-    const hasUpdates = fullName || email || phoneNumber || department || designation || 
-                      specialization || officeLocation || year || semester || section || 
-                      guardianName || guardianPhone || address
+    const hasUpdates =
+        fullName ||
+        email ||
+        phoneNumber ||
+        department ||
+        designation ||
+        year ||
+        branch
 
     if (!hasUpdates) {
         throw new ApiError(400, "At least one field is required for update")
@@ -103,13 +99,16 @@ const updateAccountDetails = asyncHandler(async (req, res) => {
 
         // Check for duplicate email
         if (email.toLowerCase() !== currentUser.email) {
-            const existingUser = await User.findOne({ 
+            const existingUser = await User.findOne({
                 email: email.toLowerCase(),
-                _id: { $ne: req.user._id }
+                _id: { $ne: req.user._id },
             })
-            
+
             if (existingUser) {
-                throw new ApiError(409, "Email already registered with another account")
+                throw new ApiError(
+                    409,
+                    "Email already registered with another account"
+                )
             }
         }
     }
@@ -122,44 +121,26 @@ const updateAccountDetails = asyncHandler(async (req, res) => {
         }
     }
 
-    // ✅ Build update object
     const updateData = {}
 
-    // Basic fields
     if (fullName) updateData.fullName = fullName.trim()
-    if (email) updateData.email = email.toLowerCase()
+    if (email) updateData.email = email.toLowerCase().trim()
     if (phoneNumber) updateData.phoneNumber = phoneNumber.trim()
 
-    // Address update
-    if (address) {
-        updateData.address = {
-            ...currentUser.address,
-            ...address
+    if (currentUser.role === "faculty") {
+        if (department) updateData.department = department.toUpperCase().trim()
+        if (designation) updateData.designation = designation.trim()
+    } else if (currentUser.role === "student") {
+        if (year !== undefined && year !== null && year !== "") {
+            const parsedYear = parseInt(year, 10)
+            if (Number.isNaN(parsedYear)) {
+                throw new ApiError(400, "Year must be a valid number")
+            }
+            updateData.year = parsedYear
         }
-    }
 
-    // ✅ Role-specific updates
-    if (currentUser.role === 'faculty') {
-        if (department || designation || specialization || officeLocation) {
-            updateData.facultyDetails = {
-                ...currentUser.facultyDetails,
-                ...(department && { department: department.toUpperCase() }),
-                ...(designation && { designation }),
-                ...(specialization && { specialization: Array.isArray(specialization) ? specialization : [specialization] }),
-                ...(officeLocation && { officeLocation }),
-                ...(phoneNumber && { phoneNumber })
-            }
-        }
-    } else if (currentUser.role === 'student' || currentUser.role === 'class-representative') {
-        if (year || semester || section || guardianName || guardianPhone) {
-            updateData.studentDetails = {
-                ...currentUser.studentDetails,
-                ...(year && { year: parseInt(year) }),
-                ...(semester && { semester: parseInt(semester) }),
-                ...(section && { section: section.toUpperCase() }),
-                ...(guardianName && { guardianName }),
-                ...(guardianPhone && { guardianPhone })
-            }
+        if (branch) {
+            updateData.branch = branch.toUpperCase().trim()
         }
     }
 
@@ -167,15 +148,23 @@ const updateAccountDetails = asyncHandler(async (req, res) => {
     const updatedUser = await User.findByIdAndUpdate(
         req.user._id,
         { $set: updateData },
-        { 
+        {
             new: true,
-            runValidators: true
+            runValidators: true,
         }
-    ).select("-password -refreshToken -emailVerificationToken -passwordResetToken")
-
-    return res.status(200).json(
-        new ApiResponse(200, updatedUser, "Account details updated successfully")
+    ).select(
+        "-password -refreshToken -emailVerificationToken -passwordResetToken"
     )
+
+    return res
+        .status(200)
+        .json(
+            new ApiResponse(
+                200,
+                updatedUser,
+                "Account details updated successfully"
+            )
+        )
 })
 
 // ✅ Update user avatar
@@ -185,21 +174,24 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
     }
 
     // ✅ Validate file type and size
-    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp']
+    const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp"]
     if (!allowedTypes.includes(req.file.mimetype)) {
         throw new ApiError(400, "Only JPEG, PNG, and WebP images are allowed")
     }
 
-    if (req.file.size > 5 * 1024 * 1024) { // 5MB
+    if (req.file.size > 5 * 1024 * 1024) {
         throw new ApiError(400, "Avatar file size cannot exceed 5MB")
     }
 
     // ✅ Upload to cloud storage
     let uploadResult
     try {
-        uploadResult = await uploadOnCloudinary(req.file.buffer, req.file.originalname)
-        
-        if (!uploadResult || !uploadResult.url) {
+        uploadResult = await uploadOnCloudinary(
+            req.file.buffer,
+            req.file.originalname
+        )
+
+        if (!uploadResult || !(uploadResult.secure_url || uploadResult.url)) {
             throw new Error("Upload failed")
         }
     } catch (error) {
@@ -210,13 +202,15 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
     // ✅ Update user avatar
     const updatedUser = await User.findByIdAndUpdate(
         req.user._id,
-        { $set: { avatar: uploadResult.url } },
+        { $set: { avatar: uploadResult.secure_url || uploadResult.url } },
         { new: true }
-    ).select("-password -refreshToken -emailVerificationToken -passwordResetToken")
-
-    return res.status(200).json(
-        new ApiResponse(200, updatedUser, "Avatar updated successfully")
+    ).select(
+        "-password -refreshToken -emailVerificationToken -passwordResetToken"
     )
+
+    return res
+        .status(200)
+        .json(new ApiResponse(200, updatedUser, "Avatar updated successfully"))
 })
 
 // ✅ Remove avatar (set to default)
@@ -227,88 +221,96 @@ const removeUserAvatar = asyncHandler(async (req, res) => {
         req.user._id,
         { $set: { avatar: defaultAvatar } },
         { new: true }
-    ).select("-password -refreshToken -emailVerificationToken -passwordResetToken")
-
-    return res.status(200).json(
-        new ApiResponse(200, updatedUser, "Avatar removed successfully")
+    ).select(
+        "-password -refreshToken -emailVerificationToken -passwordResetToken"
     )
+
+    return res
+        .status(200)
+        .json(new ApiResponse(200, updatedUser, "Avatar removed successfully"))
 })
 
 // ✅ Search users (for faculty to find students, etc.)
 const searchUsers = asyncHandler(async (req, res) => {
-    const { 
-        query, 
-        role, 
-        department, 
-        year, 
-        branch, 
-        page = 1, 
-        limit = 10 
+    const {
+        query,
+        role,
+        department,
+        year,
+        branch,
+        page = 1,
+        limit = 10,
     } = req.query
 
     if (!query || query.trim().length < 2) {
         throw new ApiError(400, "Search query must be at least 2 characters")
     }
 
-    const skip = (parseInt(page) - 1) * parseInt(limit)
-    
+    const skip = (parseInt(page, 10) - 1) * parseInt(limit, 10)
+
     // ✅ Build search filter
     const searchFilter = {
         $and: [
             // Text search
             {
                 $or: [
-                    { fullName: { $regex: query, $options: 'i' } },
-                    { email: { $regex: query, $options: 'i' } },
-                    { facultyId: { $regex: query, $options: 'i' } },
-                    { studentId: { $regex: query, $options: 'i' } }
-                ]
+                    { fullName: { $regex: query, $options: "i" } },
+                    { email: { $regex: query, $options: "i" } },
+                    { facultyId: { $regex: query, $options: "i" } },
+                    { studentId: { $regex: query, $options: "i" } },
+                ],
             },
             // Account status
-            { accountStatus: 'active' },
-            { isEmailVerified: true }
-        ]
+            { accountStatus: "active" },
+            { isEmailVerified: true },
+        ],
     }
 
     // ✅ Add role filter
-    if (role && ['faculty', 'student', 'class-representative'].includes(role)) {
+    if (role && ["faculty", "student"].includes(role)) {
         searchFilter.$and.push({ role })
     }
 
     // ✅ Add department filter (for faculty)
-    if (department && role === 'faculty') {
-        searchFilter.$and.push({ 'facultyDetails.department': department.toUpperCase() })
+    if (department && role === "faculty") {
+        searchFilter.$and.push({ department: department.toUpperCase() })
     }
 
     // ✅ Add year/branch filter (for students)
-    if ((year || branch) && role !== 'faculty') {
+    if ((year || branch) && role !== "faculty") {
         const studentFilters = {}
-        if (year) studentFilters['studentDetails.year'] = parseInt(year)
-        if (branch) studentFilters['studentDetails.branch'] = branch.toUpperCase()
+        if (year) studentFilters.year = parseInt(year, 10)
+        if (branch) studentFilters.branch = branch.toUpperCase()
         searchFilter.$and.push(studentFilters)
     }
 
     // ✅ Execute search
     const users = await User.find(searchFilter)
-        .select("fullName email role facultyId studentId avatar facultyDetails.department facultyDetails.designation studentDetails.year studentDetails.branch")
+        .select(
+            "fullName email role facultyId studentId avatar department designation year branch"
+        )
         .sort({ fullName: 1 })
         .skip(skip)
-        .limit(parseInt(limit))
+        .limit(parseInt(limit, 10))
 
     const totalUsers = await User.countDocuments(searchFilter)
-    const totalPages = Math.ceil(totalUsers / parseInt(limit))
+    const totalPages = Math.ceil(totalUsers / parseInt(limit, 10))
 
     return res.status(200).json(
-        new ApiResponse(200, {
-            users,
-            pagination: {
-                currentPage: parseInt(page),
-                totalPages,
-                totalUsers,
-                hasNextPage: parseInt(page) < totalPages,
-                hasPrevPage: parseInt(page) > 1
-            }
-        }, "Users found successfully")
+        new ApiResponse(
+            200,
+            {
+                users,
+                pagination: {
+                    currentPage: parseInt(page),
+                    totalPages,
+                    totalUsers,
+                    hasNextPage: parseInt(page) < totalPages,
+                    hasPrevPage: parseInt(page) > 1,
+                },
+            },
+            "Users found successfully"
+        )
     )
 })
 
@@ -319,41 +321,47 @@ const getUserDashboardStats = asyncHandler(async (req, res) => {
 
     let stats = {}
 
-    if (userRole === 'faculty') {
+    if (userRole === "faculty") {
         // ✅ Faculty stats
         const [totalClasses, totalStudents] = await Promise.all([
             Class.countDocuments({ faculty: userId, isArchived: false }),
             Class.aggregate([
                 { $match: { faculty: userId, isArchived: false } },
                 { $project: { studentsCount: { $size: "$students" } } },
-                { $group: { _id: null, total: { $sum: "$studentsCount" } } }
-            ])
+                { $group: { _id: null, total: { $sum: "$studentsCount" } } },
+            ]),
         ])
 
         stats = {
             totalClasses,
             totalStudents: totalStudents[0]?.total || 0,
-            userType: 'faculty'
+            userType: "faculty",
         }
     } else {
         // ✅ Student stats
         const [enrolledClasses] = await Promise.all([
-            Class.countDocuments({ 
-                'students.user': userId,
-                'students.status': 'active',
-                isArchived: false 
-            })
+            Class.countDocuments({
+                "students.user": userId,
+                "students.status": "active",
+                isArchived: false,
+            }),
         ])
 
         stats = {
             enrolledClasses,
-            userType: userRole
+            userType: userRole,
         }
     }
 
-    return res.status(200).json(
-        new ApiResponse(200, stats, "User dashboard stats retrieved successfully")
-    )
+    return res
+        .status(200)
+        .json(
+            new ApiResponse(
+                200,
+                stats,
+                "User dashboard stats retrieved successfully"
+            )
+        )
 })
 
 // ✅ Update password (separate from auth controller for user management)
@@ -373,7 +381,7 @@ const updatePassword = asyncHandler(async (req, res) => {
     }
 
     const user = await User.findById(req.user._id).select("+password")
-    
+
     const isCurrentPasswordValid = await user.isPasswordCorrect(currentPassword)
     if (!isCurrentPasswordValid) {
         throw new ApiError(400, "Current password is incorrect")
@@ -382,9 +390,9 @@ const updatePassword = asyncHandler(async (req, res) => {
     user.password = newPassword
     await user.save({ validateBeforeSave: true })
 
-    return res.status(200).json(
-        new ApiResponse(200, {}, "Password updated successfully")
-    )
+    return res
+        .status(200)
+        .json(new ApiResponse(200, {}, "Password updated successfully"))
 })
 
 // ✅ Deactivate account
@@ -396,31 +404,34 @@ const deactivateAccount = asyncHandler(async (req, res) => {
     }
 
     const user = await User.findById(req.user._id).select("+password")
-    
+
     const isPasswordValid = await user.isPasswordCorrect(password)
     if (!isPasswordValid) {
         throw new ApiError(400, "Incorrect password")
     }
 
     // ✅ Check if user has active responsibilities
-    if (user.role === 'faculty') {
+    if (user.role === "faculty") {
         const activeClasses = await Class.countDocuments({
             faculty: user._id,
-            isArchived: false
+            isArchived: false,
         })
-        
+
         if (activeClasses > 0) {
-            throw new ApiError(400, `Cannot deactivate account with ${activeClasses} active classes. Please archive them first.`)
+            throw new ApiError(
+                400,
+                `Cannot deactivate account with ${activeClasses} active classes. Please archive them first.`
+            )
         }
     }
 
-    user.accountStatus = 'deactivated'
+    user.accountStatus = "deactivated"
     user.refreshToken = undefined
     await user.save({ validateBeforeSave: false })
 
-    return res.status(200).json(
-        new ApiResponse(200, {}, "Account deactivated successfully")
-    )
+    return res
+        .status(200)
+        .json(new ApiResponse(200, {}, "Account deactivated successfully"))
 })
 
 export {
@@ -432,5 +443,5 @@ export {
     searchUsers,
     getUserDashboardStats,
     updatePassword,
-    deactivateAccount
+    deactivateAccount,
 }

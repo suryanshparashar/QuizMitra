@@ -1,12 +1,13 @@
-import { ChatGoogleGenerativeAI } from "@langchain/google-genai"
 import { HumanMessage, SystemMessage } from "@langchain/core/messages"
+import { createChatModel } from "../utils/llmClient.js"
 
-const model = new ChatGoogleGenerativeAI({
-    model: process.env.GOOGLE_LLM_ADVANCED_MODEL,
-    temperature: 0.7,
-    maxOutputTokens: 2048,
-    apiKey: process.env.GEMINI_API_KEY,
-})
+const getAdvisoryModel = () => {
+    return createChatModel({
+        purpose: "advisory",
+        temperature: 0.7,
+        maxOutputTokens: 2048,
+    })
+}
 
 export const AdvisoryService = {
     /**
@@ -76,7 +77,7 @@ export const AdvisoryService = {
             `
 
             // 3. Call AI Model
-            const result = await model.invoke([
+            const result = await getAdvisoryModel().invoke([
                 new SystemMessage(
                     "You are a helpful AI academic advisor. Always output valid JSON."
                 ),
