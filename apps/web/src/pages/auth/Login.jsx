@@ -14,7 +14,7 @@ import {
 import { showToast } from "../../components/Toast.jsx"
 
 export default function Login() {
-    const [formData, setFormData] = useState({ email: "", password: "" })
+    const [formData, setFormData] = useState({ identifier: "", password: "" })
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState("")
     const [showPassword, setShowPassword] = useState(false)
@@ -24,7 +24,7 @@ export default function Login() {
     const handleSubmit = async (e) => {
         e.preventDefault()
 
-        console.log("Submitting login for:", formData.email)
+        console.log("Submitting login for:", formData.identifier)
 
         if (loading) {
             setLoading(true)
@@ -38,7 +38,7 @@ export default function Login() {
         console.log("Form Data:", formData)
 
         try {
-            await login(formData.email, formData.password)
+            await login(formData.identifier, formData.password)
             showToast.success("Welcome back!")
             navigate("/dashboard")
         } catch (err) {
@@ -88,24 +88,24 @@ export default function Login() {
                         )}
 
                         <form onSubmit={handleSubmit} className="space-y-6">
-                            {/* Email Field */}
+                            {/* Identifier Field */}
                             <div className="space-y-2">
                                 <label className="block text-sm font-medium text-gray-700">
-                                    Email Address
+                                    Faculty/Student ID or Email
                                 </label>
                                 <div className="relative">
                                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                                         <Mail className="w-5 h-5 text-gray-400" />
                                     </div>
                                     <input
-                                        type="email"
-                                        autoComplete="email"
-                                        placeholder="Enter your email"
-                                        value={formData.email}
+                                        type="text"
+                                        autoComplete="username"
+                                        placeholder="Enter faculty ID, student ID, or email"
+                                        value={formData.identifier}
                                         onChange={(e) =>
                                             setFormData({
                                                 ...formData,
-                                                email: e.target.value,
+                                                identifier: e.target.value,
                                             })
                                         }
                                         required

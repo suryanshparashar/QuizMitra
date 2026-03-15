@@ -310,20 +310,32 @@ const resendVerificationEmail = asyncHandler(async (req, res) => {
 
 // ✅ Enhanced login with email verification check
 const loginUser = asyncHandler(async (req, res) => {
-    const { email, password } = req.body
+    const { identifier, email, password } = req.body
+    const loginIdentifier = String(identifier || email || "").trim()
 
-    console.log("🔍 Login attempt for:", email)
+    console.log("🔍 Login attempt for:", loginIdentifier)
 
     // ✅ Validation
-    if (!email) throw new ApiError(400, "Email is required")
+    if (!loginIdentifier) {
+        throw new ApiError(400, "Email or faculty/student ID is required")
+    }
     if (!password) throw new ApiError(400, "Password is required")
 
-    console.log("🔍 Looking up user:", email)
+    console.log("🔍 Looking up user:", loginIdentifier)
+
+    const normalizedIdentifier = loginIdentifier.toUpperCase()
+    const loginQuery = loginIdentifier.includes("@")
+        ? { email: loginIdentifier.toLowerCase() }
+        : {
+              $or: [
+                  { facultyId: normalizedIdentifier },
+                  { studentId: normalizedIdentifier },
+                  { email: loginIdentifier.toLowerCase() },
+              ],
+          }
 
     // ✅ Find user
-    const user = await User.findOne({
-        email: email.toLowerCase(),
-    }).select("+password") // Explicitly include password
+    const user = await User.findOne(loginQuery).select("+password") // Explicitly include password
 
     if (!user) {
         throw new ApiError(401, "Invalid credentials")

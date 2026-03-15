@@ -22,9 +22,9 @@ export const useAuthStore = create()(
             },
 
             // Login
-            login: async (email, password) => {
+            login: async (identifier, password) => {
                 const response = await api.post("/auth/login", {
-                    email,
+                    identifier,
                     password,
                 })
                 const { user, accessToken } = response.data.data
