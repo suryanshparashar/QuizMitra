@@ -1,4 +1,5 @@
 import multer from "multer"
+import { ApiError } from "../utils/apiError.js"
 
 const storage = multer.memoryStorage()
 
@@ -7,7 +8,10 @@ const upload = multer({
     fileFilter: (req, file, cb) => {
         const allowedTypes = ["application/pdf"]
         if (!allowedTypes.includes(file.mimetype)) {
-            return cb(new ApiError("Invalid file type. Only PDF files are allowed."), false)
+            return cb(
+                new ApiError("Invalid file type. Only PDF files are allowed."),
+                false
+            )
         }
         cb(null, true)
     },
