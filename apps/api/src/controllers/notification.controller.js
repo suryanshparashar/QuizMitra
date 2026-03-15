@@ -31,6 +31,7 @@ const getNotifications = asyncHandler(async (req, res) => {
             .populate("relatedQuiz", "title")
             .populate("relatedClass", "subjectName subjectCode")
             .populate("relatedUser", "fullName role")
+            .populate("relatedQuizAttempt", "_id")
             .sort({ createdAt: -1 })
             .skip(skip)
             .limit(parseInt(limit))

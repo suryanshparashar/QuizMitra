@@ -7,6 +7,47 @@ import { Link } from "react-router-dom"
 import { Skeleton } from "../components/LoadingStates"
 import { showToast } from "../components/Toast"
 
+const resolveNotificationAction = (notification) => {
+    if (notification.relatedQuizAttempt?._id) {
+        return {
+            to: `/quiz-results/${notification.relatedQuizAttempt._id}`,
+            label: notification.actionText || "View Details",
+        }
+    }
+
+    if (notification.relatedQuiz?._id) {
+        return {
+            to: `/quizzes/${notification.relatedQuiz._id}`,
+            label: notification.actionText || "View Details",
+        }
+    }
+
+    if (notification.relatedClass?._id) {
+        return {
+            to: `/classes/${notification.relatedClass._id}`,
+            label: notification.actionText || "View Details",
+        }
+    }
+
+    if (typeof notification.actionUrl === "string") {
+        if (notification.actionUrl.startsWith("/quizzes/")) {
+            return {
+                to: notification.actionUrl,
+                label: notification.actionText || "View Details",
+            }
+        }
+
+        if (notification.actionUrl.startsWith("/classes/")) {
+            return {
+                to: notification.actionUrl,
+                label: notification.actionText || "View Details",
+            }
+        }
+    }
+
+    return null
+}
+
 export default function Notifications() {
     const { unreadCount, fetchUnreadCount, markAsRead, markAllAsRead } =
         useNotification()
@@ -136,88 +177,103 @@ export default function Notifications() {
                                 {group.date}
                             </h3>
                             <div className="space-y-2">
-                                {group.notifications.map((n) => (
-                                    <div
-                                        key={n._id}
-                                        className={`group p-4 rounded-xl border transition-all hover:shadow-md ${
-                                            n.isRead
-                                                ? "bg-white border-gray-200"
-                                                : "bg-primary-50 border-primary-200 shadow-sm"
-                                        }`}
-                                    >
-                                        <div className="flex items-start gap-3">
-                                            {/* Icon */}
-                                            <span className="text-xl mt-0.5 flex-shrink-0">
-                                                {typeIcons[n.type] || "🔔"}
-                                            </span>
+                                {group.notifications.map((n) =>
+                                    (() => {
+                                        const action =
+                                            resolveNotificationAction(n)
 
-                                            {/* Content */}
-                                            <div className="flex-1 min-w-0">
-                                                <div className="flex items-center gap-2 mb-0.5">
-                                                    <h4
-                                                        className={`font-semibold text-sm truncate ${
-                                                            n.isRead
-                                                                ? "text-gray-800"
-                                                                : "text-primary-900"
-                                                        }`}
-                                                    >
-                                                        {n.title}
-                                                    </h4>
-                                                    {!n.isRead && (
-                                                        <span className="w-2 h-2 bg-primary-600 rounded-full flex-shrink-0" />
-                                                    )}
-                                                </div>
-                                                <p className="text-gray-600 text-sm mb-2 line-clamp-2">
-                                                    {n.message}
-                                                </p>
-                                                <div className="flex items-center gap-3 text-xs text-gray-500">
-                                                    <span>
-                                                        {format(
-                                                            new Date(
-                                                                n.createdAt
-                                                            ),
-                                                            "h:mm a"
-                                                        )}
+                                        return (
+                                            <div
+                                                key={n._id}
+                                                className={`group p-4 rounded-xl border transition-all hover:shadow-md ${
+                                                    n.isRead
+                                                        ? "bg-white border-gray-200"
+                                                        : "bg-primary-50 border-primary-200 shadow-sm"
+                                                }`}
+                                            >
+                                                <div className="flex items-start gap-3">
+                                                    {/* Icon */}
+                                                    <span className="text-xl mt-0.5 flex-shrink-0">
+                                                        {typeIcons[n.type] ||
+                                                            "🔔"}
                                                     </span>
-                                                    {n.actionUrl && (
-                                                        <Link
-                                                            to={n.actionUrl}
-                                                            className="text-primary-600 hover:underline font-medium"
+
+                                                    {/* Content */}
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="flex items-center gap-2 mb-0.5">
+                                                            <h4
+                                                                className={`font-semibold text-sm truncate ${
+                                                                    n.isRead
+                                                                        ? "text-gray-800"
+                                                                        : "text-primary-900"
+                                                                }`}
+                                                            >
+                                                                {n.title}
+                                                            </h4>
+                                                            {!n.isRead && (
+                                                                <span className="w-2 h-2 bg-primary-600 rounded-full flex-shrink-0" />
+                                                            )}
+                                                        </div>
+                                                        <p className="text-gray-600 text-sm mb-2 line-clamp-2">
+                                                            {n.message}
+                                                        </p>
+                                                        <div className="flex items-center gap-3 text-xs text-gray-500">
+                                                            <span>
+                                                                {format(
+                                                                    new Date(
+                                                                        n.createdAt
+                                                                    ),
+                                                                    "h:mm a"
+                                                                )}
+                                                            </span>
+                                                            {action && (
+                                                                <Link
+                                                                    to={
+                                                                        action.to
+                                                                    }
+                                                                    className="text-primary-600 hover:underline font-medium"
+                                                                >
+                                                                    {
+                                                                        action.label
+                                                                    }{" "}
+                                                                    →
+                                                                </Link>
+                                                            )}
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Actions */}
+                                                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+                                                        {!n.isRead && (
+                                                            <button
+                                                                onClick={() =>
+                                                                    handleMarkRead(
+                                                                        n._id
+                                                                    )
+                                                                }
+                                                                className="p-1.5 text-primary-600 hover:bg-primary-100 rounded-lg transition"
+                                                                title="Mark as read"
+                                                            >
+                                                                <Check className="w-4 h-4" />
+                                                            </button>
+                                                        )}
+                                                        <button
+                                                            onClick={() =>
+                                                                handleDelete(
+                                                                    n._id
+                                                                )
+                                                            }
+                                                            className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition"
+                                                            title="Delete"
                                                         >
-                                                            View Details →
-                                                        </Link>
-                                                    )}
+                                                            <Trash2 className="w-4 h-4" />
+                                                        </button>
+                                                    </div>
                                                 </div>
                                             </div>
-
-                                            {/* Actions */}
-                                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
-                                                {!n.isRead && (
-                                                    <button
-                                                        onClick={() =>
-                                                            handleMarkRead(
-                                                                n._id
-                                                            )
-                                                        }
-                                                        className="p-1.5 text-primary-600 hover:bg-primary-100 rounded-lg transition"
-                                                        title="Mark as read"
-                                                    >
-                                                        <Check className="w-4 h-4" />
-                                                    </button>
-                                                )}
-                                                <button
-                                                    onClick={() =>
-                                                        handleDelete(n._id)
-                                                    }
-                                                    className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition"
-                                                    title="Delete"
-                                                >
-                                                    <Trash2 className="w-4 h-4" />
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                ))}
+                                        )
+                                    })()
+                                )}
                             </div>
                         </div>
                     ))}
