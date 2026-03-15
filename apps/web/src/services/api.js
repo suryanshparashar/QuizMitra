@@ -46,9 +46,26 @@ api.interceptors.response.use(
     (response) => response,
     async (error) => {
         if (error.response?.status === 401) {
-            // Token expired, clear auth data
-            localStorage.removeItem("auth-storage")
-            window.location.href = "/login"
+            const requestUrl = String(error?.config?.url || "")
+            const isAuthFormRequest =
+                requestUrl.includes("/auth/login") ||
+                requestUrl.includes("/auth/register") ||
+                requestUrl.includes("/auth/send-otp") ||
+                requestUrl.includes("/auth/verify-otp")
+
+            // Let public auth forms handle their own validation errors.
+            if (isAuthFormRequest) {
+                return Promise.reject(error)
+            }
+
+            const hasToken = Boolean(getStoredToken())
+            if (hasToken) {
+                // Session expired on protected API call.
+                localStorage.removeItem("auth-storage")
+                if (window.location.pathname !== "/login") {
+                    window.location.href = "/login"
+                }
+            }
         }
         return Promise.reject(error)
     }
