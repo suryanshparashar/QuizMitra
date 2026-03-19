@@ -25,6 +25,11 @@ export default function QuizEditor() {
     const [saving, setSaving] = useState(false)
     const [error, setError] = useState("")
 
+    const currentTotalMarks = questions.reduce(
+        (sum, q) => sum + (Number(q.points) || 1),
+        0
+    )
+
     // Settings State
     const [scheduledAt, setScheduledAt] = useState("")
     const [deadline, setDeadline] = useState("")
@@ -198,11 +203,7 @@ export default function QuizEditor() {
                             </h1>
                             <p className="text-sm text-gray-500">
                                 {questions.length} Questions •{" "}
-                                {questions.reduce(
-                                    (sum, q) => sum + (parseInt(q.points) || 1),
-                                    0
-                                )}{" "}
-                                Total Marks
+                                {currentTotalMarks} Total Marks
                             </p>
                         </div>
                     </div>
@@ -501,6 +502,20 @@ export default function QuizEditor() {
                     <Plus className="h-5 w-5 mr-2" />
                     Add Question
                 </button>
+            </div>
+
+            <div className="fixed bottom-4 right-4 z-30 sm:bottom-6 sm:right-6">
+                <div className="rounded-xl border border-blue-200 bg-white/95 backdrop-blur px-4 py-3 shadow-lg min-w-[180px]">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">
+                        Total Marks
+                    </p>
+                    <p className="text-2xl font-bold text-blue-900 leading-tight">
+                        {currentTotalMarks}
+                    </p>
+                    <p className="text-xs text-gray-500">
+                        Updates as you edit points
+                    </p>
+                </div>
             </div>
         </div>
     )
