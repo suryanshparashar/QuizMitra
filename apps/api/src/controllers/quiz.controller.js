@@ -17,12 +17,33 @@ import {
     createContentVectors,
     joinVectorChunks,
 } from "../services/contentVector.service.js"
+import { createModel } from "../agents/utils/modelFactory.js"
+import { sanitizeQuestionWithFormattingAgent } from "../agents/nodes/formatting.node.js"
 
 const MIN_DEADLINE_BUFFER_MINUTES = 10
 const MAX_TOTAL_MARKS = 100
 const MAX_STORED_EXTRACTED_CONTENT_CHARS = 250000
 const MAX_STORED_VECTOR_CHUNKS = 250
 const MIN_EXTRACTED_TEXT_LENGTH = 100
+
+const parseAiJsonObject = (rawContent) => {
+    const rawText = String(rawContent || "").trim()
+    const cleaned = rawText
+        .replace(/```json/gi, "")
+        .replace(/```/g, "")
+        .trim()
+
+    try {
+        return JSON.parse(cleaned)
+    } catch (error) {
+        const objectMatch = cleaned.match(/\{[\s\S]*\}/)
+        if (!objectMatch) {
+            throw new Error("AI response did not contain a JSON object")
+        }
+
+        return JSON.parse(objectMatch[0])
+    }
+}
 
 const calculateMarksPerQuestion = (totalMarks, numQuestions) => {
     const marks = Number(totalMarks)
@@ -1360,6 +1381,249 @@ const updateQuiz = asyncHandler(async (req, res) => {
         .json(new ApiResponse(200, updatedQuiz, "Quiz updated successfully"))
 })
 
+const regenerateQuizQuestion = asyncHandler(async (req, res) => {
+    const { quizId, questionIndex } = req.params
+    const { instruction = "" } = req.body || {}
+
+    if (req.user.role !== "faculty") {
+        throw new ApiError(403, "Only faculty members can regenerate questions")
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(quizId)) {
+        throw new ApiError(400, "Invalid quiz ID")
+    }
+
+    const index = Number(questionIndex)
+    if (!Number.isInteger(index) || index < 0) {
+        throw new ApiError(400, "Invalid question index")
+    }
+
+    const quiz = await Quiz.findById(quizId)
+    if (!quiz) {
+        throw new ApiError(404, "Quiz not found")
+    }
+
+    if (quiz.userId.toString() !== req.user._id.toString()) {
+        throw new ApiError(403, "You can only edit your own quizzes")
+    }
+
+    const isActivePublishedQuiz =
+        quiz.status === "published" && new Date(quiz.deadline) >= new Date()
+    if (isActivePublishedQuiz) {
+        throw new ApiError(
+            400,
+            "Question content cannot be regenerated for active published quizzes"
+        )
+    }
+
+    if (!Array.isArray(quiz.questions) || index >= quiz.questions.length) {
+        throw new ApiError(404, "Question not found at provided index")
+    }
+
+    const currentQuestion = quiz.questions[index]
+
+    const model = createModel({
+        purpose: "quizGeneration",
+        temperature: 0.35,
+        maxOutputTokens: 4096,
+    })
+
+    const prompt = `
+Regenerate ONE improved quiz question with options while keeping it aligned to the same topic and difficulty.
+
+Quiz title: ${quiz.title}
+Quiz description: ${quiz.description || "N/A"}
+Difficulty target: ${quiz.requirements?.difficultyLevel || "medium"}
+Question type target: ${currentQuestion.questionType || "multiple-choice"}
+
+Current question text:
+${currentQuestion.questionText}
+
+Current options:
+${(currentQuestion.options || []).map((opt, i) => `${i + 1}. ${opt}`).join("\n")}
+
+Current correct answer:
+${currentQuestion.correctAnswer || ""}
+
+Faculty instruction (optional):
+${String(instruction || "").slice(0, 500)}
+
+Return ONLY valid JSON object with this shape:
+{
+  "questionText": "...",
+  "options": ["...", "...", "...", "..."],
+  "correctAnswer": "...",
+  "difficulty": "easy|medium|hard",
+  "topic": "...",
+  "explanation": "..."
+}
+
+Rules:
+- Ensure correctAnswer exactly matches one of options.
+- options must be concise and unambiguous.
+- questionText should be clear and exam-ready.
+`.trim()
+
+    let parsed
+    try {
+        const response = await model.invoke(prompt)
+        parsed = parseAiJsonObject(response?.content)
+    } catch (error) {
+        throw new ApiError(
+            500,
+            `Failed to regenerate question via AI: ${error?.message || "Unknown error"}`
+        )
+    }
+
+    const sanitizedQuestion = sanitizeQuestionWithFormattingAgent(
+        {
+            questionText: parsed?.questionText,
+            options: parsed?.options,
+            correctAnswer: parsed?.correctAnswer,
+            difficulty: parsed?.difficulty,
+            topic: parsed?.topic,
+            explanation: parsed?.explanation,
+            questionType: currentQuestion.questionType,
+            points: currentQuestion.points || 1,
+        },
+        {
+            requirements: quiz.requirements,
+            fallbackQuestionType:
+                currentQuestion.questionType || "multiple-choice",
+            fallbackPoints: currentQuestion.points || 1,
+        }
+    )
+
+    return res.status(200).json(
+        new ApiResponse(
+            200,
+            {
+                question: sanitizedQuestion,
+                questionIndex: index,
+            },
+            "Question regenerated successfully"
+        )
+    )
+})
+
+const generateNewQuizQuestion = asyncHandler(async (req, res) => {
+    const { quizId } = req.params
+    const { instruction = "" } = req.body || {}
+
+    if (req.user.role !== "faculty") {
+        throw new ApiError(403, "Only faculty members can generate questions")
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(quizId)) {
+        throw new ApiError(400, "Invalid quiz ID")
+    }
+
+    const quiz = await Quiz.findById(quizId)
+    if (!quiz) {
+        throw new ApiError(404, "Quiz not found")
+    }
+
+    if (quiz.userId.toString() !== req.user._id.toString()) {
+        throw new ApiError(403, "You can only edit your own quizzes")
+    }
+
+    const isActivePublishedQuiz =
+        quiz.status === "published" && new Date(quiz.deadline) >= new Date()
+    if (isActivePublishedQuiz) {
+        throw new ApiError(
+            400,
+            "New questions cannot be generated for active published quizzes"
+        )
+    }
+
+    const questionTypeTarget =
+        quiz.requirements?.questionTypes?.[0] || "multiple-choice"
+    const marksTarget = Number(quiz.requirements?.marksPerQuestion || 1)
+
+    const existingQuestionStems = (quiz.questions || [])
+        .slice(0, 50)
+        .map(
+            (q, index) => `${index + 1}. ${String(q.questionText || "").trim()}`
+        )
+        .join("\n")
+
+    const model = createModel({
+        purpose: "quizGeneration",
+        temperature: 0.35,
+        maxOutputTokens: 4096,
+    })
+
+    const prompt = `
+Generate ONE new quiz question with options that fits this quiz and does not duplicate existing questions.
+
+Quiz title: ${quiz.title}
+Quiz description: ${quiz.description || "N/A"}
+Difficulty target: ${quiz.requirements?.difficultyLevel || "medium"}
+Question type target: ${questionTypeTarget}
+
+Existing question stems to avoid repeating:
+${existingQuestionStems || "None"}
+
+Faculty instruction (optional):
+${String(instruction || "").slice(0, 500)}
+
+Return ONLY valid JSON object with this shape:
+{
+  "questionText": "...",
+  "options": ["...", "...", "...", "..."],
+  "correctAnswer": "...",
+  "difficulty": "easy|medium|hard",
+  "topic": "...",
+  "explanation": "..."
+}
+
+Rules:
+- Ensure correctAnswer exactly matches one of options.
+- options must be concise and unambiguous.
+- questionText should be clear and exam-ready.
+- must not duplicate existing stems.
+`.trim()
+
+    let parsed
+    try {
+        const response = await model.invoke(prompt)
+        parsed = parseAiJsonObject(response?.content)
+    } catch (error) {
+        throw new ApiError(
+            500,
+            `Failed to generate new question via AI: ${error?.message || "Unknown error"}`
+        )
+    }
+
+    const sanitizedQuestion = sanitizeQuestionWithFormattingAgent(
+        {
+            questionText: parsed?.questionText,
+            options: parsed?.options,
+            correctAnswer: parsed?.correctAnswer,
+            difficulty: parsed?.difficulty,
+            topic: parsed?.topic,
+            explanation: parsed?.explanation,
+            questionType: questionTypeTarget,
+            points: marksTarget,
+        },
+        {
+            requirements: quiz.requirements,
+            fallbackQuestionType: questionTypeTarget,
+            fallbackPoints: marksTarget,
+        }
+    )
+
+    return res.status(200).json(
+        new ApiResponse(
+            200,
+            {
+                question: sanitizedQuestion,
+            },
+            "New question generated successfully"
+        )
+    )
+})
+
 // ✅ Unpublish quiz
 const unpublishQuiz = asyncHandler(async (req, res) => {
     const { quizId } = req.params
@@ -1626,6 +1890,8 @@ export {
     getQuiz,
     getClassQuizzes,
     updateQuiz,
+    regenerateQuizQuestion,
+    generateNewQuizQuestion,
     publishQuiz,
     unpublishQuiz,
     duplicateQuiz,

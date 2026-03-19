@@ -6,6 +6,7 @@ import {
     ArrowLeft,
     Plus,
     Trash2,
+    Sparkles,
     CheckCircle,
     AlertCircle,
     HelpCircle,
@@ -15,6 +16,7 @@ import {
     Clock,
 } from "lucide-react"
 import { formatForDateTimeLocal, toUtcIsoString } from "../../utils/datetime.js"
+import { showToast } from "../../components/Toast.jsx"
 
 export default function QuizEditor() {
     const { quizId } = useParams()
@@ -24,6 +26,8 @@ export default function QuizEditor() {
     const [loading, setLoading] = useState(true)
     const [saving, setSaving] = useState(false)
     const [error, setError] = useState("")
+    const [regeneratingIndex, setRegeneratingIndex] = useState(null)
+    const [generatingNewQuestion, setGeneratingNewQuestion] = useState(false)
 
     const currentTotalMarks = questions.reduce(
         (sum, q) => sum + (Number(q.points) || 1),
@@ -175,6 +179,84 @@ export default function QuizEditor() {
         }
     }
 
+    const handleAiRegenerateQuestion = async (qIndex) => {
+        setError("")
+        setRegeneratingIndex(qIndex)
+
+        try {
+            const response = await api.post(
+                `/quizzes/${quizId}/questions/${qIndex}/ai-regenerate`,
+                {}
+            )
+
+            const regeneratedQuestion = response?.data?.data?.question
+            if (!regeneratedQuestion) {
+                throw new Error("No regenerated question returned by AI")
+            }
+
+            setQuestions((prev) => {
+                const updated = [...prev]
+                updated[qIndex] = {
+                    ...updated[qIndex],
+                    ...regeneratedQuestion,
+                    points:
+                        updated[qIndex]?.points ||
+                        regeneratedQuestion.points ||
+                        1,
+                }
+                return updated
+            })
+
+            showToast.success(`Question ${qIndex + 1} regenerated`)
+        } catch (err) {
+            const message =
+                err.response?.data?.message ||
+                err.message ||
+                "Failed to regenerate question"
+            setError(message)
+            showToast.error(message)
+        } finally {
+            setRegeneratingIndex(null)
+        }
+    }
+
+    const handleAiGenerateNewQuestion = async () => {
+        setError("")
+        setGeneratingNewQuestion(true)
+
+        try {
+            const instruction =
+                window.prompt(
+                    "Optional instruction for the new question (e.g., focus on application-based problem).",
+                    ""
+                ) || ""
+
+            const response = await api.post(
+                `/quizzes/${quizId}/questions/ai-generate`,
+                {
+                    instruction,
+                }
+            )
+
+            const newQuestion = response?.data?.data?.question
+            if (!newQuestion) {
+                throw new Error("No question returned by AI")
+            }
+
+            setQuestions((prev) => [...prev, newQuestion])
+            showToast.success("New question generated and added")
+        } catch (err) {
+            const message =
+                err.response?.data?.message ||
+                err.message ||
+                "Failed to generate new question"
+            setError(message)
+            showToast.error(message)
+        } finally {
+            setGeneratingNewQuestion(false)
+        }
+    }
+
     if (loading) {
         return (
             <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -315,6 +397,30 @@ export default function QuizEditor() {
                                     </select>
                                 </div>
                                 <div className="flex items-center space-x-2">
+                                    <button
+                                        type="button"
+                                        onClick={() =>
+                                            handleAiRegenerateQuestion(qIndex)
+                                        }
+                                        disabled={
+                                            regeneratingIndex === qIndex ||
+                                            saving
+                                        }
+                                        className="px-2 py-1 text-xs font-medium text-indigo-700 bg-indigo-50 border border-indigo-200 rounded hover:bg-indigo-100 disabled:opacity-50"
+                                        title="Regenerate this question with AI"
+                                    >
+                                        {regeneratingIndex === qIndex ? (
+                                            <span className="inline-flex items-center">
+                                                <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-indigo-700 mr-1"></div>
+                                                Regenerating...
+                                            </span>
+                                        ) : (
+                                            <span className="inline-flex items-center">
+                                                <Sparkles className="h-3 w-3 mr-1" />
+                                                AI Regenerate
+                                            </span>
+                                        )}
+                                    </button>
                                     <input
                                         type="number"
                                         min="1"
@@ -495,13 +601,32 @@ export default function QuizEditor() {
                     </div>
                 ))}
 
-                <button
-                    onClick={addQuestion}
-                    className="w-full py-4 border-2 border-dashed border-gray-300 rounded-xl text-gray-500 font-medium hover:border-gray-400 hover:bg-gray-50 transition-all flex items-center justify-center"
-                >
-                    <Plus className="h-5 w-5 mr-2" />
-                    Add Question
-                </button>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <button
+                        onClick={addQuestion}
+                        className="py-4 border-2 border-dashed border-gray-300 rounded-xl text-gray-500 font-medium hover:border-gray-400 hover:bg-gray-50 transition-all flex items-center justify-center"
+                    >
+                        <Plus className="h-5 w-5 mr-2" />
+                        Add Question
+                    </button>
+                    <button
+                        onClick={handleAiGenerateNewQuestion}
+                        disabled={generatingNewQuestion || saving}
+                        className="py-4 border-2 border-dashed border-indigo-300 rounded-xl text-indigo-700 font-medium hover:border-indigo-400 hover:bg-indigo-50 transition-all flex items-center justify-center disabled:opacity-50"
+                    >
+                        {generatingNewQuestion ? (
+                            <>
+                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-indigo-700 mr-2"></div>
+                                Generating...
+                            </>
+                        ) : (
+                            <>
+                                <Sparkles className="h-5 w-5 mr-2" />
+                                Generate New Question (AI)
+                            </>
+                        )}
+                    </button>
+                </div>
             </div>
 
             <div className="fixed bottom-4 right-4 z-30 sm:bottom-6 sm:right-6">

@@ -16,6 +16,8 @@ import {
     getStudentQuizzes,
     deleteQuiz,
     updateQuiz,
+    regenerateQuizQuestion,
+    generateNewQuizQuestion,
     duplicateQuiz,
     getClassQuizzes,
     getQuizPreview,
@@ -47,6 +49,10 @@ router.route("/class/:classId/quizzes").get(getClassQuizzes) // Class quizzes
 router.route("/:quizId").get(getQuiz) // Get quiz details
 router.route("/:quizId").patch(updateQuiz) // Update quiz
 router.route("/:quizId").delete(deleteQuiz) // Delete quiz
+router
+    .route("/:quizId/questions/:questionIndex/ai-regenerate")
+    .post(regenerateQuizQuestion)
+router.route("/:quizId/questions/ai-generate").post(generateNewQuizQuestion)
 
 router.route("/:quizId/publish").patch(publishQuiz) // Publish quiz
 router.route("/:quizId/unpublish").patch(unpublishQuiz) // Unpublish quiz
