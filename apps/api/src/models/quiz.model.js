@@ -303,16 +303,6 @@ const quizSchema = new Schema(
                 required: [true, "Total marks is required"],
                 min: [1, "Total marks must be at least 1"],
                 max: [100, "Total marks cannot exceed 100"],
-                validate: {
-                    validator: function (totalMarks) {
-                        const expectedTotal =
-                            this.requirements.numQuestions *
-                            this.requirements.marksPerQuestion
-                        return Math.abs(totalMarks - expectedTotal) < 0.01
-                    },
-                    message:
-                        "Total marks must equal numQuestions × marksPerQuestion",
-                },
             },
         },
 
@@ -567,26 +557,24 @@ quizSchema.methods.archive = function () {
 
 // ✅ Pre-save Middleware
 quizSchema.pre("save", function (next) {
-    // Validate questions count matches requirements
-    if (this.questions.length !== this.requirements.numQuestions) {
-        return next(
-            new Error(
-                `Expected ${this.requirements.numQuestions} questions, got ${this.questions.length}`
-            )
-        )
+    // Keep requirements aligned with edited questions for faculty free-hand updates.
+    if (this.requirements && Array.isArray(this.questions)) {
+        this.requirements.numQuestions = this.questions.length
     }
 
-    // Calculate total points
     const calculatedTotal = this.questions.reduce(
         (total, q) => total + (q.points || this.requirements.marksPerQuestion),
         0
     )
-    if (Math.abs(calculatedTotal - this.requirements.totalMarks) > 0.01) {
-        return next(
-            new Error(
-                `Total points (${calculatedTotal}) doesn't match expected total (${this.requirements.totalMarks})`
+
+    if (this.requirements) {
+        this.requirements.totalMarks = Number(calculatedTotal.toFixed(4))
+
+        if (this.questions.length > 0) {
+            this.requirements.marksPerQuestion = Number(
+                (calculatedTotal / this.questions.length).toFixed(4)
             )
-        )
+        }
     }
 
     // Update version if questions changed
