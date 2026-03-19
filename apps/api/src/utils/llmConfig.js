@@ -96,7 +96,20 @@ export const getSarvamDocumentLanguage = () => {
 }
 
 export const getSarvamDocumentOutputFormat = () => {
-    return process.env.SARVAM_DOCUMENT_OUTPUT_FORMAT || "json"
+    const rawFormat = String(process.env.SARVAM_DOCUMENT_OUTPUT_FORMAT || "md")
+        .trim()
+        .toLowerCase()
+
+    if (rawFormat === "html") {
+        return "html"
+    }
+
+    // Sarvam supports only html or md. Keep legacy json configs backward-compatible.
+    if (rawFormat === "json" || rawFormat === "markdown") {
+        return "md"
+    }
+
+    return "md"
 }
 
 export const isSarvamDocumentStrictMode = () => {

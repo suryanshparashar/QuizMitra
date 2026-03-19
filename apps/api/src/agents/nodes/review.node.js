@@ -70,6 +70,12 @@ const isQuestionValid = (question) => {
     return true
 }
 
+const getQuestionKey = (question) => {
+    return String(question?.questionText || "")
+        .trim()
+        .toLowerCase()
+}
+
 export const reviewNode = async (state) => {
     const { draftQuestions, input, requirements } = state
     const model = createModel({
@@ -125,28 +131,51 @@ export const reviewNode = async (state) => {
         const reviewResponse = await model.invoke(formattedPrompt)
         reviewItems = await reviewParser.parse(reviewResponse.content)
     } catch (error) {
-        devLog.error("LLM review failed", {
+        devLog.warn("LLM review failed, falling back to deterministic review", {
             pipelineRunId,
             message: error?.message,
         })
-        return {
-            status: "failed",
-            errors: [`Review node failed: ${error.message}`],
-        }
+        reviewItems = []
     }
 
-    const verifiedQuestions = draftQuestions
+    const reviewedQuestions = draftQuestions
         .map((question, index) => {
             const reviewItem = reviewItems[index]
 
-            if (!reviewItem || reviewItem.keep === false) {
+            if (reviewItem?.keep === false) {
                 return null
+            }
+
+            if (!reviewItem) {
+                return question
             }
 
             return normalizeReviewedQuestion(question, reviewItem)
         })
         .filter(Boolean)
         .filter((question) => isQuestionValid(question))
+
+    const verifiedQuestions = []
+    const seenKeys = new Set()
+
+    for (const question of reviewedQuestions) {
+        const key = getQuestionKey(question)
+        if (!key || seenKeys.has(key)) continue
+        seenKeys.add(key)
+        verifiedQuestions.push(question)
+    }
+
+    // If LLM review is too strict, backfill with valid original questions
+    if (verifiedQuestions.length < requirements.numQuestions) {
+        for (const question of draftQuestions) {
+            if (!isQuestionValid(question)) continue
+            const key = getQuestionKey(question)
+            if (!key || seenKeys.has(key)) continue
+            seenKeys.add(key)
+            verifiedQuestions.push(question)
+            if (verifiedQuestions.length >= requirements.numQuestions) break
+        }
+    }
 
     if (verifiedQuestions.length === 0) {
         devLog.warn("Review rejected all questions", {
@@ -177,5 +206,11 @@ export const reviewNode = async (state) => {
         verifiedCount: verifiedQuestions.length,
     })
 
-    return { verifiedQuestions, status: "reviewing" }
+    return {
+        verifiedQuestions: verifiedQuestions.slice(
+            0,
+            requirements.numQuestions
+        ),
+        status: "reviewing",
+    }
 }

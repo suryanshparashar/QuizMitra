@@ -20,6 +20,31 @@ const cleanExtractedText = (text) => {
         .trim()
 }
 
+const formatErrorDetails = (payload) => {
+    if (payload === null || typeof payload === "undefined") {
+        return ""
+    }
+
+    if (typeof payload === "string") {
+        return payload
+    }
+
+    try {
+        return JSON.stringify(payload)
+    } catch {
+        return String(payload)
+    }
+}
+
+const normalizeSarvamOutputFormat = (outputFormat) => {
+    const normalized = String(outputFormat || "")
+        .trim()
+        .toLowerCase()
+
+    if (normalized === "html") return "html"
+    return "md"
+}
+
 const getSarvamHeaders = () => {
     const apiKey = process.env.SARVAM_AI_API_KEY
     if (!apiKey) {
@@ -40,17 +65,51 @@ const getUploadUrlFromMap = (uploadUrls, fileName) => {
     }
 
     if (typeof details === "string") {
-        return details
+        return {
+            url: details,
+            method: "PUT",
+            headers: {},
+            fields: {},
+        }
     }
 
-    return (
-        details.file_url ||
-        details.url ||
+    const uploadUrl =
         details.upload_url ||
         details.signed_url ||
         details.presigned_url ||
+        details.file_url ||
+        details.url ||
         null
+
+    if (!uploadUrl) {
+        return null
+    }
+
+    const method = String(
+        details.method || details.http_method || details.upload_method || "PUT"
     )
+        .trim()
+        .toUpperCase()
+
+    const headers =
+        details.headers && typeof details.headers === "object"
+            ? details.headers
+            : {}
+
+    const fields =
+        (details.form_fields && typeof details.form_fields === "object"
+            ? details.form_fields
+            : null) ||
+        (details.fields && typeof details.fields === "object"
+            ? details.fields
+            : {})
+
+    return {
+        url: uploadUrl,
+        method,
+        headers,
+        fields,
+    }
 }
 
 const getDownloadUrlFromMap = (downloadUrls, preferredExtension) => {
@@ -145,33 +204,125 @@ const extractFromZipBuffer = (buffer, preferredExtension) => {
     return raw
 }
 
-const uploadInputFileToSarvam = async (uploadUrl, pdfBuffer) => {
-    const tryPut = await fetch(uploadUrl, {
-        method: "PUT",
-        headers: {
-            "Content-Type": "application/pdf",
-        },
-        body: pdfBuffer,
-    })
+const uploadInputFileToSarvam = async (uploadTarget, pdfBuffer, fileName) => {
+    const target =
+        typeof uploadTarget === "string"
+            ? { url: uploadTarget, method: "PUT", headers: {}, fields: {} }
+            : uploadTarget
 
-    if (tryPut.ok) {
-        return
+    if (!target?.url) {
+        throw new ApiError(502, "Sarvam upload target URL is missing")
     }
 
-    const tryPost = await fetch(uploadUrl, {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/pdf",
-        },
-        body: pdfBuffer,
-    })
+    // If provider specifies a method/headers/fields, honor it first.
+    if (
+        target.method === "POST" &&
+        Object.keys(target.fields || {}).length > 0
+    ) {
+        const formData = new FormData()
+        Object.entries(target.fields).forEach(([key, value]) => {
+            formData.append(key, String(value))
+        })
 
-    if (!tryPost.ok) {
+        const fileBlob = new Blob([pdfBuffer], { type: "application/pdf" })
+        formData.append("file", fileBlob, fileName || "document.pdf")
+
+        const response = await fetch(target.url, {
+            method: "POST",
+            headers: target.headers || {},
+            body: formData,
+        })
+
+        if (response.ok) {
+            return
+        }
+
+        const responseBody = await response.text().catch(() => "")
         throw new ApiError(
             502,
-            `Failed to upload file to Sarvam storage (PUT ${tryPut.status}, POST ${tryPost.status})`
+            `Failed provider-directed POST upload (${response.status})${
+                responseBody ? ` body:${responseBody.slice(0, 300)}` : ""
+            }`
         )
     }
+
+    if (target.method === "PUT") {
+        const putWithProviderHeaders = await fetch(target.url, {
+            method: "PUT",
+            headers: {
+                ...(target.headers || {}),
+                "Content-Type":
+                    target.headers?.["Content-Type"] || "application/pdf",
+            },
+            body: pdfBuffer,
+        })
+
+        if (putWithProviderHeaders.ok) {
+            return
+        }
+    }
+
+    const uploadAttempts = [
+        {
+            label: "PUT(pdf+blob)",
+            options: {
+                method: "PUT",
+                headers: {
+                    "Content-Type": "application/pdf",
+                    "x-ms-blob-type": "BlockBlob",
+                },
+                body: pdfBuffer,
+            },
+        },
+        {
+            label: "PUT(pdf)",
+            options: {
+                method: "PUT",
+                headers: {
+                    "Content-Type": "application/pdf",
+                },
+                body: pdfBuffer,
+            },
+        },
+        {
+            label: "PUT(octet-stream)",
+            options: {
+                method: "PUT",
+                headers: {
+                    "Content-Type": "application/octet-stream",
+                },
+                body: pdfBuffer,
+            },
+        },
+        {
+            label: "PUT(no-content-type)",
+            options: {
+                method: "PUT",
+                body: pdfBuffer,
+            },
+        },
+    ]
+
+    const failures = []
+
+    for (const attempt of uploadAttempts) {
+        const response = await fetch(target.url, attempt.options)
+        if (response.ok) {
+            return
+        }
+
+        const bodyText = await response.text().catch(() => "")
+        failures.push(
+            `${attempt.label}=${response.status}${
+                bodyText ? ` body:${bodyText.slice(0, 250)}` : ""
+            }`
+        )
+    }
+
+    throw new ApiError(
+        502,
+        `Failed to upload file to Sarvam storage (${failures.join(" | ")})`
+    )
 }
 
 const pollSarvamJobCompletion = async (baseUrl, jobId) => {
@@ -225,7 +376,9 @@ export const extractPdfWithSarvamVision = async (
     fileName = "document.pdf"
 ) => {
     const baseUrl = getSarvamDocumentApiBaseUrl()
-    const outputFormat = getSarvamDocumentOutputFormat().toLowerCase()
+    const outputFormat = normalizeSarvamOutputFormat(
+        getSarvamDocumentOutputFormat()
+    )
     const language = getSarvamDocumentLanguage()
     const modelName = getDocumentIntelligenceModelName()
 
@@ -240,6 +393,8 @@ export const extractPdfWithSarvamVision = async (
             headers: getSarvamHeaders(),
             body: JSON.stringify({
                 job_parameters: {
+                    model: modelName,
+                    model_name: modelName,
                     language,
                     output_format: outputFormat,
                 },
@@ -249,9 +404,14 @@ export const extractPdfWithSarvamVision = async (
 
     const createJobData = await createJobResponse.json().catch(() => null)
     if (!createJobResponse.ok || !createJobData?.job_id) {
+        const details =
+            formatErrorDetails(createJobData?.message) ||
+            formatErrorDetails(createJobData?.error) ||
+            formatErrorDetails(createJobData?.error_message) ||
+            formatErrorDetails(createJobData)
         throw new ApiError(
             createJobResponse.status || 502,
-            createJobData?.message || "Failed to create Sarvam document job"
+            `Failed to create Sarvam document job (status: ${createJobResponse.status || 502})${details ? `: ${details}` : ""}`
         )
     }
 
@@ -277,18 +437,18 @@ export const extractPdfWithSarvamVision = async (
         )
     }
 
-    const uploadUrl = getUploadUrlFromMap(
+    const uploadTarget = getUploadUrlFromMap(
         uploadLinksData?.upload_urls,
         fileName
     )
-    if (!uploadUrl) {
+    if (!uploadTarget) {
         throw new ApiError(
             502,
             "Sarvam did not return a usable upload URL for document processing"
         )
     }
 
-    await uploadInputFileToSarvam(uploadUrl, pdfBuffer)
+    await uploadInputFileToSarvam(uploadTarget, pdfBuffer, fileName)
 
     const startResponse = await fetch(
         `${baseUrl}/doc-digitization/job/v1/${jobId}/start`,
@@ -373,6 +533,10 @@ export const extractSourceContent = async (input) => {
         )
     }
 
+    if (input.type === "preprocessed-pdf") {
+        return cleanExtractedText(input.data)
+    }
+
     if (input.type !== "pdf") {
         throw new ApiError(400, `Unsupported input type '${input.type}'`)
     }
@@ -396,7 +560,16 @@ export const extractSourceContent = async (input) => {
             "Sarvam document processing failed; falling back to local pdf-parse:",
             error.message
         )
-        return extractPdfWithLocalParser(input.data)
+
+        const fallbackText = await extractPdfWithLocalParser(input.data)
+        if (!fallbackText.trim()) {
+            throw new ApiError(
+                422,
+                `Sarvam processing failed (${error.message}) and local parser found no extractable text`
+            )
+        }
+
+        return fallbackText
     }
 }
 

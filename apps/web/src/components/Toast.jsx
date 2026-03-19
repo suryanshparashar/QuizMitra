@@ -10,6 +10,11 @@
 
 import toast, { Toaster } from "react-hot-toast"
 
+const logToastErrorInDev = (message) => {
+    if (!import.meta.env.DEV) return
+    console.error("[Toast Error]", message)
+}
+
 export const showToast = {
     success: (message) =>
         toast.success(message, {
@@ -26,8 +31,9 @@ export const showToast = {
             iconTheme: { primary: "#16A34A", secondary: "#fff" },
         }),
 
-    error: (message) =>
-        toast.error(message, {
+    error: (message) => {
+        logToastErrorInDev(message)
+        return toast.error(message, {
             style: {
                 borderRadius: "12px",
                 padding: "16px",
@@ -39,7 +45,8 @@ export const showToast = {
                 boxShadow: "0 10px 15px rgba(0, 0, 0, 0.1)",
             },
             iconTheme: { primary: "#DC2626", secondary: "#fff" },
-        }),
+        })
+    },
 
     info: (message) =>
         toast(message, {

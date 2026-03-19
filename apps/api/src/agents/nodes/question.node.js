@@ -6,6 +6,62 @@ import { PromptTemplate } from "@langchain/core/prompts"
 import { createDevLogger } from "../../utils/devLogger.js"
 
 const devLog = createDevLogger("node.question")
+const CONTENT_BUDGET_STEPS = [7000, 5000, 3500, 2500]
+
+const isPromptTooLongError = (error) => {
+    const message = String(error?.message || "").toLowerCase()
+    return (
+        message.includes("prompt is too long") ||
+        message.includes("max length") ||
+        message.includes("token")
+    )
+}
+
+const buildPromptContent = (sourceContent, maxChars) => {
+    const normalized = String(sourceContent || "")
+        .replace(/\s+\n/g, "\n")
+        .replace(/\n{3,}/g, "\n\n")
+        .trim()
+
+    return normalized.slice(0, maxChars)
+}
+
+const invokeWithAdaptiveBudget = async ({
+    model,
+    promptTemplate,
+    sourceContent,
+    promptData,
+    pipelineRunId,
+    phase,
+}) => {
+    let lastError = null
+
+    for (const budget of CONTENT_BUDGET_STEPS) {
+        try {
+            const formattedPrompt = await promptTemplate.format({
+                ...promptData,
+                content: buildPromptContent(sourceContent, budget),
+            })
+
+            return await model.invoke(formattedPrompt)
+        } catch (error) {
+            lastError = error
+
+            if (!isPromptTooLongError(error)) {
+                throw error
+            }
+
+            devLog.warn("Prompt too long, retrying with smaller budget", {
+                pipelineRunId,
+                phase,
+                budget,
+                message: error?.message,
+            })
+        }
+    }
+
+    throw lastError || new Error("Model invocation failed")
+}
 
 const normalizeQuestion = (question, fallbackDifficulty = "Medium") => {
     return {
@@ -105,15 +161,19 @@ export const questionNode = async (state) => {
             }
         }
 
-        const formattedPrompt = await basePrompt.format({
-            numQuestions: requestedCount,
-            difficulty: requirements.difficultyLevel,
-            topics: topics.join(", "),
-            content: sourceContent.slice(0, 30000), // Token limit safety
-            format_instructions: parser.getFormatInstructions(),
+        const response = await invokeWithAdaptiveBudget({
+            model,
+            promptTemplate: basePrompt,
+            sourceContent,
+            promptData: {
+                numQuestions: requestedCount,
+                difficulty: requirements.difficultyLevel,
+                topics: topics.join(", "),
+                format_instructions: parser.getFormatInstructions(),
+            },
+            pipelineRunId,
+            phase: "base",
         })
-
-        const response = await model.invoke(formattedPrompt)
         const firstBatch = await parser.parse(response.content)
         let collectedQuestions = dedupeQuestions(firstBatch)
 
@@ -139,18 +199,23 @@ export const questionNode = async (state) => {
                 remaining,
             })
 
-            const formattedTopUpPrompt = await topUpPrompt.format({
-                numQuestions: remaining,
-                difficulty: requirements.difficultyLevel,
-                topics: topics.join(", "),
-                existingQuestions: collectedQuestions
-                    .map((q, index) => `${index + 1}. ${q.questionText}`)
-                    .join("\n"),
-                content: sourceContent.slice(0, 30000),
-                format_instructions: parser.getFormatInstructions(),
+            const topUpResponse = await invokeWithAdaptiveBudget({
+                model,
+                promptTemplate: topUpPrompt,
+                sourceContent,
+                promptData: {
+                    numQuestions: remaining,
+                    difficulty: requirements.difficultyLevel,
+                    topics: topics.join(", "),
+                    existingQuestions: collectedQuestions
+                        .slice(0, 30)
+                        .map((q, index) => `${index + 1}. ${q.questionText}`)
+                        .join("\n"),
+                    format_instructions: parser.getFormatInstructions(),
+                },
+                pipelineRunId,
+                phase: "top-up",
             })
-
-            const topUpResponse = await model.invoke(formattedTopUpPrompt)
 
             let topUpBatch = []
             try {

@@ -4,6 +4,11 @@ import { verifyJWT } from "../middlewares/auth.middleware.js"
 import { upload } from "../middlewares/multer.middleware.js"
 import {
     generateQuiz,
+    processUploadedPdf,
+    getProcessedPdfStatus,
+    uploadMaterial,
+    listMaterials,
+    getMaterialStatus,
     getQuiz,
     publishQuiz,
     getUserQuizzes,
@@ -24,6 +29,11 @@ const router = Router()
 router.use(verifyJWT)
 
 // Quiz creation and management
+router.route("/process-pdf").post(upload.single("pdf"), processUploadedPdf)
+router.route("/processed-pdf/:processedPdfId/status").get(getProcessedPdfStatus)
+router.route("/materials/upload").post(upload.single("pdf"), uploadMaterial)
+router.route("/materials").get(listMaterials)
+router.route("/materials/:materialId/status").get(getMaterialStatus)
 router.route("/generate").post(upload.single("pdf"), generateQuiz)
 
 // router.route("/create-manual").post(createQuizManual) // Manual quiz creation

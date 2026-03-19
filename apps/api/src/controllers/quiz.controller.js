@@ -7,14 +7,22 @@ import {
     asyncHandler,
     ApiError,
     ApiResponse,
-    uploadOnCloudinary,
     deleteFromCloudinary,
 } from "../utils/index.js"
 import { generateQuestions } from "../services/quizGraph.service.js"
 import mongoose from "mongoose"
+import { extractSourceContent } from "../services/documentProcessing.service.js"
+import { ProcessedPdf } from "../models/processedPdf.model.js"
+import {
+    createContentVectors,
+    joinVectorChunks,
+} from "../services/contentVector.service.js"
 
 const MIN_DEADLINE_BUFFER_MINUTES = 10
 const MAX_TOTAL_MARKS = 100
+const MAX_STORED_EXTRACTED_CONTENT_CHARS = 250000
+const MAX_STORED_VECTOR_CHUNKS = 250
+const MIN_EXTRACTED_TEXT_LENGTH = 100
 
 const calculateMarksPerQuestion = (totalMarks, numQuestions) => {
     const marks = Number(totalMarks)
@@ -26,6 +34,296 @@ const calculateMarksPerQuestion = (totalMarks, numQuestions) => {
 
     return Number((marks / count).toFixed(4))
 }
+
+const processPdfInBackground = async ({
+    processedPdfId,
+    fileBuffer,
+    fileName,
+    userId,
+}) => {
+    try {
+        await ProcessedPdf.findByIdAndUpdate(processedPdfId, {
+            progress: 20,
+            status: "processing",
+            errorMessage: "",
+        })
+
+        const extractedContent = await extractSourceContent({
+            type: "pdf",
+            data: fileBuffer,
+            originalName: fileName,
+        })
+
+        const storedContent = String(extractedContent || "").slice(
+            0,
+            MAX_STORED_EXTRACTED_CONTENT_CHARS
+        )
+
+        if (storedContent.trim().length < MIN_EXTRACTED_TEXT_LENGTH) {
+            throw new ApiError(
+                422,
+                "Unable to extract text. Handwritten notes are not supported. Please upload a typed or digital PDF."
+            )
+        }
+
+        await ProcessedPdf.findByIdAndUpdate(processedPdfId, {
+            progress: 70,
+        })
+
+        const vectorPayload = createContentVectors(storedContent, {
+            maxChunks: MAX_STORED_VECTOR_CHUNKS,
+        })
+
+        if (!vectorPayload.vectors.length) {
+            throw new ApiError(
+                422,
+                "Could not generate content vectors from extracted PDF text"
+            )
+        }
+
+        await ProcessedPdf.findByIdAndUpdate(processedPdfId, {
+            status: "completed",
+            progress: 100,
+            extractedContent: storedContent,
+            vectorDimensions: vectorPayload.dimensions,
+            contentVectors: vectorPayload.vectors,
+            errorMessage: "",
+            userId,
+        })
+    } catch (error) {
+        await ProcessedPdf.findByIdAndUpdate(processedPdfId, {
+            status: "failed",
+            progress: 100,
+            errorMessage: error?.message || "Failed to process PDF",
+        })
+    }
+}
+
+const processUploadedPdf = asyncHandler(async (req, res) => {
+    if (req.user.role !== "faculty") {
+        throw new ApiError(403, "Only faculty members can process PDFs")
+    }
+
+    if (!req.file) {
+        throw new ApiError(400, "PDF file is required")
+    }
+
+    if (req.file.mimetype !== "application/pdf") {
+        throw new ApiError(400, "Only PDF files are allowed")
+    }
+
+    if (req.file.size > 10 * 1024 * 1024) {
+        throw new ApiError(400, "PDF file size cannot exceed 10MB")
+    }
+
+    const processedPdf = await ProcessedPdf.create({
+        userId: req.user._id,
+        fileName: req.file.originalname,
+        mimeType: req.file.mimetype,
+        fileSize: req.file.size,
+        status: "processing",
+        progress: 5,
+    })
+
+    processPdfInBackground({
+        processedPdfId: processedPdf._id,
+        fileBuffer: req.file.buffer,
+        fileName: req.file.originalname,
+        userId: req.user._id,
+    })
+
+    return res.status(202).json(
+        new ApiResponse(
+            202,
+            {
+                processedPdfId: processedPdf._id,
+                status: processedPdf.status,
+                progress: processedPdf.progress,
+            },
+            "PDF upload accepted. OCR processing started."
+        )
+    )
+})
+
+const getProcessedPdfStatus = asyncHandler(async (req, res) => {
+    const { processedPdfId } = req.params
+
+    if (!mongoose.Types.ObjectId.isValid(processedPdfId)) {
+        throw new ApiError(400, "Invalid processed PDF id")
+    }
+
+    const processedPdf = await ProcessedPdf.findById(processedPdfId)
+    if (!processedPdf) {
+        throw new ApiError(404, "Processed PDF not found")
+    }
+
+    if (processedPdf.userId.toString() !== req.user._id.toString()) {
+        throw new ApiError(403, "Access denied")
+    }
+
+    return res.status(200).json(
+        new ApiResponse(
+            200,
+            {
+                processedPdfId: processedPdf._id,
+                status: processedPdf.status,
+                progress: processedPdf.progress,
+                vectorDimensions: processedPdf.vectorDimensions,
+                chunkCount: processedPdf.contentVectors?.length || 0,
+                fileName: processedPdf.fileName,
+                contentLength: processedPdf.extractedContent?.length || 0,
+                errorMessage: processedPdf.errorMessage || "",
+            },
+            "Processed PDF status fetched"
+        )
+    )
+})
+
+const uploadMaterial = asyncHandler(async (req, res) => {
+    if (req.user.role !== "faculty") {
+        throw new ApiError(403, "Only faculty members can upload materials")
+    }
+
+    if (!req.file) {
+        throw new ApiError(400, "PDF file is required")
+    }
+
+    if (req.file.mimetype !== "application/pdf") {
+        throw new ApiError(400, "Only PDF files are allowed")
+    }
+
+    if (req.file.size > 10 * 1024 * 1024) {
+        throw new ApiError(400, "PDF file size cannot exceed 10MB")
+    }
+
+    const { classId, materialName } = req.body
+    let resolvedClassId = null
+
+    if (classId) {
+        if (!mongoose.Types.ObjectId.isValid(classId)) {
+            throw new ApiError(400, "Invalid class ID format")
+        }
+
+        const classDoc = await Class.findById(classId)
+        if (!classDoc || !classDoc.isFaculty(req.user._id)) {
+            throw new ApiError(
+                403,
+                "You can only upload materials for your own classes"
+            )
+        }
+        resolvedClassId = classDoc._id
+    }
+
+    const processedPdf = await ProcessedPdf.create({
+        userId: req.user._id,
+        classId: resolvedClassId,
+        isMaterial: true,
+        materialName: String(materialName || req.file.originalname).trim(),
+        fileName: req.file.originalname,
+        mimeType: req.file.mimetype,
+        fileSize: req.file.size,
+        status: "processing",
+        progress: 5,
+        expiresAt: null,
+    })
+
+    processPdfInBackground({
+        processedPdfId: processedPdf._id,
+        fileBuffer: req.file.buffer,
+        fileName: req.file.originalname,
+        userId: req.user._id,
+    })
+
+    return res.status(202).json(
+        new ApiResponse(
+            202,
+            {
+                materialId: processedPdf._id,
+                status: processedPdf.status,
+                progress: processedPdf.progress,
+            },
+            "Material upload accepted. Processing started."
+        )
+    )
+})
+
+const listMaterials = asyncHandler(async (req, res) => {
+    if (req.user.role !== "faculty") {
+        throw new ApiError(403, "Only faculty members can view materials")
+    }
+
+    const { classId } = req.query
+    const filter = {
+        userId: req.user._id,
+        isMaterial: true,
+    }
+
+    if (classId) {
+        if (!mongoose.Types.ObjectId.isValid(classId)) {
+            throw new ApiError(400, "Invalid class ID format")
+        }
+        filter.classId = classId
+    }
+
+    const materials = await ProcessedPdf.find(filter)
+        .sort({ createdAt: -1 })
+        .select(
+            "materialName fileName classId status progress vectorDimensions contentVectors extractedContent errorMessage createdAt"
+        )
+        .lean()
+
+    const payload = materials.map((material) => ({
+        _id: material._id,
+        materialName: material.materialName || material.fileName,
+        fileName: material.fileName,
+        classId: material.classId || null,
+        status: material.status,
+        progress: material.progress,
+        chunkCount: material.contentVectors?.length || 0,
+        contentLength: material.extractedContent?.length || 0,
+        vectorDimensions: material.vectorDimensions || 0,
+        errorMessage: material.errorMessage || "",
+        createdAt: material.createdAt,
+    }))
+
+    return res
+        .status(200)
+        .json(new ApiResponse(200, payload, "Materials fetched successfully"))
+})
+
+const getMaterialStatus = asyncHandler(async (req, res) => {
+    const { materialId } = req.params
+
+    if (!mongoose.Types.ObjectId.isValid(materialId)) {
+        throw new ApiError(400, "Invalid material id")
+    }
+
+    const material = await ProcessedPdf.findOne({
+        _id: materialId,
+        userId: req.user._id,
+        isMaterial: true,
+    })
+
+    if (!material) {
+        throw new ApiError(404, "Material not found")
+    }
+
+    return res.status(200).json(
+        new ApiResponse(
+            200,
+            {
+                materialId: material._id,
+                status: material.status,
+                progress: material.progress,
+                materialName: material.materialName || material.fileName,
+                chunkCount: material.contentVectors?.length || 0,
+                contentLength: material.extractedContent?.length || 0,
+                errorMessage: material.errorMessage || "",
+            },
+            "Material status fetched"
+        )
+    )
+})
 
 // ✅ Enhanced PDF quiz generation
 // ✅ Enhanced Quiz Generation (PDF or Topic)
@@ -45,6 +343,8 @@ const generateQuiz = asyncHandler(async (req, res) => {
         scheduledAt,
         deadline,
         topic, // ✅ New field
+        materialId,
+        processedPdfId,
         tags = [],
         settings = {},
     } = req.body
@@ -67,7 +367,82 @@ const generateQuiz = asyncHandler(async (req, res) => {
     let inputType
     let inputName
 
-    if (req.file) {
+    if (materialId) {
+        if (!mongoose.Types.ObjectId.isValid(materialId)) {
+            throw new ApiError(400, "Invalid material id")
+        }
+
+        const material = await ProcessedPdf.findOne({
+            _id: materialId,
+            userId: req.user._id,
+            isMaterial: true,
+        })
+
+        if (!material) {
+            throw new ApiError(404, "Material not found")
+        }
+
+        if (material.status !== "completed") {
+            throw new ApiError(400, "Selected material is still processing")
+        }
+
+        const reconstructedContent = joinVectorChunks(material.contentVectors)
+        const sourceContent = reconstructedContent || material.extractedContent
+
+        if (!sourceContent) {
+            throw new ApiError(
+                400,
+                "Selected material does not contain extracted content"
+            )
+        }
+
+        inputObj = {
+            type: "preprocessed-pdf",
+            data: sourceContent,
+        }
+        inputType = "pdf"
+        inputName = material.materialName || material.fileName
+    } else if (processedPdfId) {
+        if (!mongoose.Types.ObjectId.isValid(processedPdfId)) {
+            throw new ApiError(400, "Invalid processed PDF id")
+        }
+
+        const processedPdf = await ProcessedPdf.findById(processedPdfId)
+        if (!processedPdf) {
+            throw new ApiError(404, "Processed PDF not found")
+        }
+
+        if (processedPdf.userId.toString() !== req.user._id.toString()) {
+            throw new ApiError(403, "Access denied for processed PDF")
+        }
+
+        if (processedPdf.status !== "completed") {
+            throw new ApiError(
+                400,
+                "PDF processing is not completed yet. Please wait."
+            )
+        }
+
+        if (!processedPdf.extractedContent) {
+            throw new ApiError(
+                400,
+                "Processed PDF does not contain extracted content"
+            )
+        }
+
+        const reconstructedContent = joinVectorChunks(
+            processedPdf.contentVectors
+        )
+        const sourceContent =
+            reconstructedContent || processedPdf.extractedContent
+
+        inputObj = {
+            type: "preprocessed-pdf",
+            data: sourceContent,
+        }
+        inputType = "pdf"
+        inputName = processedPdf.fileName
+    } else if (req.file) {
         // PDF Mode
         if (req.file.mimetype !== "application/pdf") {
             throw new ApiError(400, "Only PDF files are allowed")
@@ -79,18 +454,6 @@ const generateQuiz = asyncHandler(async (req, res) => {
         inputType = "pdf"
         inputName = req.file.originalname
         inputObj.originalName = req.file.originalname
-
-        // ✅ Upload PDF to Cloudinary
-        const uploadResponse = await uploadOnCloudinary(
-            req.file.buffer,
-            req.file.originalname
-        )
-        if (uploadResponse) {
-            inputObj.pdfFile = {
-                url: uploadResponse.secure_url,
-                publicId: uploadResponse.public_id,
-            }
-        }
     } else if (topic && topic.trim().length > 0) {
         // Topic Mode
         if (topic.length > 200) {
@@ -1223,6 +1586,11 @@ const getStudentQuizzes = asyncHandler(async (req, res) => {
 // ✅ Add to exports
 export {
     getStudentQuizzes,
+    processUploadedPdf,
+    getProcessedPdfStatus,
+    uploadMaterial,
+    listMaterials,
+    getMaterialStatus,
     generateQuiz,
     createQuizManual,
     getQuiz,

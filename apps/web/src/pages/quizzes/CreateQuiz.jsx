@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useNavigate, useSearchParams } from "react-router-dom"
 import {
     FileText,
@@ -114,9 +114,24 @@ export default function CreateQuiz() {
     })
     const [inputMode, setInputMode] = useState("pdf") // "pdf" or "topic"
     const [pdfFile, setPdfFile] = useState(null)
+    const [processedPdfId, setProcessedPdfId] = useState("")
+    const [isProcessingPdf, setIsProcessingPdf] = useState(false)
+    const [pdfProcessingProgress, setPdfProcessingProgress] = useState(0)
+    const [pdfInlineMessage, setPdfInlineMessage] = useState("")
+    const [materials, setMaterials] = useState([])
+    const [materialsLoading, setMaterialsLoading] = useState(false)
+    const [materialUploadInProgress, setMaterialUploadInProgress] =
+        useState(false)
+    const [materialUploadProgress, setMaterialUploadProgress] = useState(0)
+    const [selectedMaterialId, setSelectedMaterialId] = useState("")
     const [loading, setLoading] = useState(false)
     const [classes, setClasses] = useState([])
     const [loadingClasses, setLoadingClasses] = useState(true)
+    const processingPollRef = useRef(null)
+    const pdfInputRef = useRef(null)
+    const pdfProcessingFinalizedRef = useRef(false)
+    const materialInputRef = useRef(null)
+    const materialProcessingPollRef = useRef(null)
 
     useEffect(() => {
         const fetchClasses = async () => {
@@ -145,16 +160,312 @@ export default function CreateQuiz() {
         fetchClasses()
     }, [classId])
 
+    useEffect(() => {
+        return () => {
+            if (processingPollRef.current) {
+                clearInterval(processingPollRef.current)
+                processingPollRef.current = null
+            }
+
+            if (materialProcessingPollRef.current) {
+                clearInterval(materialProcessingPollRef.current)
+                materialProcessingPollRef.current = null
+            }
+        }
+    }, [])
+
+    const fetchMaterials = async () => {
+        setMaterialsLoading(true)
+        try {
+            const response = await api.get("/quizzes/materials", {
+                params: formData.classId ? { classId: formData.classId } : {},
+            })
+            setMaterials(response?.data?.data || [])
+        } catch (error) {
+            showToast.error("Failed to fetch uploaded materials")
+        } finally {
+            setMaterialsLoading(false)
+        }
+    }
+
+    useEffect(() => {
+        fetchMaterials()
+    }, [formData.classId])
+
+    const stopMaterialProcessingPoll = () => {
+        if (materialProcessingPollRef.current) {
+            clearInterval(materialProcessingPollRef.current)
+            materialProcessingPollRef.current = null
+        }
+    }
+
+    const startMaterialProcessingPoll = (materialId) => {
+        stopMaterialProcessingPoll()
+
+        materialProcessingPollRef.current = setInterval(async () => {
+            try {
+                const statusResponse = await api.get(
+                    `/quizzes/materials/${materialId}/status`
+                )
+                const statusData = statusResponse?.data?.data || {}
+                const nextProgress = Number(statusData.progress || 0)
+
+                setMaterialUploadProgress((prev) =>
+                    Math.max(prev, Math.min(100, nextProgress))
+                )
+
+                if (statusData.status === "completed") {
+                    stopMaterialProcessingPoll()
+                    setMaterialUploadInProgress(false)
+                    setMaterialUploadProgress(100)
+                    setSelectedMaterialId(materialId)
+                    showToast.success("Material uploaded and ready to use")
+                    fetchMaterials()
+                }
+
+                if (statusData.status === "failed") {
+                    stopMaterialProcessingPoll()
+                    setMaterialUploadInProgress(false)
+                    setMaterialUploadProgress(0)
+                    showToast.error(
+                        statusData.errorMessage ||
+                            "Material processing failed. Please try another file."
+                    )
+                    fetchMaterials()
+                }
+            } catch (error) {
+                stopMaterialProcessingPoll()
+                setMaterialUploadInProgress(false)
+                setMaterialUploadProgress(0)
+                showToast.error("Failed to fetch material processing status")
+                fetchMaterials()
+            }
+        }, 1500)
+    }
+
+    const handleMaterialUpload = async (e) => {
+        const selectedFile = e.target.files?.[0]
+        if (!selectedFile) return
+
+        if (selectedFile.type !== "application/pdf") {
+            showToast.error("Only PDF files can be uploaded as materials")
+            e.target.value = ""
+            return
+        }
+
+        if (selectedFile.size > MAX_PDF_SIZE_BYTES) {
+            showToast.error("PDF file size cannot exceed 10MB")
+            e.target.value = ""
+            return
+        }
+
+        setMaterialUploadInProgress(true)
+        setMaterialUploadProgress(0)
+        stopMaterialProcessingPoll()
+
+        const uploadData = new FormData()
+        uploadData.append("pdf", selectedFile)
+        uploadData.append("materialName", selectedFile.name)
+        if (formData.classId) {
+            uploadData.append("classId", formData.classId)
+        }
+
+        try {
+            const response = await api.post(
+                "/quizzes/materials/upload",
+                uploadData,
+                {
+                    headers: { "Content-Type": "multipart/form-data" },
+                    onUploadProgress: (progressEvent) => {
+                        const total =
+                            progressEvent.total || selectedFile.size || 1
+                        const uploaded = progressEvent.loaded || 0
+                        const percent = Math.min(
+                            45,
+                            Math.round((uploaded / total) * 45)
+                        )
+                        setMaterialUploadProgress((prev) =>
+                            Math.max(prev, percent)
+                        )
+                    },
+                }
+            )
+
+            const materialId = response?.data?.data?.materialId
+            if (!materialId) {
+                throw new Error("Missing material id")
+            }
+
+            setMaterialUploadProgress((prev) => Math.max(prev, 50))
+            startMaterialProcessingPoll(materialId)
+        } catch (error) {
+            stopMaterialProcessingPoll()
+            setMaterialUploadInProgress(false)
+            setMaterialUploadProgress(0)
+            showToast.error(
+                error.response?.data?.message ||
+                    "Failed to upload material. Please try again."
+            )
+            fetchMaterials()
+        }
+    }
+
+    const stopProcessingPoll = () => {
+        if (processingPollRef.current) {
+            clearInterval(processingPollRef.current)
+            processingPollRef.current = null
+        }
+    }
+
+    const clearPdfSelection = () => {
+        pdfProcessingFinalizedRef.current = false
+        setPdfFile(null)
+        setProcessedPdfId("")
+        setIsProcessingPdf(false)
+        setPdfProcessingProgress(0)
+        if (pdfInputRef.current) {
+            pdfInputRef.current.value = ""
+        }
+    }
+
+    const startPdfProcessingPoll = (nextProcessedPdfId) => {
+        stopProcessingPoll()
+        pdfProcessingFinalizedRef.current = false
+
+        processingPollRef.current = setInterval(async () => {
+            try {
+                const statusResponse = await api.get(
+                    `/quizzes/processed-pdf/${nextProcessedPdfId}/status`
+                )
+                const statusData = statusResponse?.data?.data || {}
+                const nextProgress = Number(statusData.progress || 0)
+
+                setPdfProcessingProgress((prev) =>
+                    Math.max(prev, Math.min(100, nextProgress))
+                )
+
+                if (statusData.status === "completed") {
+                    if (pdfProcessingFinalizedRef.current) {
+                        return
+                    }
+                    pdfProcessingFinalizedRef.current = true
+                    stopProcessingPoll()
+                    setIsProcessingPdf(false)
+                    setPdfProcessingProgress(100)
+                    showToast.success("PDF processed successfully")
+                }
+
+                if (statusData.status === "failed") {
+                    if (pdfProcessingFinalizedRef.current) {
+                        return
+                    }
+                    pdfProcessingFinalizedRef.current = true
+                    stopProcessingPoll()
+                    const failureMessage =
+                        statusData.errorMessage ||
+                        "Failed to process PDF. Please try another file."
+                    if (
+                        failureMessage
+                            .toLowerCase()
+                            .includes("handwritten notes are not supported")
+                    ) {
+                        setPdfInlineMessage(
+                            "Handwritten notes are currently not supported. Please upload a typed or digital PDF."
+                        )
+                    }
+                    clearPdfSelection()
+                    showToast.error(failureMessage)
+                }
+            } catch (error) {
+                if (pdfProcessingFinalizedRef.current) {
+                    return
+                }
+                pdfProcessingFinalizedRef.current = true
+                stopProcessingPoll()
+                clearPdfSelection()
+                showToast.error("Failed to fetch PDF processing status")
+            }
+        }, 1500)
+    }
+
+    const startPdfProcessing = async (selectedFile) => {
+        stopProcessingPoll()
+        pdfProcessingFinalizedRef.current = false
+        setProcessedPdfId("")
+        setPdfProcessingProgress(0)
+        setIsProcessingPdf(true)
+
+        const uploadData = new FormData()
+        uploadData.append("pdf", selectedFile)
+
+        try {
+            const response = await api.post(
+                "/quizzes/process-pdf",
+                uploadData,
+                {
+                    headers: { "Content-Type": "multipart/form-data" },
+                    onUploadProgress: (progressEvent) => {
+                        const total =
+                            progressEvent.total || selectedFile.size || 1
+                        const uploaded = progressEvent.loaded || 0
+                        const percent = Math.min(
+                            45,
+                            Math.round((uploaded / total) * 45)
+                        )
+                        setPdfProcessingProgress((prev) =>
+                            Math.max(prev, percent)
+                        )
+                    },
+                }
+            )
+
+            const nextProcessedPdfId = response?.data?.data?.processedPdfId
+            if (!nextProcessedPdfId) {
+                throw new Error("Missing processed PDF id")
+            }
+
+            setProcessedPdfId(nextProcessedPdfId)
+            setPdfProcessingProgress((prev) => Math.max(prev, 50))
+            startPdfProcessingPoll(nextProcessedPdfId)
+        } catch (err) {
+            pdfProcessingFinalizedRef.current = true
+            const failureMessage =
+                err.response?.data?.message || "Failed to process PDF"
+            if (
+                failureMessage
+                    .toLowerCase()
+                    .includes("handwritten notes are not supported")
+            ) {
+                setPdfInlineMessage(
+                    "Handwritten notes are currently not supported. Please upload a typed or digital PDF."
+                )
+            }
+            stopProcessingPoll()
+            clearPdfSelection()
+            showToast.error(failureMessage)
+        }
+    }
+
     const handlePdfChange = (e) => {
         const selectedFile = e.target.files?.[0]
 
+        setPdfInlineMessage("")
+
         if (!selectedFile) {
             setPdfFile(null)
+            setProcessedPdfId("")
+            setIsProcessingPdf(false)
+            setPdfProcessingProgress(0)
+            stopProcessingPoll()
             return
         }
 
         if (selectedFile.type !== "application/pdf") {
             setPdfFile(null)
+            setProcessedPdfId("")
+            setIsProcessingPdf(false)
+            setPdfProcessingProgress(0)
+            stopProcessingPoll()
             showToast.error("Invalid file type. Only PDF files are allowed.")
             e.target.value = ""
             return
@@ -162,12 +473,17 @@ export default function CreateQuiz() {
 
         if (selectedFile.size > MAX_PDF_SIZE_BYTES) {
             setPdfFile(null)
+            setProcessedPdfId("")
+            setIsProcessingPdf(false)
+            setPdfProcessingProgress(0)
+            stopProcessingPoll()
             showToast.error("PDF file size cannot exceed 10MB")
             e.target.value = ""
             return
         }
 
         setPdfFile(selectedFile)
+        startPdfProcessing(selectedFile)
     }
 
     const handleSubmit = async (e) => {
@@ -178,6 +494,16 @@ export default function CreateQuiz() {
             return
         }
 
+        if (inputMode === "pdf" && isProcessingPdf) {
+            showToast.error("PDF is still being processed. Please wait.")
+            return
+        }
+
+        if (inputMode === "pdf" && !processedPdfId) {
+            showToast.error("Please upload and process the PDF first")
+            return
+        }
+
         if (inputMode === "pdf" && pdfFile?.size > MAX_PDF_SIZE_BYTES) {
             showToast.error("PDF file size cannot exceed 10MB")
             return
@@ -185,6 +511,11 @@ export default function CreateQuiz() {
 
         if (inputMode === "topic" && !formData.topic.trim()) {
             showToast.error("Please enter a topic")
+            return
+        }
+
+        if (inputMode === "material" && !selectedMaterialId) {
+            showToast.error("Please select an uploaded material")
             return
         }
 
@@ -242,7 +573,11 @@ export default function CreateQuiz() {
         const formDataObj = new FormData()
 
         if (inputMode === "pdf") {
-            formDataObj.append("pdf", pdfFile)
+            formDataObj.append("processedPdfId", processedPdfId)
+        }
+
+        if (inputMode === "material") {
+            formDataObj.append("materialId", selectedMaterialId)
         }
 
         Object.keys(formData).forEach((key) => {
@@ -620,14 +955,19 @@ export default function CreateQuiz() {
                     <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
                         <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6">
                             <h2 className="text-xl font-semibold text-gray-900 flex items-center mb-4 sm:mb-0">
-                                {inputMode === "pdf" ? (
+                                {inputMode === "pdf" && (
                                     <Upload className="h-5 w-5 mr-2 text-orange-600" />
-                                ) : (
+                                )}
+                                {inputMode === "topic" && (
                                     <Brain className="h-5 w-5 mr-2 text-purple-600" />
                                 )}
-                                {inputMode === "pdf"
-                                    ? "Upload PDF Document"
-                                    : "Enter Quiz Topic"}
+                                {inputMode === "material" && (
+                                    <BookOpen className="h-5 w-5 mr-2 text-blue-600" />
+                                )}
+                                {inputMode === "pdf" && "Upload PDF Document"}
+                                {inputMode === "topic" && "Enter Quiz Topic"}
+                                {inputMode === "material" &&
+                                    "Uploaded Materials"}
                             </h2>
 
                             {/* Mode Toggle */}
@@ -654,53 +994,242 @@ export default function CreateQuiz() {
                                 >
                                     Topic / Keyword
                                 </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setInputMode("material")}
+                                    className={`px-4 py-2 text-sm font-medium rounded-md transition-all duration-200 ${
+                                        inputMode === "material"
+                                            ? "bg-white text-gray-900 shadow-sm"
+                                            : "text-gray-500 hover:text-gray-900"
+                                    }`}
+                                >
+                                    Uploaded Materials
+                                </button>
                             </div>
                         </div>
 
                         {inputMode === "pdf" ? (
-                            <div className="relative border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-gray-400 transition-colors duration-200">
-                                <input
-                                    type="file"
-                                    accept=".pdf"
-                                    onChange={handlePdfChange}
-                                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed"
-                                    required={inputMode === "pdf"}
-                                    disabled={loading}
-                                />
+                            <div>
+                                <div className="group relative border-2 border-dashed border-gray-300 rounded-lg p-8 text-center bg-white hover:border-blue-500 hover:bg-blue-50/40 hover:shadow-md transition-all duration-200">
+                                    <input
+                                        ref={pdfInputRef}
+                                        type="file"
+                                        accept=".pdf"
+                                        onChange={handlePdfChange}
+                                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed"
+                                        required={inputMode === "pdf"}
+                                        disabled={loading}
+                                    />
 
-                                {pdfFile ? (
-                                    <div className="flex flex-col items-center">
-                                        <CheckCircle className="h-12 w-12 text-green-600 mb-4" />
-                                        <p className="text-lg font-medium text-green-900 mb-2">
-                                            File Selected
-                                        </p>
-                                        <p className="text-sm text-green-700 mb-2">
-                                            {pdfFile.name}
-                                        </p>
-                                        <p className="text-xs font-medium text-green-700 bg-green-100 border border-green-200 rounded-full px-3 py-1 mb-4">
-                                            {formatFileSize(pdfFile.size)} /{" "}
-                                            {formatFileSize(MAX_PDF_SIZE_BYTES)}
-                                        </p>
-                                        <p className="text-xs text-green-600">
-                                            Click to change file
-                                        </p>
-                                    </div>
-                                ) : (
-                                    <div className="flex flex-col items-center">
-                                        <BookOpen className="h-12 w-12 text-gray-400 mb-4" />
-                                        <p className="text-lg font-medium text-gray-900 mb-2">
-                                            Drop your PDF here, or click to
-                                            browse
-                                        </p>
-                                        <p className="text-sm text-gray-500 mb-4">
-                                            Support for PDF files up to 10MB
-                                        </p>
-                                        <div className="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors duration-200">
-                                            <Upload className="h-4 w-4 mr-2" />
-                                            Choose File
+                                    {pdfFile ? (
+                                        <div className="flex flex-col items-center">
+                                            <CheckCircle className="h-12 w-12 text-green-600 mb-4" />
+                                            <p className="text-lg font-medium text-green-900 mb-2">
+                                                File Selected
+                                            </p>
+                                            <p className="text-sm text-green-700 mb-2">
+                                                {pdfFile.name}
+                                            </p>
+                                            <p className="text-xs font-medium text-green-700 bg-green-100 border border-green-200 rounded-full px-3 py-1 mb-4">
+                                                {formatFileSize(pdfFile.size)} /{" "}
+                                                {formatFileSize(
+                                                    MAX_PDF_SIZE_BYTES
+                                                )}
+                                            </p>
+                                            <div className="w-full max-w-xs mb-3">
+                                                <div className="flex justify-between text-xs text-gray-600 mb-1">
+                                                    <span>
+                                                        {isProcessingPdf
+                                                            ? "Processing OCR..."
+                                                            : "OCR Ready"}
+                                                    </span>
+                                                    <span>
+                                                        {Math.min(
+                                                            100,
+                                                            Math.max(
+                                                                0,
+                                                                Math.round(
+                                                                    pdfProcessingProgress
+                                                                )
+                                                            )
+                                                        )}
+                                                        %
+                                                    </span>
+                                                </div>
+                                                <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
+                                                    <div
+                                                        className="h-full bg-blue-600 transition-all duration-300"
+                                                        style={{
+                                                            width: `${Math.min(100, Math.max(0, pdfProcessingProgress))}%`,
+                                                        }}
+                                                    />
+                                                </div>
+                                            </div>
+                                            <p className="text-xs text-green-600">
+                                                Click to change file
+                                            </p>
                                         </div>
+                                    ) : (
+                                        <div className="flex flex-col items-center">
+                                            <BookOpen className="h-12 w-12 text-gray-400 group-hover:text-blue-500 mb-4 transition-colors duration-200" />
+                                            <p className="text-lg font-medium text-gray-900 group-hover:text-blue-900 mb-2 transition-colors duration-200">
+                                                Drop your PDF here, or click to
+                                                browse
+                                            </p>
+                                            <p className="text-sm text-gray-500 group-hover:text-blue-700 mb-4 transition-colors duration-200">
+                                                Support for PDF files up to 10MB
+                                            </p>
+                                            <div className="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors duration-200">
+                                                <Upload className="h-4 w-4 mr-2" />
+                                                Choose File
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                                    {pdfInlineMessage ||
+                                        "Handwritten notes are currently not supported. Please upload a typed or digital PDF."}
+                                </div>
+                            </div>
+                        ) : inputMode === "material" ? (
+                            <div className="space-y-4">
+                                <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
+                                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                                        <div>
+                                            <p className="text-sm font-semibold text-blue-900">
+                                                Upload to Material Library
+                                            </p>
+                                            <p className="text-xs text-blue-700">
+                                                Upload once and reuse this
+                                                material across multiple
+                                                quizzes.
+                                            </p>
+                                        </div>
+                                        <label className="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 cursor-pointer transition-colors duration-200">
+                                            <Upload className="h-4 w-4 mr-2" />
+                                            Add PDF Material
+                                            <input
+                                                ref={materialInputRef}
+                                                type="file"
+                                                accept=".pdf"
+                                                onChange={handleMaterialUpload}
+                                                className="hidden"
+                                                disabled={
+                                                    loading ||
+                                                    materialUploadInProgress
+                                                }
+                                            />
+                                        </label>
                                     </div>
-                                )}
+                                    {materialUploadInProgress && (
+                                        <div className="mt-3">
+                                            <div className="flex justify-between text-xs text-blue-800 mb-1">
+                                                <span>
+                                                    Processing material...
+                                                </span>
+                                                <span>
+                                                    {Math.round(
+                                                        materialUploadProgress
+                                                    )}
+                                                    %
+                                                </span>
+                                            </div>
+                                            <div className="w-full h-2 bg-blue-100 rounded-full overflow-hidden">
+                                                <div
+                                                    className="h-full bg-blue-600 transition-all duration-300"
+                                                    style={{
+                                                        width: `${Math.min(100, Math.max(0, materialUploadProgress))}%`,
+                                                    }}
+                                                />
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div className="rounded-lg border border-gray-200 bg-white p-4">
+                                    <div className="flex items-center justify-between mb-3">
+                                        <p className="text-sm font-semibold text-gray-900">
+                                            Your Uploaded Materials
+                                        </p>
+                                        <button
+                                            type="button"
+                                            onClick={fetchMaterials}
+                                            className="text-xs font-medium text-blue-600 hover:text-blue-700"
+                                            disabled={materialsLoading}
+                                        >
+                                            Refresh
+                                        </button>
+                                    </div>
+
+                                    {materialsLoading ? (
+                                        <p className="text-sm text-gray-500">
+                                            Loading materials...
+                                        </p>
+                                    ) : materials.length === 0 ? (
+                                        <p className="text-sm text-gray-500">
+                                            No materials uploaded yet. Upload a
+                                            PDF to reuse it across quizzes.
+                                        </p>
+                                    ) : (
+                                        <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
+                                            {materials.map((material) => (
+                                                <label
+                                                    key={material._id}
+                                                    className={`flex items-center justify-between rounded-md border p-3 cursor-pointer ${
+                                                        selectedMaterialId ===
+                                                        material._id
+                                                            ? "border-blue-500 bg-blue-50"
+                                                            : "border-gray-200 hover:border-gray-300"
+                                                    }`}
+                                                >
+                                                    <div className="flex items-center gap-3">
+                                                        <input
+                                                            type="radio"
+                                                            name="selectedMaterial"
+                                                            checked={
+                                                                selectedMaterialId ===
+                                                                material._id
+                                                            }
+                                                            onChange={() =>
+                                                                setSelectedMaterialId(
+                                                                    material._id
+                                                                )
+                                                            }
+                                                            disabled={
+                                                                material.status !==
+                                                                "completed"
+                                                            }
+                                                        />
+                                                        <div>
+                                                            <p className="text-sm font-medium text-gray-900">
+                                                                {material.materialName ||
+                                                                    material.fileName}
+                                                            </p>
+                                                            <p className="text-xs text-gray-500">
+                                                                {new Date(
+                                                                    material.createdAt
+                                                                ).toLocaleString()}
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                    <span
+                                                        className={`text-xs font-semibold px-2 py-1 rounded-full ${
+                                                            material.status ===
+                                                            "completed"
+                                                                ? "bg-green-100 text-green-700"
+                                                                : material.status ===
+                                                                    "failed"
+                                                                  ? "bg-red-100 text-red-700"
+                                                                  : "bg-amber-100 text-amber-700"
+                                                        }`}
+                                                    >
+                                                        {material.status}
+                                                    </span>
+                                                </label>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         ) : (
                             <div>
