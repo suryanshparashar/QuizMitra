@@ -92,6 +92,8 @@ const calculateMarksPerQuestion = (totalMarks, numQuestions) => {
 export default function CreateQuiz() {
     const [searchParams] = useSearchParams()
     const classId = searchParams.get("classId")
+    const inputModeParam = searchParams.get("inputMode")
+    const materialIdParam = searchParams.get("materialId")
     const navigate = useNavigate()
     const defaultScheduleTimes = getDefaultScheduleTimes()
 
@@ -112,7 +114,9 @@ export default function CreateQuiz() {
         },
         topic: "",
     })
-    const [inputMode, setInputMode] = useState("pdf") // "pdf" or "topic"
+    const [inputMode, setInputMode] = useState(
+        inputModeParam === "material" ? "material" : "pdf"
+    )
     const [pdfFile, setPdfFile] = useState(null)
     const [processedPdfId, setProcessedPdfId] = useState("")
     const [isProcessingPdf, setIsProcessingPdf] = useState(false)
@@ -123,7 +127,9 @@ export default function CreateQuiz() {
     const [materialUploadInProgress, setMaterialUploadInProgress] =
         useState(false)
     const [materialUploadProgress, setMaterialUploadProgress] = useState(0)
-    const [selectedMaterialId, setSelectedMaterialId] = useState("")
+    const [selectedMaterialId, setSelectedMaterialId] = useState(
+        materialIdParam || ""
+    )
     const [loading, setLoading] = useState(false)
     const [classes, setClasses] = useState([])
     const [loadingClasses, setLoadingClasses] = useState(true)
@@ -159,6 +165,16 @@ export default function CreateQuiz() {
 
         fetchClasses()
     }, [classId])
+
+    useEffect(() => {
+        if (inputModeParam === "material") {
+            setInputMode("material")
+        }
+
+        if (materialIdParam) {
+            setSelectedMaterialId(materialIdParam)
+        }
+    }, [inputModeParam, materialIdParam])
 
     useEffect(() => {
         return () => {

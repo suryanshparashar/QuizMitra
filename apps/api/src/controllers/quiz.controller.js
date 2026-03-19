@@ -255,7 +255,6 @@ const listMaterials = asyncHandler(async (req, res) => {
     const { classId } = req.query
     const filter = {
         userId: req.user._id,
-        isMaterial: true,
     }
 
     if (classId) {
@@ -268,7 +267,7 @@ const listMaterials = asyncHandler(async (req, res) => {
     const materials = await ProcessedPdf.find(filter)
         .sort({ createdAt: -1 })
         .select(
-            "materialName fileName classId status progress vectorDimensions contentVectors extractedContent errorMessage createdAt"
+            "materialName fileName classId fileSize status progress vectorDimensions contentVectors extractedContent errorMessage createdAt"
         )
         .lean()
 
@@ -277,6 +276,7 @@ const listMaterials = asyncHandler(async (req, res) => {
         materialName: material.materialName || material.fileName,
         fileName: material.fileName,
         classId: material.classId || null,
+        fileSize: material.fileSize || 0,
         status: material.status,
         progress: material.progress,
         chunkCount: material.contentVectors?.length || 0,
@@ -301,7 +301,6 @@ const getMaterialStatus = asyncHandler(async (req, res) => {
     const material = await ProcessedPdf.findOne({
         _id: materialId,
         userId: req.user._id,
-        isMaterial: true,
     })
 
     if (!material) {
@@ -323,6 +322,37 @@ const getMaterialStatus = asyncHandler(async (req, res) => {
             "Material status fetched"
         )
     )
+})
+
+const deleteMaterial = asyncHandler(async (req, res) => {
+    if (req.user.role !== "faculty") {
+        throw new ApiError(403, "Only faculty members can delete materials")
+    }
+
+    const { materialId } = req.params
+
+    if (!mongoose.Types.ObjectId.isValid(materialId)) {
+        throw new ApiError(400, "Invalid material id")
+    }
+
+    const material = await ProcessedPdf.findOne({
+        _id: materialId,
+        userId: req.user._id,
+    })
+
+    if (!material) {
+        throw new ApiError(404, "Material not found")
+    }
+
+    if (material.pdfPublicId) {
+        await deleteFromCloudinary(material.pdfPublicId)
+    }
+
+    await ProcessedPdf.deleteOne({ _id: material._id })
+
+    return res
+        .status(200)
+        .json(new ApiResponse(200, {}, "Material deleted successfully"))
 })
 
 // ✅ Enhanced PDF quiz generation
@@ -375,7 +405,6 @@ const generateQuiz = asyncHandler(async (req, res) => {
         const material = await ProcessedPdf.findOne({
             _id: materialId,
             userId: req.user._id,
-            isMaterial: true,
         })
 
         if (!material) {
@@ -1591,6 +1620,7 @@ export {
     uploadMaterial,
     listMaterials,
     getMaterialStatus,
+    deleteMaterial,
     generateQuiz,
     createQuizManual,
     getQuiz,

@@ -31,6 +31,7 @@ import ClassDetails from "./pages/classes/ClassDetails"
 
 // Quiz Pages
 import CreateQuiz from "./pages/quizzes/CreateQuiz"
+import UploadedMaterials from "./pages/quizzes/UploadedMaterials"
 import QuizDetails from "./pages/quizzes/QuizDetails"
 import QuizEditor from "./pages/quizzes/QuizEditor"
 import TakeQuiz from "./pages/quizzes/TakeQuiz"
@@ -207,6 +208,14 @@ function AppRoutes() {
                         element={
                             <ProtectedRoute requiredRole="faculty">
                                 <CreateQuiz />
+                            </ProtectedRoute>
+                        }
+                    />
+                    <Route
+                        path="/quizzes/materials"
+                        element={
+                            <ProtectedRoute requiredRole="faculty">
+                                <UploadedMaterials />
                             </ProtectedRoute>
                         }
                     />

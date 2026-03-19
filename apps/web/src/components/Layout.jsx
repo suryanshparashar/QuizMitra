@@ -9,6 +9,7 @@ import {
     LayoutDashboard,
     UserCircle,
     PlusCircle,
+    FileText,
     Users,
     BookOpen,
     Shield,
@@ -98,6 +99,13 @@ export default function Layout() {
                                     >
                                         <PlusCircle className="w-4 h-4" />
                                         Create Quiz
+                                    </Link>
+                                    <Link
+                                        to="/quizzes/materials"
+                                        className="hidden md:flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium text-gray-700 hover:text-primary-600 hover:bg-primary-50 transition"
+                                    >
+                                        <FileText className="w-4 h-4" />
+                                        Uploaded Docs
                                     </Link>
                                 </>
                             )}

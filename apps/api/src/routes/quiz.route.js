@@ -9,6 +9,7 @@ import {
     uploadMaterial,
     listMaterials,
     getMaterialStatus,
+    deleteMaterial,
     getQuiz,
     publishQuiz,
     getUserQuizzes,
@@ -34,6 +35,7 @@ router.route("/processed-pdf/:processedPdfId/status").get(getProcessedPdfStatus)
 router.route("/materials/upload").post(upload.single("pdf"), uploadMaterial)
 router.route("/materials").get(listMaterials)
 router.route("/materials/:materialId/status").get(getMaterialStatus)
+router.route("/materials/:materialId").delete(deleteMaterial)
 router.route("/generate").post(upload.single("pdf"), generateQuiz)
 
 // router.route("/create-manual").post(createQuizManual) // Manual quiz creation
