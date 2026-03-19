@@ -7,7 +7,6 @@ import {
     Calendar,
     Settings,
     ArrowLeft,
-    AlertCircle,
     CheckCircle,
     Loader2,
     BookOpen,
@@ -17,19 +16,92 @@ import {
 } from "lucide-react"
 import { api } from "../../services/api.js"
 import { toUtcIsoString } from "../../utils/datetime.js"
+import { showToast } from "../../components/Toast.jsx"
+
+const MAX_PDF_SIZE_BYTES = 10 * 1024 * 1024
+const DEFAULT_DURATION_MINUTES = 30
+const MIN_DEADLINE_BUFFER_MINUTES = 10
+const MAX_TOTAL_MARKS = 100
+
+const formatFileSize = (sizeInBytes) => {
+    if (!Number.isFinite(sizeInBytes) || sizeInBytes <= 0) {
+        return "0 MB"
+    }
+
+    return `${(sizeInBytes / (1024 * 1024)).toFixed(1)} MB`
+}
+
+const pad2 = (value) => String(value).padStart(2, "0")
+
+const toDateTimeLocalInput = (date) => {
+    return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(
+        date.getDate()
+    )}T${pad2(date.getHours())}:${pad2(date.getMinutes())}`
+}
+
+const getDefaultScheduleTimes = (
+    durationMinutes = DEFAULT_DURATION_MINUTES
+) => {
+    const now = new Date()
+    const scheduledAt = new Date(now.getTime() + 10 * 60 * 1000)
+    const deadline = new Date(
+        scheduledAt.getTime() +
+            (durationMinutes + MIN_DEADLINE_BUFFER_MINUTES) * 60 * 1000
+    )
+
+    return {
+        scheduledAt: toDateTimeLocalInput(scheduledAt),
+        deadline: toDateTimeLocalInput(deadline),
+    }
+}
+
+const getMinimumRequiredGapMinutes = (durationMinutes) => {
+    const normalizedDuration = Number.isFinite(durationMinutes)
+        ? durationMinutes
+        : DEFAULT_DURATION_MINUTES
+    return normalizedDuration + MIN_DEADLINE_BUFFER_MINUTES
+}
+
+const getMinimumDeadlineLocalValue = (scheduledAt, durationMinutes) => {
+    const scheduledDate = new Date(scheduledAt)
+    if (Number.isNaN(scheduledDate.getTime())) return ""
+
+    const minimumDeadline = new Date(
+        scheduledDate.getTime() +
+            getMinimumRequiredGapMinutes(durationMinutes) * 60 * 1000
+    )
+
+    return toDateTimeLocalInput(minimumDeadline)
+}
+
+const calculateMarksPerQuestion = (totalMarks, numQuestions) => {
+    const safeTotal = Number(totalMarks)
+    const safeCount = Number(numQuestions)
+
+    if (
+        !Number.isFinite(safeTotal) ||
+        !Number.isFinite(safeCount) ||
+        safeCount <= 0
+    ) {
+        return 0
+    }
+
+    return Number((safeTotal / safeCount).toFixed(4))
+}
 
 export default function CreateQuiz() {
     const [searchParams] = useSearchParams()
     const classId = searchParams.get("classId")
     const navigate = useNavigate()
+    const defaultScheduleTimes = getDefaultScheduleTimes()
 
     const [formData, setFormData] = useState({
         classId: classId || "",
         title: "",
         description: "",
-        duration: 60,
-        scheduledAt: "",
-        deadline: "",
+        duration: DEFAULT_DURATION_MINUTES,
+        scheduledAt: defaultScheduleTimes.scheduledAt,
+        deadline: defaultScheduleTimes.deadline,
         requirements: {
             numQuestions: 10,
             difficultyLevel: "medium",
@@ -43,7 +115,6 @@ export default function CreateQuiz() {
     const [inputMode, setInputMode] = useState("pdf") // "pdf" or "topic"
     const [pdfFile, setPdfFile] = useState(null)
     const [loading, setLoading] = useState(false)
-    const [error, setError] = useState("")
     const [classes, setClasses] = useState([])
     const [loadingClasses, setLoadingClasses] = useState(true)
 
@@ -74,21 +145,99 @@ export default function CreateQuiz() {
         fetchClasses()
     }, [classId])
 
+    const handlePdfChange = (e) => {
+        const selectedFile = e.target.files?.[0]
+
+        if (!selectedFile) {
+            setPdfFile(null)
+            return
+        }
+
+        if (selectedFile.type !== "application/pdf") {
+            setPdfFile(null)
+            showToast.error("Invalid file type. Only PDF files are allowed.")
+            e.target.value = ""
+            return
+        }
+
+        if (selectedFile.size > MAX_PDF_SIZE_BYTES) {
+            setPdfFile(null)
+            showToast.error("PDF file size cannot exceed 10MB")
+            e.target.value = ""
+            return
+        }
+
+        setPdfFile(selectedFile)
+    }
+
     const handleSubmit = async (e) => {
         e.preventDefault()
 
         if (inputMode === "pdf" && !pdfFile) {
-            setError("Please upload a PDF file")
+            showToast.error("Please upload a PDF file")
+            return
+        }
+
+        if (inputMode === "pdf" && pdfFile?.size > MAX_PDF_SIZE_BYTES) {
+            showToast.error("PDF file size cannot exceed 10MB")
             return
         }
 
         if (inputMode === "topic" && !formData.topic.trim()) {
-            setError("Please enter a topic")
+            showToast.error("Please enter a topic")
             return
         }
 
+        const parsedDuration = parseInt(formData.duration, 10)
+        const scheduledDate = new Date(formData.scheduledAt)
+        const deadlineDate = new Date(formData.deadline)
+
+        if (
+            Number.isNaN(parsedDuration) ||
+            Number.isNaN(scheduledDate.getTime()) ||
+            Number.isNaN(deadlineDate.getTime())
+        ) {
+            showToast.error("Please provide valid duration and schedule")
+            return
+        }
+
+        const minimumGapMinutes = getMinimumRequiredGapMinutes(parsedDuration)
+        const actualGapMinutes =
+            (deadlineDate.getTime() - scheduledDate.getTime()) / (60 * 1000)
+
+        if (actualGapMinutes < minimumGapMinutes) {
+            showToast.error(
+                `Deadline must be at least ${minimumGapMinutes} minutes after start (duration + 10 min buffer)`
+            )
+            return
+        }
+
+        const questionCount = parseInt(formData.requirements.numQuestions, 10)
+        const totalMarks = parseFloat(formData.requirements.totalMarks)
+
+        if (
+            Number.isNaN(questionCount) ||
+            questionCount < 1 ||
+            Number.isNaN(totalMarks) ||
+            totalMarks <= 0
+        ) {
+            showToast.error(
+                "Please provide valid question count and total marks"
+            )
+            return
+        }
+
+        if (totalMarks > MAX_TOTAL_MARKS) {
+            showToast.error(`Total marks cannot exceed ${MAX_TOTAL_MARKS}`)
+            return
+        }
+
+        const computedMarksPerQuestion = calculateMarksPerQuestion(
+            totalMarks,
+            questionCount
+        )
+
         setLoading(true)
-        setError("")
 
         const formDataObj = new FormData()
 
@@ -98,7 +247,13 @@ export default function CreateQuiz() {
 
         Object.keys(formData).forEach((key) => {
             if (key === "requirements") {
-                formDataObj.append(key, JSON.stringify(formData[key]))
+                const normalizedRequirements = {
+                    ...formData[key],
+                    numQuestions: questionCount,
+                    totalMarks,
+                    marksPerQuestion: computedMarksPerQuestion,
+                }
+                formDataObj.append(key, JSON.stringify(normalizedRequirements))
             } else if (key === "scheduledAt" || key === "deadline") {
                 formDataObj.append(key, toUtcIsoString(formData[key]) || "")
             } else {
@@ -113,7 +268,9 @@ export default function CreateQuiz() {
             navigate(`/quizzes/${response.data.data._id}`)
         } catch (err) {
             console.error("Quiz creation error:", err)
-            setError(err.response?.data?.message || "Failed to create quiz")
+            showToast.error(
+                err.response?.data?.message || "Failed to create quiz"
+            )
         } finally {
             setLoading(false)
         }
@@ -300,6 +457,10 @@ export default function CreateQuiz() {
                                         })
                                     }
                                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200"
+                                    min={getMinimumDeadlineLocalValue(
+                                        formData.scheduledAt,
+                                        parseInt(formData.duration, 10)
+                                    )}
                                     required
                                     disabled={loading}
                                 />
@@ -327,26 +488,82 @@ export default function CreateQuiz() {
                                         value={
                                             formData.requirements.numQuestions
                                         }
-                                        onChange={(e) =>
+                                        onChange={(e) => {
+                                            const nextQuestionCount = parseInt(
+                                                e.target.value,
+                                                10
+                                            )
+                                            const safeQuestionCount =
+                                                Number.isNaN(nextQuestionCount)
+                                                    ? 1
+                                                    : nextQuestionCount
+
                                             setFormData({
                                                 ...formData,
                                                 requirements: {
                                                     ...formData.requirements,
-                                                    numQuestions: parseInt(
-                                                        e.target.value
-                                                    ),
-                                                    totalMarks:
-                                                        parseInt(
-                                                            e.target.value
-                                                        ) *
-                                                        formData.requirements
-                                                            .marksPerQuestion,
+                                                    numQuestions:
+                                                        safeQuestionCount,
+                                                    marksPerQuestion:
+                                                        calculateMarksPerQuestion(
+                                                            formData
+                                                                .requirements
+                                                                .totalMarks,
+                                                            safeQuestionCount
+                                                        ),
                                                 },
                                             })
-                                        }
+                                        }}
                                         className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200"
                                         min="1"
                                         max="50"
+                                        disabled={loading}
+                                    />
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Total Marks
+                                </label>
+                                <div className="relative">
+                                    <Target className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                                    <input
+                                        type="number"
+                                        placeholder="Total Marks"
+                                        value={formData.requirements.totalMarks}
+                                        onChange={(e) => {
+                                            const nextTotalMarks = parseFloat(
+                                                e.target.value
+                                            )
+                                            const safeTotalMarks = Number.isNaN(
+                                                nextTotalMarks
+                                            )
+                                                ? 0
+                                                : Math.min(
+                                                      MAX_TOTAL_MARKS,
+                                                      nextTotalMarks
+                                                  )
+
+                                            setFormData({
+                                                ...formData,
+                                                requirements: {
+                                                    ...formData.requirements,
+                                                    totalMarks: safeTotalMarks,
+                                                    marksPerQuestion:
+                                                        calculateMarksPerQuestion(
+                                                            safeTotalMarks,
+                                                            formData
+                                                                .requirements
+                                                                .numQuestions
+                                                        ),
+                                                },
+                                            })
+                                        }}
+                                        className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200"
+                                        min="1"
+                                        max={MAX_TOTAL_MARKS}
+                                        step="0.5"
                                         disabled={loading}
                                     />
                                 </div>
@@ -388,8 +605,12 @@ export default function CreateQuiz() {
                             <div className="flex items-center">
                                 <CheckCircle className="h-5 w-5 text-blue-600 mr-2" />
                                 <span className="text-sm font-medium text-blue-900">
-                                    Total Marks:{" "}
-                                    {formData.requirements.totalMarks}
+                                    Equal Distribution:{" "}
+                                    {formData.requirements.totalMarks} marks /{" "}
+                                    {formData.requirements.numQuestions}{" "}
+                                    questions ={" "}
+                                    {formData.requirements.marksPerQuestion}{" "}
+                                    marks per question
                                 </span>
                             </div>
                         </div>
@@ -441,9 +662,7 @@ export default function CreateQuiz() {
                                 <input
                                     type="file"
                                     accept=".pdf"
-                                    onChange={(e) =>
-                                        setPdfFile(e.target.files[0])
-                                    }
+                                    onChange={handlePdfChange}
                                     className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed"
                                     required={inputMode === "pdf"}
                                     disabled={loading}
@@ -455,8 +674,12 @@ export default function CreateQuiz() {
                                         <p className="text-lg font-medium text-green-900 mb-2">
                                             File Selected
                                         </p>
-                                        <p className="text-sm text-green-700 mb-4">
+                                        <p className="text-sm text-green-700 mb-2">
                                             {pdfFile.name}
+                                        </p>
+                                        <p className="text-xs font-medium text-green-700 bg-green-100 border border-green-200 rounded-full px-3 py-1 mb-4">
+                                            {formatFileSize(pdfFile.size)} /{" "}
+                                            {formatFileSize(MAX_PDF_SIZE_BYTES)}
                                         </p>
                                         <p className="text-xs text-green-600">
                                             Click to change file
@@ -509,18 +732,6 @@ export default function CreateQuiz() {
                             </div>
                         )}
                     </div>
-
-                    {/* Error Message */}
-                    {error && (
-                        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                            <div className="flex items-center">
-                                <AlertCircle className="h-5 w-5 text-red-600 mr-2" />
-                                <p className="text-sm font-medium text-red-900">
-                                    {error}
-                                </p>
-                            </div>
-                        </div>
-                    )}
 
                     {/* Submit Button */}
                     <div className="flex justify-end space-x-4">

@@ -14,6 +14,25 @@ const errorHandler = (err, req, res, next) => {
         })
     }
 
+    // ✅ Handle Multer file upload errors
+    if (err?.name === "MulterError") {
+        if (err.code === "LIMIT_FILE_SIZE") {
+            return res.status(400).json({
+                statusCode: 400,
+                message: "PDF file size cannot exceed 10MB",
+                success: false,
+                errors: [err.message],
+            })
+        }
+
+        return res.status(400).json({
+            statusCode: 400,
+            message: err.message || "Invalid file upload",
+            success: false,
+            errors: [err.message],
+        })
+    }
+
     // ✅ Handle Mongoose validation errors
     if (err.name === "ValidationError") {
         const messages = Object.values(err.errors).map((e) => e.message)

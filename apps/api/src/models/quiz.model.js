@@ -302,6 +302,7 @@ const quizSchema = new Schema(
                 type: Number,
                 required: [true, "Total marks is required"],
                 min: [1, "Total marks must be at least 1"],
+                max: [100, "Total marks cannot exceed 100"],
                 validate: {
                     validator: function (totalMarks) {
                         const expectedTotal =

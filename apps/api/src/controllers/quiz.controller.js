@@ -13,6 +13,20 @@ import {
 import { generateQuestions } from "../services/quizGraph.service.js"
 import mongoose from "mongoose"
 
+const MIN_DEADLINE_BUFFER_MINUTES = 10
+const MAX_TOTAL_MARKS = 100
+
+const calculateMarksPerQuestion = (totalMarks, numQuestions) => {
+    const marks = Number(totalMarks)
+    const count = Number(numQuestions)
+
+    if (!Number.isFinite(marks) || !Number.isFinite(count) || count <= 0) {
+        return 0
+    }
+
+    return Number((marks / count).toFixed(4))
+}
+
 // ✅ Enhanced PDF quiz generation
 // ✅ Enhanced Quiz Generation (PDF or Topic)
 const generateQuiz = asyncHandler(async (req, res) => {
@@ -126,13 +140,40 @@ const generateQuiz = asyncHandler(async (req, res) => {
         "difficultyLevel",
         "questionTypes",
         // "topics", // Not required for generic generation
-        "marksPerQuestion",
         "totalMarks",
     ]
     for (const field of requiredFields) {
         if (!parsedRequirements[field]) {
             throw new ApiError(400, `Requirements must include ${field}`)
         }
+    }
+
+    const questionCount = Number(parsedRequirements.numQuestions)
+    const totalMarks = Number(parsedRequirements.totalMarks)
+
+    if (!Number.isFinite(questionCount) || questionCount < 1) {
+        throw new ApiError(400, "Number of questions must be at least 1")
+    }
+
+    if (!Number.isFinite(totalMarks) || totalMarks <= 0) {
+        throw new ApiError(400, "Total marks must be greater than 0")
+    }
+
+    if (totalMarks > MAX_TOTAL_MARKS) {
+        throw new ApiError(400, `Total marks cannot exceed ${MAX_TOTAL_MARKS}`)
+    }
+
+    parsedRequirements.numQuestions = questionCount
+    parsedRequirements.totalMarks = Number(totalMarks.toFixed(2))
+    parsedRequirements.marksPerQuestion = calculateMarksPerQuestion(
+        parsedRequirements.totalMarks,
+        parsedRequirements.numQuestions
+    )
+
+    // ✅ Validate duration
+    const durationNum = parseInt(duration, 10)
+    if (isNaN(durationNum) || durationNum < 5 || durationNum > 480) {
+        throw new ApiError(400, "Duration must be between 5 and 480 minutes")
     }
 
     // ✅ Validate dates
@@ -152,10 +193,16 @@ const generateQuiz = asyncHandler(async (req, res) => {
         throw new ApiError(400, "Deadline must be after scheduled time")
     }
 
-    // ✅ Validate duration
-    const durationNum = parseInt(duration, 10)
-    if (isNaN(durationNum) || durationNum < 5 || durationNum > 480) {
-        throw new ApiError(400, "Duration must be between 5 and 480 minutes")
+    const minimumAllowedGapMs =
+        (durationNum + MIN_DEADLINE_BUFFER_MINUTES) * 60 * 1000
+    if (
+        deadlineDate.getTime() - scheduledDate.getTime() <
+        minimumAllowedGapMs
+    ) {
+        throw new ApiError(
+            400,
+            `Deadline must be at least ${durationNum + MIN_DEADLINE_BUFFER_MINUTES} minutes after scheduled time (duration + 10 minute buffer)`
+        )
     }
 
     // ✅ Check for duplicate quiz title in same class
@@ -196,6 +243,11 @@ const generateQuiz = asyncHandler(async (req, res) => {
                 `AI generated ${generatedQuestions.length} out of ${parsedRequirements.numQuestions} required questions. Please retry generation.`
             )
         }
+
+        generatedQuestions = generatedQuestions.map((question) => ({
+            ...question,
+            points: parsedRequirements.marksPerQuestion,
+        }))
     } catch (error) {
         console.error("AI generation error:", error)
 
@@ -454,6 +506,18 @@ const publishQuiz = asyncHandler(async (req, res) => {
         validationErrors.push("Quiz deadline must be after scheduled time")
     }
 
+    const minimumGapForPublishMs =
+        (Number(quiz.duration || 0) + MIN_DEADLINE_BUFFER_MINUTES) * 60 * 1000
+    if (
+        new Date(quiz.deadline).getTime() -
+            new Date(quiz.scheduledAt).getTime() <
+        minimumGapForPublishMs
+    ) {
+        validationErrors.push(
+            `Quiz deadline must be at least ${Number(quiz.duration || 0) + MIN_DEADLINE_BUFFER_MINUTES} minutes after scheduled time`
+        )
+    }
+
     if (validationErrors.length > 0) {
         throw new ApiError(
             400,
@@ -655,6 +719,10 @@ const createQuizManual = asyncHandler(async (req, res) => {
     // ✅ Calculate requirements
     const totalMarks = questions.reduce((sum, q) => sum + (q.points || 1), 0)
 
+    if (totalMarks > MAX_TOTAL_MARKS) {
+        throw new ApiError(400, `Total marks cannot exceed ${MAX_TOTAL_MARKS}`)
+    }
+
     const quiz = new Quiz({
         userId: req.user._id,
         classId,
@@ -832,6 +900,14 @@ const updateQuiz = asyncHandler(async (req, res) => {
         filteredData.deadline !== undefined
             ? new Date(filteredData.deadline)
             : new Date(quiz.deadline)
+    const nextDuration =
+        filteredData.duration !== undefined
+            ? parseInt(filteredData.duration, 10)
+            : parseInt(quiz.duration, 10)
+
+    if (isNaN(nextDuration) || nextDuration < 5 || nextDuration > 480) {
+        throw new ApiError(400, "Duration must be between 5 and 480 minutes")
+    }
 
     if (isNaN(nextScheduledAt.getTime()) || isNaN(nextDeadline.getTime())) {
         throw new ApiError(400, "Invalid schedule date format")
@@ -839,6 +915,32 @@ const updateQuiz = asyncHandler(async (req, res) => {
 
     if (nextDeadline <= nextScheduledAt) {
         throw new ApiError(400, "Deadline must be after scheduled time")
+    }
+
+    const minimumGapForUpdateMs =
+        (nextDuration + MIN_DEADLINE_BUFFER_MINUTES) * 60 * 1000
+    if (
+        nextDeadline.getTime() - nextScheduledAt.getTime() <
+        minimumGapForUpdateMs
+    ) {
+        throw new ApiError(
+            400,
+            `Deadline must be at least ${nextDuration + MIN_DEADLINE_BUFFER_MINUTES} minutes after scheduled time (duration + 10 minute buffer)`
+        )
+    }
+
+    if (filteredData.questions) {
+        const recalculatedTotalMarks = filteredData.questions.reduce(
+            (sum, q) => sum + (q.points || 1),
+            0
+        )
+
+        if (recalculatedTotalMarks > MAX_TOTAL_MARKS) {
+            throw new ApiError(
+                400,
+                `Total marks cannot exceed ${MAX_TOTAL_MARKS}`
+            )
+        }
     }
 
     // ✅ Update requirements if questions changed
