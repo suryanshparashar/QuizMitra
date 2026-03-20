@@ -39,6 +39,7 @@ import QuizResults from "./pages/quizzes/QuizResults"
 import QuizGrading from "./pages/quizzes/QuizGrading"
 import QuizGradingReview from "./pages/quizzes/QuizGradingReview"
 import PerformanceInsights from "./pages/quizzes/PerformanceInsights"
+import StudentQuizzesList from "./pages/quizzes/StudentQuizzesList"
 
 // Profile Pages
 import Profile from "./pages/profile/Profile"
@@ -234,6 +235,14 @@ function AppRoutes() {
                         element={
                             <ProtectedRoute requiredRole="student">
                                 <TakeQuiz />
+                            </ProtectedRoute>
+                        }
+                    />
+                    <Route
+                        path="/student/quizzes"
+                        element={
+                            <ProtectedRoute requiredRole="student">
+                                <StudentQuizzesList />
                             </ProtectedRoute>
                         }
                     />
