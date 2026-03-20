@@ -22,6 +22,12 @@ const MAX_PDF_SIZE_BYTES = 10 * 1024 * 1024
 const DEFAULT_DURATION_MINUTES = 30
 const MIN_DEADLINE_BUFFER_MINUTES = 10
 const MAX_TOTAL_MARKS = 100
+const QUESTION_TYPE_OPTIONS = [
+    { value: "multiple-choice", label: "MCQ" },
+    { value: "true-false", label: "True / False" },
+    { value: "short-answer", label: "Short Answer" },
+    { value: "long-answer", label: "Long Answer" },
+]
 
 const formatFileSize = (sizeInBytes) => {
     if (!Number.isFinite(sizeInBytes) || sizeInBytes <= 0) {
@@ -574,6 +580,14 @@ export default function CreateQuiz() {
             return
         }
 
+        if (
+            !Array.isArray(formData.requirements.questionTypes) ||
+            formData.requirements.questionTypes.length === 0
+        ) {
+            showToast.error("Please select at least one question type")
+            return
+        }
+
         if (totalMarks > MAX_TOTAL_MARKS) {
             showToast.error(`Total marks cannot exceed ${MAX_TOTAL_MARKS}`)
             return
@@ -625,6 +639,29 @@ export default function CreateQuiz() {
         } finally {
             setLoading(false)
         }
+    }
+
+    const toggleQuestionType = (typeValue) => {
+        const selectedTypes = Array.isArray(formData.requirements.questionTypes)
+            ? formData.requirements.questionTypes
+            : []
+
+        const isAlreadySelected = selectedTypes.includes(typeValue)
+        let nextTypes
+
+        if (isAlreadySelected) {
+            nextTypes = selectedTypes.filter((entry) => entry !== typeValue)
+        } else {
+            nextTypes = [...selectedTypes, typeValue]
+        }
+
+        setFormData({
+            ...formData,
+            requirements: {
+                ...formData.requirements,
+                questionTypes: nextTypes,
+            },
+        })
     }
 
     return (
@@ -950,6 +987,42 @@ export default function CreateQuiz() {
                                     </select>
                                 </div>
                             </div>
+                        </div>
+
+                        <div className="mt-6">
+                            <label className="block text-sm font-medium text-gray-700 mb-3">
+                                Question Types
+                            </label>
+                            <div className="flex flex-wrap gap-2">
+                                {QUESTION_TYPE_OPTIONS.map((option) => {
+                                    const selected =
+                                        formData.requirements.questionTypes.includes(
+                                            option.value
+                                        )
+
+                                    return (
+                                        <button
+                                            key={option.value}
+                                            type="button"
+                                            onClick={() =>
+                                                toggleQuestionType(option.value)
+                                            }
+                                            className={`px-3 py-2 rounded-lg text-sm font-medium border transition-colors duration-150 ${
+                                                selected
+                                                    ? "bg-blue-600 text-white border-blue-600"
+                                                    : "bg-white text-gray-700 border-gray-300 hover:border-blue-300"
+                                            }`}
+                                            disabled={loading}
+                                        >
+                                            {option.label}
+                                        </button>
+                                    )
+                                })}
+                            </div>
+                            <p className="mt-2 text-xs text-gray-500">
+                                Select one or more types. The generator will
+                                distribute questions across selected types.
+                            </p>
                         </div>
 
                         <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">

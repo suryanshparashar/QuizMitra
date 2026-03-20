@@ -1,14 +1,13 @@
-// apps/api/src/agents/nodes/content.node.js
 import { extractSourceContent } from "../../services/documentProcessing.service.js"
 import { createDevLogger } from "../../utils/devLogger.js"
 
-const devLog = createDevLogger("node.content")
+const devLog = createDevLogger("agent.content")
 
-export const contentNode = async (state) => {
+export const contentAgent = async (state) => {
     const { input } = state
     const pipelineRunId = input?.pipelineRunId || "unknown"
 
-    devLog.info("Entered content node", {
+    devLog.info("Entered content agent", {
         pipelineRunId,
         inputType: input?.type,
         hasSourceContent: Boolean(state.sourceContent),

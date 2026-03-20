@@ -26,9 +26,9 @@ export const generateQuestions = async (
     apiKey = null,
     quizId = null
 ) => {
-    try {
-        const pipelineRunId = createPipelineRunId()
+    const pipelineRunId = createPipelineRunId()
 
+    try {
         devLog.info("Starting multi-agent generation", {
             pipelineRunId,
             inputType: input?.type,
@@ -78,6 +78,7 @@ export const generateQuestions = async (
             draftQuestions: finalState?.draftQuestions?.length || 0,
             verifiedQuestions: finalState?.verifiedQuestions?.length || 0,
             errors: finalState?.errors?.length || 0,
+            errorMessages: finalState?.errors || [],
         })
 
         if (finalState.status === "failed") {
@@ -96,8 +97,12 @@ export const generateQuestions = async (
         return finalState.verifiedQuestions
     } catch (error) {
         devLog.error("Multi-agent generation failed", {
-            pipelineRunId: input?.pipelineRunId || null,
+            pipelineRunId,
             message: error?.message,
+            stack: error?.stack,
+            inputType: input?.type,
+            requestedQuestions: requirements?.numQuestions,
+            requestedTypes: requirements?.questionTypes,
         })
         console.error("Multi-Agent Quiz Generation Error:", error)
         throw error

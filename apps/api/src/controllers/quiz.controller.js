@@ -18,13 +18,22 @@ import {
     joinVectorChunks,
 } from "../services/contentVector.service.js"
 import { createModel } from "../agents/utils/modelFactory.js"
-import { sanitizeQuestionWithFormattingAgent } from "../agents/nodes/formatting.node.js"
+import { sanitizeQuestionWithFormattingAgent } from "../agents/agents/formatting.agent.js"
+import { createDevLogger } from "../utils/devLogger.js"
 
 const MIN_DEADLINE_BUFFER_MINUTES = 10
 const MAX_TOTAL_MARKS = 100
 const MAX_STORED_EXTRACTED_CONTENT_CHARS = 250000
 const MAX_STORED_VECTOR_CHUNKS = 250
 const MIN_EXTRACTED_TEXT_LENGTH = 100
+const ALLOWED_GENERATION_QUESTION_TYPES = new Set([
+    "multiple-choice",
+    "multiple-select",
+    "true-false",
+    "short-answer",
+    "long-answer",
+])
+const devLog = createDevLogger("quiz.controller")
 
 const parseAiJsonObject = (rawContent) => {
     const rawText = String(rawContent || "").trim()
@@ -563,6 +572,17 @@ const generateQuiz = asyncHandler(async (req, res) => {
 
     const questionCount = Number(parsedRequirements.numQuestions)
     const totalMarks = Number(parsedRequirements.totalMarks)
+    const requestedQuestionTypes = Array.isArray(
+        parsedRequirements.questionTypes
+    )
+        ? parsedRequirements.questionTypes
+              .map((entry) =>
+                  String(entry || "")
+                      .trim()
+                      .toLowerCase()
+              )
+              .filter((entry) => ALLOWED_GENERATION_QUESTION_TYPES.has(entry))
+        : []
 
     if (!Number.isFinite(questionCount) || questionCount < 1) {
         throw new ApiError(400, "Number of questions must be at least 1")
@@ -578,6 +598,10 @@ const generateQuiz = asyncHandler(async (req, res) => {
 
     parsedRequirements.numQuestions = questionCount
     parsedRequirements.totalMarks = Number(totalMarks.toFixed(2))
+    parsedRequirements.questionTypes =
+        requestedQuestionTypes.length > 0
+            ? [...new Set(requestedQuestionTypes)]
+            : ["multiple-choice"]
     parsedRequirements.marksPerQuestion = calculateMarksPerQuestion(
         parsedRequirements.totalMarks,
         parsedRequirements.numQuestions
@@ -635,6 +659,17 @@ const generateQuiz = asyncHandler(async (req, res) => {
     // ✅ Generate questions
     let generatedQuestions
     try {
+        devLog.info("Starting question generation", {
+            classId,
+            inputType,
+            requestedCount: parsedRequirements.numQuestions,
+            requestedTypes: parsedRequirements.questionTypes,
+            difficulty: parsedRequirements.difficultyLevel,
+            hasTopic: Boolean(topic),
+            hasMaterialId: Boolean(materialId),
+            hasProcessedPdfId: Boolean(processedPdfId),
+        })
+
         console.log(
             `Generating ${parsedRequirements.numQuestions} questions from ${inputType}...`
         )
@@ -661,7 +696,23 @@ const generateQuiz = asyncHandler(async (req, res) => {
             ...question,
             points: parsedRequirements.marksPerQuestion,
         }))
+
+        devLog.info("Question generation completed", {
+            classId,
+            generatedCount: generatedQuestions.length,
+            requestedCount: parsedRequirements.numQuestions,
+        })
     } catch (error) {
+        devLog.error("Question generation failed", {
+            classId,
+            inputType,
+            requestedCount: parsedRequirements?.numQuestions,
+            requestedTypes: parsedRequirements?.questionTypes,
+            difficulty: parsedRequirements?.difficultyLevel,
+            message: error?.message,
+            stack: error?.stack,
+        })
+
         console.error("AI generation error:", error)
 
         if (error.message?.includes("timeout")) {
@@ -885,6 +936,15 @@ const publishQuiz = asyncHandler(async (req, res) => {
 
     // Check each question for correctness
     quiz.questions.forEach((question, index) => {
+        const questionType = String(question?.questionType || "multiple-choice")
+            .trim()
+            .toLowerCase()
+        const requiresOptions = [
+            "multiple-choice",
+            "multiple-select",
+            "true-false",
+        ].includes(questionType)
+
         if (
             !question.questionText ||
             question.questionText.trim().length === 0
@@ -894,15 +954,20 @@ const publishQuiz = asyncHandler(async (req, res) => {
             )
         }
 
-        if (!question.options || question.options.length < 2) {
+        if (
+            requiresOptions &&
+            (!Array.isArray(question.options) || question.options.length < 2)
+        ) {
             validationErrors.push(
                 `Question ${index + 1} must have at least 2 options`
             )
         }
 
         const hasCorrectAnswer =
-            question.correctAnswer ||
-            (question.correctOptions && question.correctOptions.length > 0)
+            questionType === "multiple-select"
+                ? Array.isArray(question.correctOptions) &&
+                  question.correctOptions.length > 0
+                : Boolean(String(question.correctAnswer || "").trim())
 
         if (!hasCorrectAnswer) {
             validationErrors.push(

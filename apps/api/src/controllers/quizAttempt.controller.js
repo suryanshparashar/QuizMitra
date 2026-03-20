@@ -636,6 +636,7 @@ const processQuizAnswers = async (quiz, submittedAnswers, timeSpent) => {
                 correctAnswer: question.correctAnswer || "",
                 isCorrect: false,
                 marksAwarded: 0,
+                correctnessScore: 0,
                 maxMarks: question.points || quiz.requirements.marksPerQuestion,
                 timeSpent: 0,
                 gradingNotes: "Not answered",
@@ -656,10 +657,12 @@ const processQuizAnswers = async (quiz, submittedAnswers, timeSpent) => {
             correctAnswer: question.correctAnswer || "Subjective",
             isCorrect: evaluation.isCorrect,
             marksAwarded: evaluation.marksAwarded,
+            correctnessScore: Number(evaluation.correctnessScore || 0),
             maxMarks: question.points || quiz.requirements.marksPerQuestion,
             timeSpent: submittedAnswer.timeSpent || 0,
             gradingNotes: evaluation.feedback,
             manuallyGraded: evaluation.manuallyGraded || false,
+            checkedByAgent: evaluation.checkedByAgent || "unknown",
         }
     })
 

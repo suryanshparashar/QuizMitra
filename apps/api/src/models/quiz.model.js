@@ -43,31 +43,55 @@ const questionSchema = new Schema(
             trim: true,
             validate: {
                 validator: function (answer) {
-                    if (this.questionType === "fill-in-blank") {
+                    if (
+                        this.questionType === "fill-in-blank" ||
+                        this.questionType === "short-answer" ||
+                        this.questionType === "long-answer"
+                    ) {
                         return true // Any text is valid for fill-in-blank
                     }
+
                     if (this.questionType === "multiple-select") {
-                        return false // Should use correctOptions for multi-select
+                        // For multiple-select, correctAnswer should be empty/undefined.
+                        return !answer
                     }
-                    return this.options.includes(answer)
+
+                    const options = Array.isArray(this.options)
+                        ? this.options
+                        : []
+                    return options.includes(answer)
                 },
                 message: "Correct answer must be one of the provided options",
             },
         },
 
         // ✅ Multiple correct answers (for multiple-select questions)
-        correctOptions: [
-            {
-                type: String,
-                validate: {
-                    validator: function (correctOption) {
-                        return this.parent().options.includes(correctOption)
-                    },
-                    message:
-                        "Correct answer must be one of the provided options",
+        correctOptions: {
+            type: [String],
+            default: [],
+            validate: {
+                validator: function (correctOptions) {
+                    const values = Array.isArray(correctOptions)
+                        ? correctOptions
+                        : []
+
+                    if (this.questionType !== "multiple-select") {
+                        return values.length === 0
+                    }
+
+                    const options = Array.isArray(this.options)
+                        ? this.options
+                        : []
+
+                    if (values.length === 0) {
+                        return false
+                    }
+
+                    return values.every((value) => options.includes(value))
                 },
+                message: "Correct answer must be one of the provided options",
             },
-        ],
+        },
 
         // ✅ Question Configuration
         points: {
@@ -280,6 +304,8 @@ const quizSchema = new Schema(
                             "true-false",
                             "fill-in-blank",
                             "multiple-select",
+                            "short-answer",
+                            "long-answer",
                         ],
                         message: "{VALUE} is not a valid question type",
                     },

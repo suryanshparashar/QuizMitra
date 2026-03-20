@@ -71,6 +71,12 @@ const quizAttemptSchema = new Schema(
                     required: true,
                     min: 0,
                 },
+                correctnessScore: {
+                    type: Number,
+                    min: 0,
+                    max: 1,
+                    default: 0,
+                },
                 maxMarks: {
                     type: Number,
                     required: true,
@@ -84,6 +90,11 @@ const quizAttemptSchema = new Schema(
                 manuallyGraded: {
                     type: Boolean,
                     default: false,
+                },
+                checkedByAgent: {
+                    type: String,
+                    enum: ["objective", "subjective", "unknown"],
+                    default: "unknown",
                 },
                 gradingNotes: {
                     type: String,

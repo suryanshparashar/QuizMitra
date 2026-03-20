@@ -65,8 +65,17 @@ export default function QuizEditor() {
                     options: Array.isArray(q.options) ? q.options : [],
                     // Ensure points/marks exists
                     points: q.points || q.marks || 1,
-                    // Default type if missing
-                    questionType: q.questionType || "multiple-choice",
+                    // Frontend currently edits MSQ as MCQ.
+                    questionType:
+                        q.questionType === "multiple-select"
+                            ? "multiple-choice"
+                            : q.questionType || "multiple-choice",
+                    correctAnswer:
+                        q.correctAnswer ||
+                        (Array.isArray(q.correctOptions)
+                            ? q.correctOptions[0] || ""
+                            : ""),
+                    correctOptions: [],
                 })) || []
             )
         } catch (err) {
@@ -79,9 +88,34 @@ export default function QuizEditor() {
 
     const handleQuestionChange = (index, field, value) => {
         const updatedQuestions = [...questions]
-        updatedQuestions[index] = {
-            ...updatedQuestions[index],
-            [field]: value,
+        const currentQuestion = updatedQuestions[index]
+
+        if (field === "questionType") {
+            const nextType = value
+            let nextCorrectAnswer = currentQuestion.correctAnswer
+
+            if (
+                nextType === "multiple-choice" ||
+                nextType === "true-false" ||
+                nextType === "fill-in-blank"
+            ) {
+                nextCorrectAnswer =
+                    currentQuestion.correctAnswer ||
+                    currentQuestion.options?.[0] ||
+                    ""
+            }
+
+            updatedQuestions[index] = {
+                ...currentQuestion,
+                questionType: nextType,
+                correctAnswer: nextCorrectAnswer,
+                correctOptions: [],
+            }
+        } else {
+            updatedQuestions[index] = {
+                ...currentQuestion,
+                [field]: value,
+            }
         }
         setQuestions(updatedQuestions)
     }
@@ -104,7 +138,14 @@ export default function QuizEditor() {
 
     const removeOption = (qIndex, oIndex) => {
         const updatedQuestions = [...questions]
+        const removedOption = updatedQuestions[qIndex].options[oIndex]
         updatedQuestions[qIndex].options.splice(oIndex, 1)
+
+        if (updatedQuestions[qIndex].correctAnswer === removedOption) {
+            updatedQuestions[qIndex].correctAnswer =
+                updatedQuestions[qIndex].options[0] || ""
+        }
+
         setQuestions(updatedQuestions)
     }
 
@@ -143,7 +184,7 @@ export default function QuizEditor() {
 
                 if (
                     q.questionType === "multiple-choice" ||
-                    q.questionType === "multiple-select"
+                    q.questionType === "true-false"
                 ) {
                     if (q.options.length < 2) {
                         throw new Error(
