@@ -414,6 +414,26 @@ const quizSchema = new Schema(
                 default: true,
             },
 
+            allowQuestionWiseScores: {
+                type: Boolean,
+                default: false,
+            },
+
+            allowQuestionWiseCorrectAnswers: {
+                type: Boolean,
+                default: false,
+            },
+
+            allowQuestionWiseFeedback: {
+                type: Boolean,
+                default: false,
+            },
+
+            releaseQuestionWiseAfterDeadline: {
+                type: Boolean,
+                default: true,
+            },
+
             allowBackNavigation: {
                 type: Boolean,
                 default: true,

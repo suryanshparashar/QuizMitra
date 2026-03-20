@@ -37,6 +37,12 @@ export default function QuizEditor() {
     // Settings State
     const [scheduledAt, setScheduledAt] = useState("")
     const [deadline, setDeadline] = useState("")
+    const [resultVisibility, setResultVisibility] = useState({
+        allowQuestionWiseScores: false,
+        allowQuestionWiseCorrectAnswers: false,
+        allowQuestionWiseFeedback: false,
+        releaseQuestionWiseAfterDeadline: true,
+    })
 
     useEffect(() => {
         fetchQuiz()
@@ -57,6 +63,17 @@ export default function QuizEditor() {
             if (data.deadline) {
                 setDeadline(formatForDateTimeLocal(data.deadline))
             }
+
+            setResultVisibility({
+                allowQuestionWiseScores:
+                    data?.settings?.allowQuestionWiseScores === true,
+                allowQuestionWiseCorrectAnswers:
+                    data?.settings?.allowQuestionWiseCorrectAnswers === true,
+                allowQuestionWiseFeedback:
+                    data?.settings?.allowQuestionWiseFeedback === true,
+                releaseQuestionWiseAfterDeadline:
+                    data?.settings?.releaseQuestionWiseAfterDeadline !== false,
+            })
 
             setQuestions(
                 data.questions?.map((q) => ({
@@ -206,6 +223,7 @@ export default function QuizEditor() {
                     ? toUtcIsoString(scheduledAt)
                     : undefined,
                 deadline: deadline ? toUtcIsoString(deadline) : undefined,
+                settings: resultVisibility,
             })
 
             navigate(`/quizzes/${quizId}`)
@@ -390,6 +408,95 @@ export default function QuizEditor() {
                                 className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                             />
                         </div>
+                    </div>
+                </div>
+
+                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                    <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                        <List className="w-5 h-5 mr-2 text-blue-600" />
+                        Student Result Visibility
+                    </h2>
+
+                    <div className="space-y-3">
+                        <label className="flex items-center justify-between border border-gray-200 rounded-lg p-3">
+                            <span className="text-sm font-medium text-gray-700">
+                                Show question-wise scores
+                            </span>
+                            <input
+                                type="checkbox"
+                                checked={
+                                    resultVisibility.allowQuestionWiseScores
+                                }
+                                onChange={(e) =>
+                                    setResultVisibility((prev) => ({
+                                        ...prev,
+                                        allowQuestionWiseScores:
+                                            e.target.checked,
+                                    }))
+                                }
+                                className="h-4 w-4"
+                            />
+                        </label>
+
+                        <label className="flex items-center justify-between border border-gray-200 rounded-lg p-3">
+                            <span className="text-sm font-medium text-gray-700">
+                                Show correct answers
+                            </span>
+                            <input
+                                type="checkbox"
+                                checked={
+                                    resultVisibility.allowQuestionWiseCorrectAnswers
+                                }
+                                onChange={(e) =>
+                                    setResultVisibility((prev) => ({
+                                        ...prev,
+                                        allowQuestionWiseCorrectAnswers:
+                                            e.target.checked,
+                                    }))
+                                }
+                                className="h-4 w-4"
+                            />
+                        </label>
+
+                        <label className="flex items-center justify-between border border-gray-200 rounded-lg p-3">
+                            <span className="text-sm font-medium text-gray-700">
+                                Show question-wise feedback
+                            </span>
+                            <input
+                                type="checkbox"
+                                checked={
+                                    resultVisibility.allowQuestionWiseFeedback
+                                }
+                                onChange={(e) =>
+                                    setResultVisibility((prev) => ({
+                                        ...prev,
+                                        allowQuestionWiseFeedback:
+                                            e.target.checked,
+                                    }))
+                                }
+                                className="h-4 w-4"
+                            />
+                        </label>
+
+                        <label className="flex items-center justify-between border border-gray-200 rounded-lg p-3">
+                            <span className="text-sm font-medium text-gray-700">
+                                Release question-wise data only after deadline
+                            </span>
+                            <input
+                                type="checkbox"
+                                checked={
+                                    resultVisibility.releaseQuestionWiseAfterDeadline
+                                }
+                                onChange={(e) =>
+                                    setResultVisibility((prev) => ({
+                                        ...prev,
+                                        releaseQuestionWiseAfterDeadline:
+                                            e.target.checked,
+                                    }))
+                                }
+                                className="h-4 w-4"
+                            />
+                        </label>
                     </div>
                 </div>
 

@@ -766,6 +766,13 @@ const generateQuiz = asyncHandler(async (req, res) => {
             shuffleOptions: settings.shuffleOptions || false,
             showCorrectAnswers: settings.showCorrectAnswers !== false,
             showScoreImmediately: settings.showScoreImmediately !== false,
+            allowQuestionWiseScores: settings.allowQuestionWiseScores === true,
+            allowQuestionWiseCorrectAnswers:
+                settings.allowQuestionWiseCorrectAnswers === true,
+            allowQuestionWiseFeedback:
+                settings.allowQuestionWiseFeedback === true,
+            releaseQuestionWiseAfterDeadline:
+                settings.releaseQuestionWiseAfterDeadline !== false,
             allowBackNavigation: settings.allowBackNavigation !== false,
             passingScore: settings.passingScore || 60,
             autoSubmit: settings.autoSubmit !== false,
@@ -1228,6 +1235,13 @@ const createQuizManual = asyncHandler(async (req, res) => {
             attemptsAllowed: settings.attemptsAllowed || 1,
             shuffleQuestions: settings.shuffleQuestions || false,
             showCorrectAnswers: settings.showCorrectAnswers !== false,
+            allowQuestionWiseScores: settings.allowQuestionWiseScores === true,
+            allowQuestionWiseCorrectAnswers:
+                settings.allowQuestionWiseCorrectAnswers === true,
+            allowQuestionWiseFeedback:
+                settings.allowQuestionWiseFeedback === true,
+            releaseQuestionWiseAfterDeadline:
+                settings.releaseQuestionWiseAfterDeadline !== false,
             ...settings,
         },
         status: "draft",
@@ -1348,6 +1362,12 @@ const updateQuiz = asyncHandler(async (req, res) => {
         "tags",
     ]
     const scheduleFields = ["scheduledAt", "deadline"]
+    const visibilitySettingKeys = [
+        "allowQuestionWiseScores",
+        "allowQuestionWiseCorrectAnswers",
+        "allowQuestionWiseFeedback",
+        "releaseQuestionWiseAfterDeadline",
+    ]
     const filteredData = {}
 
     allowedFields.forEach((field) => {
@@ -1360,13 +1380,38 @@ const updateQuiz = asyncHandler(async (req, res) => {
     const isActivePublishedQuiz =
         quiz.status === "published" && new Date(quiz.deadline) >= new Date()
 
+    if (filteredData.settings && typeof filteredData.settings === "object") {
+        const currentSettings =
+            typeof quiz.settings?.toObject === "function"
+                ? quiz.settings.toObject()
+                : quiz.settings || {}
+
+        const nextSettings = { ...currentSettings }
+        for (const key of visibilitySettingKeys) {
+            if (typeof filteredData.settings[key] === "boolean") {
+                nextSettings[key] = filteredData.settings[key]
+            }
+        }
+
+        filteredData.settings = nextSettings
+    }
+
     if (
         isActivePublishedQuiz &&
-        requestedFields.some((field) => !scheduleFields.includes(field))
+        requestedFields.some((field) => {
+            if (scheduleFields.includes(field)) return false
+            if (field !== "settings") return true
+
+            const incomingSettings = updateData.settings || {}
+            const incomingKeys = Object.keys(incomingSettings)
+            return incomingKeys.some(
+                (key) => !visibilitySettingKeys.includes(key)
+            )
+        })
     ) {
         throw new ApiError(
             400,
-            "Only quiz schedule can be updated after publishing"
+            "Only quiz schedule and question-wise result visibility settings can be updated after publishing"
         )
     }
 

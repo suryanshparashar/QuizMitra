@@ -16,13 +16,10 @@ import { api } from "../../services/api.js"
 import { DashboardSkeleton } from "../../components/LoadingStates"
 import { useAuthStore } from "../../store/authStore"
 import {
-    BarChart,
-    Bar,
     XAxis,
     YAxis,
     CartesianGrid,
     Tooltip,
-    Legend,
     ResponsiveContainer,
     LineChart,
     Line,
@@ -33,17 +30,11 @@ export default function FacultyDashboard() {
     const [dashboardData, setDashboardData] = useState(null)
     const [loading, setLoading] = useState(true)
 
-    const [analyticsData, setAnalyticsData] = useState([])
-
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const [dashboardRes, analyticsRes] = await Promise.all([
-                    api.get("/dashboard"),
-                    api.get("/dashboard/analytics"),
-                ])
+                const dashboardRes = await api.get("/dashboard")
                 setDashboardData(dashboardRes.data.data)
-                setAnalyticsData(analyticsRes.data.data.chartData)
             } catch (error) {
                 console.error("Error fetching dashboard:", error)
             } finally {
@@ -56,6 +47,15 @@ export default function FacultyDashboard() {
     if (loading) {
         return <DashboardSkeleton />
     }
+
+    const attemptAverageTrend = dashboardData?.last10AttemptAverageTrend || []
+    const chartData = attemptAverageTrend.map((point, index) => ({
+        ...point,
+        shortName:
+            point.name && point.name.length > 16
+                ? `${point.name.slice(0, 16)}...`
+                : point.name || `Quiz ${index + 1}`,
+    }))
 
     const getStatusColor = (status) => {
         switch (status?.toLowerCase()) {
@@ -191,37 +191,63 @@ export default function FacultyDashboard() {
                     <div className="lg:col-span-2 bg-white rounded-lg shadow-sm border border-gray-200 p-6">
                         <h2 className="text-xl font-semibold text-gray-900 mb-6 flex items-center">
                             <TrendingUp className="h-5 w-5 mr-2 text-blue-600" />
-                            Performance Trend (Last 5 Quizzes)
+                            Quiz-wise Average Performance (Last 10 Quizzes)
                         </h2>
                         <div className="h-64">
-                            <ResponsiveContainer width="100%" height="100%">
-                                <BarChart data={analyticsData}>
-                                    <CartesianGrid
-                                        strokeDasharray="3 3"
-                                        vertical={false}
-                                    />
-                                    <XAxis
-                                        dataKey="name"
-                                        axisLine={false}
-                                        tickLine={false}
-                                    />
-                                    <YAxis axisLine={false} tickLine={false} />
-                                    <Tooltip
-                                        contentStyle={{
-                                            borderRadius: "8px",
-                                            border: "none",
-                                            boxShadow:
-                                                "0 4px 6px -1px rgb(0 0 0 / 0.1)",
-                                        }}
-                                    />
-                                    <Bar
-                                        dataKey="avgScore"
-                                        fill="#4F46E5"
-                                        radius={[4, 4, 0, 0]}
-                                        name="Avg Score (%)"
-                                    />
-                                </BarChart>
-                            </ResponsiveContainer>
+                            {chartData.length > 0 ? (
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <LineChart data={chartData}>
+                                        <CartesianGrid
+                                            strokeDasharray="3 3"
+                                            vertical={false}
+                                        />
+                                        <XAxis
+                                            dataKey="shortName"
+                                            axisLine={false}
+                                            tickLine={false}
+                                        />
+                                        <YAxis
+                                            domain={[0, 100]}
+                                            axisLine={false}
+                                            tickLine={false}
+                                        />
+                                        <Tooltip
+                                            labelFormatter={(_, payload) =>
+                                                payload?.[0]?.payload?.name ||
+                                                "Quiz"
+                                            }
+                                            formatter={(value, dataKey) => {
+                                                if (dataKey === "avgScore") {
+                                                    return [
+                                                        `${value}%`,
+                                                        "Quiz Avg Score",
+                                                    ]
+                                                }
+
+                                                return [value, dataKey]
+                                            }}
+                                            contentStyle={{
+                                                borderRadius: "8px",
+                                                border: "none",
+                                                boxShadow:
+                                                    "0 4px 6px -1px rgb(0 0 0 / 0.1)",
+                                            }}
+                                        />
+                                        <Line
+                                            type="monotone"
+                                            dataKey="avgScore"
+                                            stroke="#2563EB"
+                                            strokeWidth={3}
+                                            dot={{ r: 4 }}
+                                            name="Quiz Avg Score (%)"
+                                        />
+                                    </LineChart>
+                                </ResponsiveContainer>
+                            ) : (
+                                <div className="h-full flex items-center justify-center text-gray-500 text-sm">
+                                    No submitted quiz data yet.
+                                </div>
+                            )}
                         </div>
                     </div>
 

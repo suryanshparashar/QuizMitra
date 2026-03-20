@@ -271,49 +271,58 @@ const updateDashboardPreferences = asyncHandler(async (req, res) => {
 
 // ✅ Helper Functions for Faculty Dashboard
 const getFacultyDashboardData = async (facultyId) => {
-    const [classes, quizzes, recentAttempts, messages, stats] =
-        await Promise.all([
-            // Classes
-            Class.find({ faculty: facultyId, isArchived: false })
-                .populate("students.user", "fullName studentId avatar")
-                .populate("classRepresentative", "fullName studentId")
-                .sort({ createdAt: -1 })
-                .limit(5)
-                .lean(),
+    const [
+        classes,
+        quizzes,
+        recentAttempts,
+        messages,
+        stats,
+        last10AttemptAverageTrend,
+    ] = await Promise.all([
+        // Classes
+        Class.find({ faculty: facultyId, isArchived: false })
+            .populate("students.user", "fullName studentId avatar")
+            .populate("classRepresentative", "fullName studentId")
+            .sort({ createdAt: -1 })
+            .limit(5)
+            .lean(),
 
-            // Recent Quizzes
-            Quiz.find({ userId: facultyId })
-                .populate("classId", "subjectName subjectCode")
-                .sort({ createdAt: -1 })
-                .limit(5)
-                .lean(),
+        // Recent Quizzes
+        Quiz.find({ userId: facultyId })
+            .populate("classId", "subjectName subjectCode")
+            .sort({ createdAt: -1 })
+            .limit(5)
+            .lean(),
 
-            // Recent Quiz Attempts
-            QuizAttempt.find({})
-                .populate([
-                    { path: "student", select: "fullName studentId avatar" },
-                    { path: "quiz", select: "title" },
-                    {
-                        path: "class",
-                        select: "subjectName faculty",
-                        match: { faculty: facultyId },
-                    },
-                ])
-                .sort({ createdAt: -1 })
-                .limit(10)
-                .lean(),
+        // Recent Quiz Attempts
+        QuizAttempt.find({})
+            .populate([
+                { path: "student", select: "fullName studentId avatar" },
+                { path: "quiz", select: "title" },
+                {
+                    path: "class",
+                    select: "subjectName faculty",
+                    match: { faculty: facultyId },
+                },
+            ])
+            .sort({ createdAt: -1 })
+            .limit(10)
+            .lean(),
 
-            // Recent Messages
-            ClassMessage.find({})
-                .populate("class", "faculty", { faculty: facultyId })
-                .populate("sender", "fullName avatar role")
-                .sort({ createdAt: -1 })
-                .limit(5)
-                .lean(),
+        // Recent Messages
+        ClassMessage.find({})
+            .populate("class", "faculty", { faculty: facultyId })
+            .populate("sender", "fullName avatar role")
+            .sort({ createdAt: -1 })
+            .limit(5)
+            .lean(),
 
-            // Quick Stats
-            getFacultyStats(facultyId),
-        ])
+        // Quick Stats
+        getFacultyStats(facultyId),
+
+        // Last 10 attempt average trend for line chart
+        getFacultyLast10AttemptAverageTrend(facultyId),
+    ])
 
     // Filter out null results from population
     const filteredAttempts = recentAttempts.filter((attempt) => attempt.class)
@@ -333,6 +342,7 @@ const getFacultyDashboardData = async (facultyId) => {
             canEdit: quiz.status === "draft",
         })),
         recentAttempts: filteredAttempts.slice(0, 5),
+        last10AttemptAverageTrend,
         recentMessages: filteredMessages,
         quickActions: [
             {
@@ -361,6 +371,61 @@ const getFacultyDashboardData = async (facultyId) => {
             },
         ],
     }
+}
+
+const getFacultyLast10AttemptAverageTrend = async (facultyId) => {
+    const quizIds = (await Quiz.find({ userId: facultyId }).select("_id")).map(
+        (q) => q._id
+    )
+
+    if (!quizIds.length) {
+        return []
+    }
+
+    const quizWiseAverage = await QuizAttempt.aggregate([
+        {
+            $match: {
+                quiz: { $in: quizIds },
+                status: "submitted",
+            },
+        },
+        {
+            $group: {
+                _id: "$quiz",
+                avgScore: { $avg: "$percentage" },
+                latestSubmittedAt: { $max: "$submittedAt" },
+                attemptsCount: { $sum: 1 },
+            },
+        },
+        { $sort: { latestSubmittedAt: -1 } },
+        { $limit: 10 },
+        {
+            $lookup: {
+                from: "quizzes",
+                localField: "_id",
+                foreignField: "_id",
+                as: "quiz",
+            },
+        },
+        {
+            $unwind: {
+                path: "$quiz",
+                preserveNullAndEmptyArrays: true,
+            },
+        },
+        {
+            $project: {
+                _id: 0,
+                quizId: "$_id",
+                name: { $ifNull: ["$quiz.title", "Untitled Quiz"] },
+                avgScore: { $round: ["$avgScore", 2] },
+                attemptsCount: 1,
+                submittedAt: "$latestSubmittedAt",
+            },
+        },
+    ])
+
+    return quizWiseAverage.reverse()
 }
 
 // ✅ Helper Functions for Student Dashboard

@@ -115,6 +115,35 @@ const updateStudentPerformanceInsights = async ({
     return newInsights
 }
 
+const getQuestionWiseVisibilityForStudent = (quiz) => {
+    const settings = quiz?.settings || {}
+    const releaseAfterDeadline =
+        settings.releaseQuestionWiseAfterDeadline !== false
+    const isPastDeadline =
+        quiz?.deadline instanceof Date
+            ? new Date() >= quiz.deadline
+            : new Date() >= new Date(quiz?.deadline)
+
+    const releaseGateOpen = releaseAfterDeadline ? isPastDeadline : true
+
+    const canViewScores =
+        releaseGateOpen && settings.allowQuestionWiseScores === true
+    const canViewCorrectAnswers =
+        releaseGateOpen && settings.allowQuestionWiseCorrectAnswers === true
+    const canViewFeedback =
+        releaseGateOpen && settings.allowQuestionWiseFeedback === true
+
+    return {
+        releaseAfterDeadline,
+        releaseGateOpen,
+        canViewScores,
+        canViewCorrectAnswers,
+        canViewFeedback,
+        canViewAnyQuestionWise:
+            canViewScores || canViewCorrectAnswers || canViewFeedback,
+    }
+}
+
 // Submit quiz answers and calculate score
 const submitQuizAnswers = asyncHandler(async (req, res) => {
     const { quizId } = req.params
@@ -631,7 +660,7 @@ const getAttemptDetails = asyncHandler(async (req, res) => {
         { path: "student", select: "fullName studentId email" },
         {
             path: "quiz",
-            select: "title requirements duration questions.topic questions.difficulty questions.questionType",
+            select: "title requirements duration deadline settings questions.topic questions.difficulty questions.questionType",
         },
         { path: "class", select: "subjectName subjectCode faculty" },
     ])
@@ -683,6 +712,41 @@ const getAttemptDetails = asyncHandler(async (req, res) => {
         }
     }
 
+    const questionWiseVisibility = isStudent
+        ? getQuestionWiseVisibilityForStudent(attempt.quiz)
+        : {
+              canViewAnyQuestionWise: true,
+              canViewScores: true,
+              canViewCorrectAnswers: true,
+              canViewFeedback: true,
+          }
+
+    const visibleAnswers = questionWiseVisibility.canViewAnyQuestionWise
+        ? attempt.answers.map((answer) => {
+              const payload = {
+                  questionIndex: answer.questionIndex,
+                  questionText: answer.questionText,
+                  selectedAnswer: answer.selectedAnswer,
+              }
+
+              if (questionWiseVisibility.canViewScores) {
+                  payload.isCorrect = answer.isCorrect
+                  payload.marksAwarded = answer.marksAwarded
+                  payload.maxMarks = answer.maxMarks
+              }
+
+              if (questionWiseVisibility.canViewCorrectAnswers) {
+                  payload.correctAnswer = answer.correctAnswer
+              }
+
+              if (questionWiseVisibility.canViewFeedback) {
+                  payload.gradingNotes = answer.gradingNotes
+              }
+
+              return payload
+          })
+        : []
+
     // ✅ Return detailed results
     const detailedResults = attempt.getDetailedSummary()
 
@@ -694,9 +758,10 @@ const getAttemptDetails = asyncHandler(async (req, res) => {
                 student: attempt.student,
                 quiz: attempt.quiz,
                 class: attempt.class,
-                answers: attempt.answers,
+                answers: visibleAnswers,
                 facultyFeedback: attempt.facultyFeedback,
                 advisory: attempt.advisory,
+                questionWiseVisibility,
             },
             "Attempt details retrieved successfully"
         )
