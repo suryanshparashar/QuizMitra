@@ -340,40 +340,34 @@ export const reviewAgent = async (state) => {
     })
 
     const reviewPrompt = PromptTemplate.fromTemplate(`
-        You are a strict quiz quality-check agent.
+        You are a quiz review agent. Review each question against the reference content.
 
-        Review each question against the reference content and decide if it should be kept.
-        You must verify answer correctness, not just formatting.
-        You may correct wording, options, and answers when needed.
+        RULES:
+        1. Set keep=false if a question is ambiguous, factually wrong, or unfixable.
+        2. If kept with no changes, omit corrected fields.
+        3. Return exactly one review object per question, in the same order.
 
-    Return EXACTLY one review object per input question in the same order.
+        BY TYPE:
+        - multiple-choice / true-false:
+        · correctedAnswer = exactly one valid option
+        · correctedOptions = full option list (if changed)
+        - multiple-select:
+        · correctedOptions = full option list
+        · correctedCorrectOptions = 2+ correct options (all must exist in correctedOptions)
+        - short-answer / long-answer:
+        · correctedAnswer = model answer aligned with reference content
 
-    RULES:
-        - keep = false when the question is invalid, ambiguous, factually incorrect, or cannot be fixed reliably.
-    - If you keep a question but make no correction, you may omit corrected fields.
-        - For multiple-choice and true-false:
-            - correctedAnswer must be exactly one valid option.
-            - correctedOptions (if provided) is the full option list.
-        - For multiple-select:
-            - correctedOptions is the full option list.
-            - correctedCorrectOptions is the list of correct options.
-            - correctedCorrectOptions must contain at least 2 options.
-            - Every correctedCorrectOptions value must appear in correctedOptions.
-        - For short-answer and long-answer:
-            - correctedAnswer should be a model answer/rubric aligned with reference content.
+        DIFFICULTY: {difficulty}
+        TOPICS: {topics}
 
-    QUIZ REQUIREMENTS:
-    - Target difficulty: {difficulty}
-    - Target topics: {topics}
-
-        REFERENCE CONTENT (ground truth):
+        REFERENCE CONTENT:
         {referenceContent}
 
-    QUESTIONS TO REVIEW:
-    {questionsJson}
+        QUESTIONS:
+        {questionsJson}
 
-    OUTPUT FORMAT:
-    {format_instructions}
+        OUTPUT FORMAT:
+        {format_instructions}
   `)
 
     let reviewItems = []

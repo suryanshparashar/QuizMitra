@@ -176,14 +176,18 @@ export const optionsAgent = async (state) => {
     )
 
     const prompt = PromptTemplate.fromTemplate(`
-    For the following question, generate 3 incorrect but plausible distractors (wrong answers).
+        Generate exactly 3 wrong but plausible answer options for the question below.
 
-    Question: {question}
-    Correct Answer: {correctAnswer}
-    Difficulty: {difficulty}
+        Question: {question}
+        Correct Answer: {correctAnswer}
+        Difficulty: {difficulty}
 
-    Ensure distractors are not ambiguous.
-    {format_instructions}
+        Rules:
+        - Each distractor must be clearly wrong but believable.
+        - No distractor may overlap with or hint at the correct answer.
+        - No vague or trick options.
+
+        {format_instructions}
   `)
 
     const buildTrueFalseQuestion = (question) => {
