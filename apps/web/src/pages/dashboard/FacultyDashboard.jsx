@@ -21,7 +21,8 @@ import {
     CartesianGrid,
     Tooltip,
     ResponsiveContainer,
-    LineChart,
+    AreaChart,
+    Area,
     Line,
 } from "recharts"
 
@@ -56,6 +57,10 @@ export default function FacultyDashboard() {
                 ? `${point.name.slice(0, 16)}...`
                 : point.name || `Quiz ${index + 1}`,
     }))
+
+    const latestAvgScore = Number(chartData.at(-1)?.avgScore || 0)
+    const previousAvgScore = Number(chartData.at(-2)?.avgScore || 0)
+    const trendDelta = Number((latestAvgScore - previousAvgScore).toFixed(1))
 
     const getStatusColor = (status) => {
         switch (status?.toLowerCase()) {
@@ -186,118 +191,157 @@ export default function FacultyDashboard() {
                 </div>
 
                 {/* Content Grid */}
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
+                <div className="mb-8">
                     {/* Analytics Chart */}
-                    <div className="lg:col-span-2 bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                        <h2 className="text-xl font-semibold text-gray-900 mb-6 flex items-center">
-                            <TrendingUp className="h-5 w-5 mr-2 text-blue-600" />
-                            Quiz-wise Average Performance (Last 10 Quizzes)
-                        </h2>
-                        <div className="h-64">
-                            {chartData.length > 0 ? (
-                                <ResponsiveContainer width="100%" height="100%">
-                                    <LineChart data={chartData}>
-                                        <CartesianGrid
-                                            strokeDasharray="3 3"
-                                            vertical={false}
-                                        />
-                                        <XAxis
-                                            dataKey="shortName"
-                                            axisLine={false}
-                                            tickLine={false}
-                                        />
-                                        <YAxis
-                                            domain={[0, 100]}
-                                            axisLine={false}
-                                            tickLine={false}
-                                        />
-                                        <Tooltip
-                                            labelFormatter={(_, payload) =>
-                                                payload?.[0]?.payload?.name ||
-                                                "Quiz"
-                                            }
-                                            formatter={(value, dataKey) => {
-                                                if (dataKey === "avgScore") {
-                                                    return [
-                                                        `${value}%`,
-                                                        "Quiz Avg Score",
-                                                    ]
-                                                }
+                    <div className="relative overflow-hidden bg-gradient-to-br from-white via-slate-50 to-blue-50 rounded-2xl shadow-sm border border-slate-200 p-6">
+                        <div className="pointer-events-none absolute -top-16 -right-16 w-40 h-40 rounded-full bg-blue-200/30 blur-2xl" />
+                        <div className="pointer-events-none absolute -bottom-20 -left-12 w-44 h-44 rounded-full bg-indigo-200/20 blur-3xl" />
 
-                                                return [value, dataKey]
-                                            }}
-                                            contentStyle={{
-                                                borderRadius: "8px",
-                                                border: "none",
-                                                boxShadow:
-                                                    "0 4px 6px -1px rgb(0 0 0 / 0.1)",
-                                            }}
-                                        />
-                                        <Line
-                                            type="monotone"
-                                            dataKey="avgScore"
-                                            stroke="#2563EB"
-                                            strokeWidth={3}
-                                            dot={{ r: 4 }}
-                                            name="Quiz Avg Score (%)"
-                                        />
-                                    </LineChart>
-                                </ResponsiveContainer>
-                            ) : (
-                                <div className="h-full flex items-center justify-center text-gray-500 text-sm">
-                                    No submitted quiz data yet.
-                                </div>
-                            )}
-                        </div>
-                    </div>
+                        <div className="relative z-10">
+                            <div className="mb-6 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                                <h2 className="text-xl font-semibold text-slate-900 flex items-center">
+                                    <TrendingUp className="h-5 w-5 mr-2 text-blue-600" />
+                                    Quiz-wise Average Performance (Last 10
+                                    Quizzes)
+                                </h2>
+                                <span className="inline-flex items-center rounded-full bg-slate-900 text-white px-3 py-1 text-xs font-semibold w-fit">
+                                    Updated Live
+                                </span>
+                            </div>
 
-                    {/* Recent Activities Feed */}
-                    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                        <h2 className="text-xl font-semibold text-gray-900 mb-6 flex items-center">
-                            <Clock className="h-5 w-5 mr-2 text-blue-600" />
-                            Recent Activity
-                        </h2>
-                        <div className="space-y-6">
-                            {dashboardData?.recentActivities?.map(
-                                (activity) => (
-                                    <div
-                                        key={activity.id}
-                                        className="flex items-start space-x-3"
+                            <div className="flex flex-wrap items-center gap-2 mb-5">
+                                <span className="inline-flex items-center rounded-full bg-blue-100 text-blue-700 px-3 py-1 text-xs font-semibold border border-blue-200">
+                                    Latest Avg: {latestAvgScore.toFixed(1)}%
+                                </span>
+                                <span
+                                    className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold border ${
+                                        trendDelta >= 0
+                                            ? "bg-emerald-100 text-emerald-700 border-emerald-200"
+                                            : "bg-rose-100 text-rose-700 border-rose-200"
+                                    }`}
+                                >
+                                    Trend: {trendDelta >= 0 ? "+" : ""}
+                                    {trendDelta}%
+                                </span>
+                                <span className="inline-flex items-center rounded-full bg-white/80 backdrop-blur text-slate-700 px-3 py-1 text-xs font-semibold border border-slate-200">
+                                    Quizzes: {chartData.length}
+                                </span>
+                            </div>
+
+                            <div className="h-80 rounded-xl border border-slate-200 bg-white/80 backdrop-blur-sm p-2 sm:p-3">
+                                {chartData.length > 0 ? (
+                                    <ResponsiveContainer
+                                        width="100%"
+                                        height="100%"
                                     >
-                                        <div
-                                            className={`mt-1 h-2 w-2 rounded-full ${activity.type === "quiz_created" ? "bg-blue-500" : "bg-green-500"}`}
-                                        />
-                                        <div>
-                                            <p className="text-sm font-medium text-gray-900">
-                                                {activity.title}
-                                            </p>
-                                            <p className="text-xs text-gray-500">
-                                                {activity.subtitle}
-                                            </p>
-                                            <p className="text-xs text-gray-400 mt-1">
-                                                {new Date(
-                                                    activity.timestamp
-                                                ).toLocaleDateString(
-                                                    undefined,
-                                                    {
-                                                        month: "short",
-                                                        day: "numeric",
-                                                        hour: "2-digit",
-                                                        minute: "2-digit",
+                                        <AreaChart data={chartData}>
+                                            <defs>
+                                                <linearGradient
+                                                    id="facultyAvgArea"
+                                                    x1="0"
+                                                    y1="0"
+                                                    x2="0"
+                                                    y2="1"
+                                                >
+                                                    <stop
+                                                        offset="5%"
+                                                        stopColor="#4f46e5"
+                                                        stopOpacity={0.2}
+                                                    />
+                                                    <stop
+                                                        offset="95%"
+                                                        stopColor="#4f46e5"
+                                                        stopOpacity={0}
+                                                    />
+                                                </linearGradient>
+                                            </defs>
+                                            <CartesianGrid
+                                                strokeDasharray="3 3"
+                                                vertical={false}
+                                                stroke="#E2E8F0"
+                                            />
+                                            <XAxis
+                                                dataKey="shortName"
+                                                axisLine={false}
+                                                tickLine={false}
+                                                tick={{
+                                                    fontSize: 12,
+                                                    fill: "#64748B",
+                                                }}
+                                            />
+                                            <YAxis
+                                                domain={[0, 100]}
+                                                axisLine={false}
+                                                tickLine={false}
+                                                tick={{
+                                                    fontSize: 12,
+                                                    fill: "#64748B",
+                                                }}
+                                            />
+                                            <Tooltip
+                                                labelFormatter={(_, payload) =>
+                                                    payload?.[0]?.payload
+                                                        ?.name || "Quiz"
+                                                }
+                                                formatter={(value, dataKey) => {
+                                                    if (
+                                                        dataKey === "avgScore"
+                                                    ) {
+                                                        return [
+                                                            `${value}%`,
+                                                            "Quiz Avg Score",
+                                                        ]
                                                     }
-                                                )}
-                                            </p>
-                                        </div>
+
+                                                    return [value, dataKey]
+                                                }}
+                                                contentStyle={{
+                                                    borderRadius: "12px",
+                                                    border: "1px solid #E2E8F0",
+                                                    background: "#FFFFFF",
+                                                    boxShadow:
+                                                        "0 10px 15px -3px rgb(15 23 42 / 0.12)",
+                                                }}
+                                            />
+                                            <Area
+                                                type="monotone"
+                                                dataKey="avgScore"
+                                                stroke="none"
+                                                fill="url(#facultyAvgArea)"
+                                                isAnimationActive={false}
+                                            />
+                                            <Line
+                                                type="monotone"
+                                                dataKey="avgScore"
+                                                stroke="#4f46e5"
+                                                strokeWidth={3}
+                                                dot={{
+                                                    r: 4,
+                                                    strokeWidth: 2,
+                                                    fill: "#fff",
+                                                }}
+                                                activeDot={{
+                                                    r: 6,
+                                                    strokeWidth: 2,
+                                                    fill: "#fff",
+                                                }}
+                                                name="Quiz Avg Score (%)"
+                                            />
+                                        </AreaChart>
+                                    </ResponsiveContainer>
+                                ) : (
+                                    <div className="h-full flex flex-col items-center justify-center text-slate-500 text-sm">
+                                        <TrendingUp className="h-8 w-8 text-slate-300 mb-2" />
+                                        <p className="font-medium">
+                                            No submitted quiz data yet
+                                        </p>
+                                        <p className="text-xs text-slate-400 mt-1">
+                                            Publish and evaluate quizzes to see
+                                            the trend.
+                                        </p>
                                     </div>
-                                )
-                            )}
-                            {(!dashboardData?.recentActivities ||
-                                dashboardData.recentActivities.length ===
-                                    0) && (
-                                <p className="text-sm text-gray-500 text-center py-4">
-                                    No recent activity
-                                </p>
-                            )}
+                                )}
+                            </div>
                         </div>
                     </div>
                 </div>
