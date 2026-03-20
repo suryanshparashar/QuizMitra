@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { Outlet, Link, useNavigate } from "react-router-dom"
 import { useAuthStore } from "../store/authStore.js"
 import { useNotification } from "../context/NotificationContext.jsx"
@@ -7,7 +7,8 @@ import {
     Bell,
     LogOut,
     LayoutDashboard,
-    UserCircle,
+    User,
+    ChevronDown,
     PlusCircle,
     FileText,
     Users,
@@ -22,8 +23,37 @@ export default function Layout() {
     const { unreadCount } = useNotification()
     const navigate = useNavigate()
     const [isJoinModalOpen, setIsJoinModalOpen] = useState(false)
+    const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false)
+    const profileMenuRef = useRef(null)
+
+    const userIdentifier =
+        user?.facultyId || user?.studentId || user?.email || "User"
+    const displayName = user?.fullName || "User"
+    const initials = displayName
+        .split(" ")
+        .filter(Boolean)
+        .slice(0, 2)
+        .map((word) => word[0]?.toUpperCase())
+        .join("")
+
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (
+                profileMenuRef.current &&
+                !profileMenuRef.current.contains(event.target)
+            ) {
+                setIsProfileMenuOpen(false)
+            }
+        }
+
+        document.addEventListener("mousedown", handleClickOutside)
+        return () => {
+            document.removeEventListener("mousedown", handleClickOutside)
+        }
+    }, [])
 
     const handleLogout = () => {
+        setIsProfileMenuOpen(false)
         logout()
         navigate("/login")
     }
@@ -77,22 +107,14 @@ export default function Layout() {
                                 </Link>
                             )}
 
-                            <Link
-                                to="/profile"
-                                className="hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium text-gray-700 hover:text-primary-600 hover:bg-primary-50 transition"
-                            >
-                                <UserCircle className="w-4 h-4" />
-                                Profile
-                            </Link>
-
                             {user.role === "faculty" && (
                                 <>
                                     <Link
-                                        to="/classes/create"
+                                        to="/classes"
                                         className="hidden md:flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium text-gray-700 hover:text-primary-600 hover:bg-primary-50 transition"
                                     >
-                                        <PlusCircle className="w-4 h-4" />
-                                        Create Class
+                                        <BookOpen className="w-4 h-4" />
+                                        Classes
                                     </Link>
                                     <Link
                                         to="/quizzes/create"
@@ -151,15 +173,69 @@ export default function Layout() {
                                 )}
                             </Link>
 
-                            {/* ── Logout ── */}
-                            <button
-                                onClick={handleLogout}
-                                className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium text-gray-600 hover:text-red-600 hover:bg-red-50 transition"
-                                title="Logout"
-                            >
-                                <LogOut className="w-4 h-4" />
-                                <span className="hidden sm:inline">Logout</span>
-                            </button>
+                            {/* ── Profile Dropdown ── */}
+                            <div className="relative" ref={profileMenuRef}>
+                                <button
+                                    type="button"
+                                    onClick={() =>
+                                        setIsProfileMenuOpen((prev) => !prev)
+                                    }
+                                    className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-2 py-1.5 hover:border-primary-200 hover:bg-primary-50 transition"
+                                >
+                                    <div className="w-8 h-8 rounded-full overflow-hidden bg-gradient-to-br from-primary-500 to-accent-600 flex items-center justify-center text-white text-xs font-semibold">
+                                        {user?.avatar ? (
+                                            <img
+                                                src={user.avatar}
+                                                alt="User avatar"
+                                                className="w-full h-full object-cover"
+                                            />
+                                        ) : (
+                                            initials || (
+                                                <User className="w-4 h-4" />
+                                            )
+                                        )}
+                                    </div>
+                                    <div className="hidden sm:flex flex-col items-start leading-tight pr-1">
+                                        <span className="text-xs font-semibold text-gray-800 max-w-[140px] truncate">
+                                            {displayName}
+                                        </span>
+                                        <span className="text-[11px] text-gray-500 max-w-[140px] truncate">
+                                            {userIdentifier}
+                                        </span>
+                                    </div>
+                                    <ChevronDown
+                                        className={`w-4 h-4 text-gray-500 transition-transform ${
+                                            isProfileMenuOpen
+                                                ? "rotate-180"
+                                                : "rotate-0"
+                                        }`}
+                                    />
+                                </button>
+
+                                {isProfileMenuOpen && (
+                                    <div className="absolute right-0 mt-2 w-52 rounded-xl border border-gray-200 bg-white shadow-lg p-1.5 z-50">
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setIsProfileMenuOpen(false)
+                                                navigate("/profile")
+                                            }}
+                                            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 rounded-lg hover:bg-primary-50 hover:text-primary-700 transition"
+                                        >
+                                            <User className="w-4 h-4" />
+                                            Profile
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={handleLogout}
+                                            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 rounded-lg hover:bg-red-50 hover:text-red-700 transition"
+                                        >
+                                            <LogOut className="w-4 h-4" />
+                                            Logout
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     )}
                 </nav>
