@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react"
-import { Outlet, Link, useNavigate } from "react-router-dom"
+import { Outlet, Link, useNavigate, useLocation } from "react-router-dom"
 import { useAuthStore } from "../store/authStore.js"
 import { useNotification } from "../context/NotificationContext.jsx"
 import { getDashboardPath } from "../utils/getDashboardPath.js"
@@ -16,15 +16,15 @@ import {
     Shield,
     BarChart3,
 } from "lucide-react"
-import JoinClassModal from "./JoinClassModal"
 
 export default function Layout() {
     const { user, logout } = useAuthStore()
     const { unreadCount } = useNotification()
     const navigate = useNavigate()
-    const [isJoinModalOpen, setIsJoinModalOpen] = useState(false)
+    const location = useLocation()
     const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false)
     const profileMenuRef = useRef(null)
+    const dashboardPath = getDashboardPath(user?.role)
 
     const userIdentifier =
         user?.facultyId || user?.studentId || user?.email || "User"
@@ -35,6 +35,28 @@ export default function Layout() {
         .slice(0, 2)
         .map((word) => word[0]?.toUpperCase())
         .join("")
+
+    const navItemClass =
+        "hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium text-gray-700 hover:text-primary-700 hover:bg-white/80 hover:shadow-sm transition"
+    const facultyActionClass =
+        "hidden md:flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium text-gray-700 hover:text-primary-700 hover:bg-white/80 hover:shadow-sm transition"
+    const createQuizClass =
+        "hidden md:inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-sm font-semibold text-white bg-primary-600 hover:bg-primary-700 shadow-sm hover:shadow-md transition"
+    const activeNavClass =
+        "text-primary-700 bg-primary-50/80 border border-primary-100 shadow-sm"
+    const activeCtaClass = "bg-primary-700 ring-2 ring-primary-200"
+    const activeUtilityClass =
+        "text-primary-700 bg-primary-50 border-primary-200"
+
+    const isRouteActive = (path, exact = false) => {
+        if (exact) {
+            return location.pathname === path
+        }
+        return (
+            location.pathname === path ||
+            location.pathname.startsWith(`${path}/`)
+        )
+    }
 
     useEffect(() => {
         const handleClickOutside = (event) => {
@@ -61,100 +83,118 @@ export default function Layout() {
     return (
         <div className="min-h-screen bg-gray-50 font-sans">
             {/* ── Top Navigation Bar ── */}
-            <header className="sticky top-0 z-50 bg-white border-b border-gray-200 shadow-sm">
-                <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <header className="sticky top-0 z-50 border-b border-white/60 bg-gradient-to-r from-slate-50/90 via-white/90 to-blue-50/90 backdrop-blur-xl shadow-[0_6px_24px_rgba(15,23,42,0.05)]">
+                <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-primary-200/60 to-transparent" />
+                <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-[72px] flex items-center justify-between">
                     {/* Brand */}
                     <Link
-                        to={getDashboardPath(user?.role)}
-                        className="flex items-center gap-2 text-xl font-bold bg-gradient-to-r from-primary-600 to-accent-600 bg-clip-text text-transparent"
+                        to={dashboardPath}
+                        className="group flex items-center gap-3"
                     >
-                        <img
-                            src="/quizmitra.png"
-                            alt="QuizMitra Logo"
-                            className="w-8 h-8 rounded-lg"
-                        />
-                        QuizMitra
+                        <div className="w-9 h-9 rounded-xl bg-white shadow-sm border border-white/70 flex items-center justify-center group-hover:shadow-md transition">
+                            <img
+                                src="/quizmitra.png"
+                                alt="QuizMitra Logo"
+                                className="w-8 h-8 rounded-lg"
+                            />
+                        </div>
+                        <div className="leading-tight">
+                            <p className="text-xl font-bold bg-gradient-to-r from-primary-600 to-accent-600 bg-clip-text text-transparent">
+                                QuizMitra
+                            </p>
+                            <p className="text-[10px] uppercase tracking-[0.14em] text-gray-500 font-semibold">
+                                Smart Assessment Platform
+                            </p>
+                        </div>
                     </Link>
 
                     {/* Nav Links */}
                     {user && (
-                        <div className="flex items-center gap-1 sm:gap-3">
-                            <Link
-                                to={getDashboardPath(user?.role)}
-                                className="hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium text-gray-700 hover:text-primary-600 hover:bg-primary-50 transition"
-                            >
-                                {["admin", "superadmin"].includes(
-                                    user?.role
-                                ) ? (
-                                    <Shield className="w-4 h-4" />
-                                ) : (
-                                    <LayoutDashboard className="w-4 h-4" />
-                                )}
-                                {user?.role === "superadmin"
-                                    ? "Superadmin Dashboard"
-                                    : user?.role === "admin"
-                                      ? "Admin Dashboard"
-                                      : "Dashboard"}
-                            </Link>
-
-                            {user?.role === "superadmin" && (
+                        <div className="flex items-center gap-2 sm:gap-3 rounded-2xl bg-white/55 border border-white/80 px-2 py-1.5 shadow-sm backdrop-blur">
+                            <div className="flex items-center gap-1.5">
                                 <Link
-                                    to="/admin/dashboard"
-                                    className="hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium text-red-700 bg-red-50 hover:bg-red-100 transition"
+                                    to={dashboardPath}
+                                    className={`${navItemClass} ${isRouteActive(dashboardPath, true) ? activeNavClass : ""}`}
                                 >
-                                    <Shield className="w-4 h-4" />
-                                    Admin Dashboard
+                                    {["admin", "superadmin"].includes(
+                                        user?.role
+                                    ) ? (
+                                        <Shield className="w-4 h-4" />
+                                    ) : (
+                                        <LayoutDashboard className="w-4 h-4" />
+                                    )}
+                                    {user?.role === "superadmin"
+                                        ? "Superadmin Dashboard"
+                                        : user?.role === "admin"
+                                          ? "Admin Dashboard"
+                                          : "Dashboard"}
                                 </Link>
-                            )}
+
+                                {user?.role === "superadmin" && (
+                                    <Link
+                                        to="/admin/dashboard"
+                                        className={`hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium text-red-700 bg-red-50 hover:bg-red-100 transition ${isRouteActive("/admin/dashboard", true) ? "ring-1 ring-red-200" : ""}`}
+                                    >
+                                        <Shield className="w-4 h-4" />
+                                        Admin Dashboard
+                                    </Link>
+                                )}
+
+                                {user.role === "faculty" && (
+                                    <>
+                                        <Link
+                                            to="/classes"
+                                            className={`${facultyActionClass} ${isRouteActive("/classes") ? activeNavClass : ""}`}
+                                        >
+                                            <BookOpen className="w-4 h-4" />
+                                            Classes
+                                        </Link>
+                                        <Link
+                                            to="/quizzes/materials"
+                                            className={`${facultyActionClass} ${isRouteActive("/quizzes/materials") ? activeNavClass : ""}`}
+                                        >
+                                            <FileText className="w-4 h-4" />
+                                            Uploaded Docs
+                                        </Link>
+                                        <Link
+                                            to="/performance-insights"
+                                            className={`${facultyActionClass} ${isRouteActive("/performance-insights") ? activeNavClass : ""}`}
+                                        >
+                                            <BarChart3 className="w-4 h-4" />
+                                            Insights
+                                        </Link>
+                                    </>
+                                )}
+
+                                {user.role === "student" && (
+                                    <>
+                                        <Link
+                                            to="/classes"
+                                            className={`${navItemClass} ${isRouteActive("/classes") ? activeNavClass : ""}`}
+                                        >
+                                            <Users className="w-4 h-4" />
+                                            Classes
+                                        </Link>
+                                        <Link
+                                            to="/performance-insights"
+                                            className={`${navItemClass} ${isRouteActive("/performance-insights") ? activeNavClass : ""}`}
+                                        >
+                                            <BarChart3 className="w-4 h-4" />
+                                            Insights
+                                        </Link>
+                                    </>
+                                )}
+                            </div>
 
                             {user.role === "faculty" && (
                                 <>
-                                    <Link
-                                        to="/classes"
-                                        className="hidden md:flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium text-gray-700 hover:text-primary-600 hover:bg-primary-50 transition"
-                                    >
-                                        <BookOpen className="w-4 h-4" />
-                                        Classes
-                                    </Link>
+                                    <div className="hidden md:block h-6 w-px bg-gray-200" />
                                     <Link
                                         to="/quizzes/create"
-                                        className="hidden md:flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium text-white bg-gradient-to-r from-primary-600 to-accent-600 hover:from-primary-700 hover:to-purple-700 shadow-sm hover:shadow-md transition"
+                                        className={`${createQuizClass} ${isRouteActive("/quizzes/create") ? activeCtaClass : ""}`}
                                     >
                                         <PlusCircle className="w-4 h-4" />
                                         Create Quiz
-                                    </Link>
-                                    <Link
-                                        to="/quizzes/materials"
-                                        className="hidden md:flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium text-gray-700 hover:text-primary-600 hover:bg-primary-50 transition"
-                                    >
-                                        <FileText className="w-4 h-4" />
-                                        Uploaded Docs
-                                    </Link>
-                                    <Link
-                                        to="/performance-insights"
-                                        className="hidden md:flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium text-gray-700 hover:text-primary-600 hover:bg-primary-50 transition"
-                                    >
-                                        <BarChart3 className="w-4 h-4" />
-                                        Insights
-                                    </Link>
-                                </>
-                            )}
-
-                            {user.role === "student" && (
-                                <>
-                                    <button
-                                        onClick={() => setIsJoinModalOpen(true)}
-                                        className="hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium text-gray-700 hover:text-primary-600 hover:bg-primary-50 transition"
-                                    >
-                                        <Users className="w-4 h-4" />
-                                        Join Class
-                                    </button>
-                                    <Link
-                                        to="/performance-insights"
-                                        className="hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium text-gray-700 hover:text-primary-600 hover:bg-primary-50 transition"
-                                    >
-                                        <BarChart3 className="w-4 h-4" />
-                                        Insights
                                     </Link>
                                 </>
                             )}
@@ -162,7 +202,7 @@ export default function Layout() {
                             {/* ── Notification Bell ── */}
                             <Link
                                 to="/notifications"
-                                className="relative p-2 rounded-lg text-gray-600 hover:text-primary-600 hover:bg-primary-50 transition"
+                                className={`relative p-2.5 rounded-xl text-gray-600 bg-white/70 border border-gray-100 hover:text-primary-700 hover:bg-white transition shadow-sm ${isRouteActive("/notifications") ? activeUtilityClass : ""}`}
                                 title="Notifications"
                             >
                                 <Bell className="w-5 h-5" />
@@ -180,7 +220,7 @@ export default function Layout() {
                                     onClick={() =>
                                         setIsProfileMenuOpen((prev) => !prev)
                                     }
-                                    className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-2 py-1.5 hover:border-primary-200 hover:bg-primary-50 transition"
+                                    className="flex items-center gap-2 rounded-xl border border-gray-200/80 bg-white/90 px-2 py-1.5 hover:border-primary-200 hover:bg-white transition shadow-sm"
                                 >
                                     <div className="w-8 h-8 rounded-full overflow-hidden bg-gradient-to-br from-primary-500 to-accent-600 flex items-center justify-center text-white text-xs font-semibold">
                                         {user?.avatar ? (
@@ -213,7 +253,15 @@ export default function Layout() {
                                 </button>
 
                                 {isProfileMenuOpen && (
-                                    <div className="absolute right-0 mt-2 w-52 rounded-xl border border-gray-200 bg-white shadow-lg p-1.5 z-50">
+                                    <div className="absolute right-0 mt-2 w-56 rounded-2xl border border-gray-200 bg-white shadow-xl p-1.5 z-50">
+                                        <div className="px-3 py-2 mb-1 rounded-xl bg-gradient-to-r from-primary-50 to-blue-50 border border-primary-100">
+                                            <p className="text-xs font-semibold text-gray-800 truncate">
+                                                {displayName}
+                                            </p>
+                                            <p className="text-[11px] text-gray-500 truncate">
+                                                {userIdentifier}
+                                            </p>
+                                        </div>
                                         <button
                                             type="button"
                                             onClick={() => {
@@ -245,11 +293,6 @@ export default function Layout() {
             <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
                 <Outlet />
             </main>
-
-            <JoinClassModal
-                isOpen={isJoinModalOpen}
-                onClose={() => setIsJoinModalOpen(false)}
-            />
         </div>
     )
 }

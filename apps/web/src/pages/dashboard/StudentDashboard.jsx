@@ -4,19 +4,13 @@ import {
     BookOpen,
     Clock,
     CheckCircle,
-    AlertCircle,
-    Play,
     Calendar,
-    ChevronRight,
     TrendingUp,
 } from "lucide-react"
 import { api } from "../../services/api.js"
 import { DashboardSkeleton } from "../../components/LoadingStates"
 import { useAuthStore } from "../../store/authStore"
-import JoinClassModal from "../../components/JoinClassModal"
 import {
-    LineChart,
-    Line,
     XAxis,
     YAxis,
     CartesianGrid,
@@ -24,6 +18,8 @@ import {
     ResponsiveContainer,
     AreaChart,
     Area,
+    Line,
+    ReferenceLine,
 } from "recharts"
 
 export default function StudentDashboard() {
@@ -33,9 +29,30 @@ export default function StudentDashboard() {
     const [quizTab, setQuizTab] = useState("active")
     const [quizzes, setQuizzes] = useState([])
     const [quizzesLoading, setQuizzesLoading] = useState(false)
-    const [isJoinModalOpen, setIsJoinModalOpen] = useState(false)
 
     const [analyticsData, setAnalyticsData] = useState([])
+
+    const chartData = analyticsData.map((point, index) => ({
+        ...point,
+        shortName:
+            point?.name && point.name.length > 12
+                ? `${point.name.slice(0, 12)}...`
+                : point?.name || `Quiz ${index + 1}`,
+    }))
+    const latestScore = Number(chartData.at(-1)?.score || 0)
+    const previousScore = Number(chartData.at(-2)?.score || 0)
+    const trendDelta = Number((latestScore - previousScore).toFixed(1))
+    const averageScore =
+        chartData.length > 0
+            ? Number(
+                  (
+                      chartData.reduce(
+                          (sum, point) => sum + Number(point?.score || 0),
+                          0
+                      ) / chartData.length
+                  ).toFixed(1)
+              )
+            : 0
 
     useEffect(() => {
         const fetchData = async () => {
@@ -78,28 +95,36 @@ export default function StudentDashboard() {
     }
 
     return (
-        <div className="min-h-screen bg-gray-50 py-8">
+        <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-blue-50/40 py-8">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 {/* Header */}
-                <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between">
-                    <div>
-                        <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                            Welcome back, {user?.studentId || "Student"}!
-                        </h1>
-                        <p className="text-gray-600">
-                            Track your progress and upcoming quizzes
-                        </p>
-                    </div>
-                    {user?.studentId && (
-                        <div className="mt-4 sm:mt-0 flex items-center bg-white px-4 py-2 rounded-lg shadow-sm border border-gray-200">
-                            <span className="text-sm text-gray-500 mr-2">
-                                Student ID:
-                            </span>
-                            <span className="font-mono font-medium text-indigo-700">
-                                {user.studentId}
-                            </span>
+                <div className="relative overflow-hidden mb-8 rounded-3xl border border-blue-100 bg-gradient-to-r from-slate-900 via-indigo-900 to-blue-900 px-6 py-7 shadow-[0_18px_40px_rgba(15,23,42,0.18)] sm:px-8">
+                    <div className="pointer-events-none absolute -top-14 -right-10 h-40 w-40 rounded-full bg-cyan-300/20 blur-2xl" />
+                    <div className="pointer-events-none absolute -bottom-12 left-20 h-36 w-36 rounded-full bg-indigo-300/20 blur-2xl" />
+                    <div className="relative z-10 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-blue-200/90 mb-2">
+                                Student Workspace
+                            </p>
+                            <h1 className="text-3xl font-bold text-white mb-2">
+                                Welcome back, {user?.studentId || "Student"}!
+                            </h1>
+                            <p className="text-blue-100/90">
+                                Track your progress and upcoming quizzes from
+                                one clean view.
+                            </p>
                         </div>
-                    )}
+                        {user?.studentId && (
+                            <div className="flex items-center bg-white/10 backdrop-blur px-4 py-2.5 rounded-xl border border-white/20">
+                                <span className="text-sm text-blue-100 mr-2">
+                                    Student ID:
+                                </span>
+                                <span className="font-mono font-semibold text-white">
+                                    {user.studentId}
+                                </span>
+                            </div>
+                        )}
+                    </div>
                 </div>
 
                 {/* Overview Stats */}
@@ -131,78 +156,145 @@ export default function StudentDashboard() {
                 </div>
 
                 {/* Performance Chart */}
-                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-8">
-                    <h2 className="text-lg font-semibold text-gray-900 mb-6 flex items-center">
-                        <TrendingUp className="h-5 w-5 mr-2 text-indigo-600" />
-                        Performance Trend
-                    </h2>
-                    <div className="h-64">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <AreaChart data={analyticsData}>
-                                <defs>
-                                    <linearGradient
-                                        id="colorScore"
-                                        x1="0"
-                                        y1="0"
-                                        x2="0"
-                                        y2="1"
-                                    >
-                                        <stop
-                                            offset="5%"
-                                            stopColor="#6366f1"
-                                            stopOpacity={0.1}
-                                        />
-                                        <stop
-                                            offset="95%"
-                                            stopColor="#6366f1"
-                                            stopOpacity={0}
-                                        />
-                                    </linearGradient>
-                                </defs>
-                                <CartesianGrid
-                                    strokeDasharray="3 3"
-                                    vertical={false}
-                                />
-                                <XAxis
-                                    dataKey="name"
-                                    axisLine={false}
-                                    tickLine={false}
-                                    tick={{ fontSize: 12 }}
-                                />
-                                <YAxis
-                                    axisLine={false}
-                                    tickLine={false}
-                                    domain={[0, 100]}
-                                />
-                                <Tooltip
-                                    contentStyle={{
-                                        borderRadius: "8px",
-                                        border: "none",
-                                        boxShadow:
-                                            "0 4px 6px -1px rgb(0 0 0 / 0.1)",
-                                    }}
-                                />
-                                <Area
-                                    type="monotone"
-                                    dataKey="score"
-                                    stroke="#6366f1"
-                                    strokeWidth={2}
-                                    fillOpacity={1}
-                                    fill="url(#colorScore)"
-                                    name="Score (%)"
-                                />
-                            </AreaChart>
-                        </ResponsiveContainer>
+                <div className="bg-white/90 backdrop-blur rounded-2xl shadow-sm border border-slate-200 p-6 mb-8">
+                    <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <h2 className="text-lg font-semibold text-slate-900 flex items-center">
+                            <TrendingUp className="h-5 w-5 mr-2 text-indigo-600" />
+                            Performance Trend
+                        </h2>
+                        <div className="flex flex-wrap items-center gap-2">
+                            <span className="inline-flex items-center rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-700">
+                                Latest: {latestScore.toFixed(1)}%
+                            </span>
+                            <span
+                                className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold ${
+                                    trendDelta >= 0
+                                        ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                                        : "border-rose-200 bg-rose-50 text-rose-700"
+                                }`}
+                            >
+                                Trend: {trendDelta >= 0 ? "+" : ""}
+                                {trendDelta}%
+                            </span>
+                            <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-600">
+                                Avg: {averageScore.toFixed(1)}%
+                            </span>
+                        </div>
+                    </div>
+
+                    <div className="h-72 rounded-xl border border-slate-100 bg-gradient-to-b from-indigo-50/40 to-white p-3">
+                        {chartData.length > 0 ? (
+                            <ResponsiveContainer width="100%" height="100%">
+                                <AreaChart data={chartData}>
+                                    <defs>
+                                        <linearGradient
+                                            id="colorScore"
+                                            x1="0"
+                                            y1="0"
+                                            x2="0"
+                                            y2="1"
+                                        >
+                                            <stop
+                                                offset="5%"
+                                                stopColor="#6366f1"
+                                                stopOpacity={0.22}
+                                            />
+                                            <stop
+                                                offset="95%"
+                                                stopColor="#6366f1"
+                                                stopOpacity={0}
+                                            />
+                                        </linearGradient>
+                                    </defs>
+                                    <CartesianGrid
+                                        strokeDasharray="3 3"
+                                        vertical={false}
+                                        stroke="#E2E8F0"
+                                    />
+                                    <XAxis
+                                        dataKey="shortName"
+                                        axisLine={false}
+                                        tickLine={false}
+                                        tick={{ fontSize: 12, fill: "#64748B" }}
+                                    />
+                                    <YAxis
+                                        axisLine={false}
+                                        tickLine={false}
+                                        domain={[0, 100]}
+                                        tick={{ fontSize: 12, fill: "#64748B" }}
+                                    />
+                                    <Tooltip
+                                        labelFormatter={(_, payload) =>
+                                            payload?.[0]?.payload?.name ||
+                                            "Quiz"
+                                        }
+                                        formatter={(value, dataKey) => {
+                                            if (dataKey === "score") {
+                                                return [`${value}%`, "Score"]
+                                            }
+                                            return [value, dataKey]
+                                        }}
+                                        contentStyle={{
+                                            borderRadius: "12px",
+                                            border: "1px solid #E2E8F0",
+                                            background: "#FFFFFF",
+                                            boxShadow:
+                                                "0 10px 15px -3px rgb(15 23 42 / 0.12)",
+                                        }}
+                                    />
+                                    <ReferenceLine
+                                        y={averageScore}
+                                        stroke="#94A3B8"
+                                        strokeDasharray="5 5"
+                                    />
+                                    <Area
+                                        type="monotone"
+                                        dataKey="score"
+                                        stroke="none"
+                                        fillOpacity={1}
+                                        fill="url(#colorScore)"
+                                        name="Score (%)"
+                                    />
+                                    <Line
+                                        type="monotone"
+                                        dataKey="score"
+                                        stroke="#4f46e5"
+                                        strokeWidth={3}
+                                        dot={{
+                                            r: 4,
+                                            strokeWidth: 2,
+                                            fill: "#fff",
+                                        }}
+                                        activeDot={{
+                                            r: 6,
+                                            strokeWidth: 2,
+                                            fill: "#fff",
+                                        }}
+                                    />
+                                </AreaChart>
+                            </ResponsiveContainer>
+                        ) : (
+                            <div className="h-full flex flex-col items-center justify-center text-slate-500 text-sm">
+                                <TrendingUp className="h-8 w-8 text-slate-300 mb-2" />
+                                <p className="font-medium">
+                                    No performance data yet
+                                </p>
+                                <p className="text-xs text-slate-400 mt-1">
+                                    Complete quizzes to unlock your trend
+                                    analytics.
+                                </p>
+                            </div>
+                        )}
                     </div>
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                     {/* Main Content - Quiz List */}
                     <div className="lg:col-span-2 space-y-6">
-                        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                            <div className="border-b border-gray-200">
+                        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                            <div className="border-b border-slate-200 bg-slate-50/80">
                                 <div className="flex items-center justify-between px-2 sm:px-4">
-                                    <nav className="flex -mb-px">
+                                    <nav className="flex py-2 gap-1">
                                         {[
                                             "active",
                                             "upcoming",
@@ -212,10 +304,10 @@ export default function StudentDashboard() {
                                             <button
                                                 key={tab}
                                                 onClick={() => setQuizTab(tab)}
-                                                className={`py-4 px-6 text-sm font-medium border-b-2 transition-colors duration-200 ${
+                                                className={`py-2 px-4 rounded-lg text-sm font-medium transition ${
                                                     quizTab === tab
-                                                        ? "border-indigo-600 text-indigo-600"
-                                                        : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                                                        ? "bg-indigo-600 text-white shadow-sm"
+                                                        : "text-gray-600 hover:text-gray-900 hover:bg-white"
                                                 }`}
                                             >
                                                 {tab.charAt(0).toUpperCase() +
@@ -264,49 +356,10 @@ export default function StudentDashboard() {
                         </div>
                     </div>
 
-                    {/* Sidebar - Recent Activity & Classes */}
+                    {/* Sidebar - Recent Activity */}
                     <div className="space-y-6">
-                        {/* Enrolled Classes */}
-                        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                            <div className="flex items-center justify-between mb-4">
-                                <h2 className="text-lg font-semibold text-gray-900">
-                                    Your Classes
-                                </h2>
-                                <button
-                                    onClick={() => setIsJoinModalOpen(true)}
-                                    className="text-indigo-600 hover:text-indigo-700 text-sm font-medium cursor-pointer"
-                                >
-                                    Join New
-                                </button>
-                            </div>
-                            <div className="space-y-3">
-                                {dashboardData?.enrolledClasses
-                                    ?.slice(0, 5)
-                                    .map((cls) => (
-                                        <Link
-                                            key={cls._id}
-                                            to={`/classes/${cls._id}`}
-                                            className="block p-3 rounded-lg hover:bg-gray-50 transition-colors border border-gray-100"
-                                        >
-                                            <div className="flex justify-between items-start">
-                                                <div>
-                                                    <h3 className="font-medium text-gray-900">
-                                                        {cls.subjectName}
-                                                    </h3>
-                                                    <p className="text-sm text-gray-500">
-                                                        {cls.subjectCode} •{" "}
-                                                        {cls.faculty?.fullName}
-                                                    </p>
-                                                </div>
-                                                <ChevronRight className="h-5 w-5 text-gray-400" />
-                                            </div>
-                                        </Link>
-                                    ))}
-                            </div>
-                        </div>
-
                         {/* Recent Activity */}
-                        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
                             <div className="flex items-center justify-between mb-4">
                                 <h2 className="text-lg font-semibold text-gray-900">
                                     Recent Activity
@@ -329,7 +382,7 @@ export default function StudentDashboard() {
                                         .map((attempt) => (
                                             <div
                                                 key={attempt._id}
-                                                className="flex items-start space-x-3 pb-3 border-b border-gray-100 last:border-0 last:pb-0"
+                                                className="flex items-start space-x-3 pb-3 border-b border-slate-100 last:border-0 last:pb-0"
                                             >
                                                 <div
                                                     className={`mt-1 h-2 w-2 rounded-full ${
@@ -358,35 +411,32 @@ export default function StudentDashboard() {
                     </div>
                 </div>
             </div>
-
-            <JoinClassModal
-                isOpen={isJoinModalOpen}
-                onClose={() => setIsJoinModalOpen(false)}
-            />
         </div>
     )
 }
 
 function StatCard({ title, value, icon: Icon, color }) {
     const colors = {
-        blue: "bg-blue-100 text-blue-600",
-        green: "bg-green-100 text-green-600",
-        purple: "bg-purple-100 text-purple-600",
-        indigo: "bg-indigo-100 text-indigo-600",
-        orange: "bg-orange-100 text-orange-600",
+        blue: "from-blue-100 to-cyan-100 text-blue-700 border-blue-200",
+        green: "from-emerald-100 to-green-100 text-emerald-700 border-emerald-200",
+        purple: "from-violet-100 to-fuchsia-100 text-violet-700 border-violet-200",
+        indigo: "from-indigo-100 to-blue-100 text-indigo-700 border-indigo-200",
+        orange: "from-amber-100 to-orange-100 text-orange-700 border-orange-200",
     }
 
     return (
-        <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
+        <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 hover:shadow-md transition-all duration-200 hover:-translate-y-0.5">
             <div className="flex items-center justify-between">
                 <div>
-                    <p className="text-sm font-medium text-gray-600">{title}</p>
-                    <p className="text-2xl font-bold text-gray-900 mt-2">
+                    <p className="text-sm font-medium text-slate-500">
+                        {title}
+                    </p>
+                    <p className="text-2xl font-bold text-slate-900 mt-2">
                         {value}
                     </p>
                 </div>
                 <div
-                    className={`h-12 w-12 rounded-lg ${colors[color]} flex items-center justify-center`}
+                    className={`h-12 w-12 rounded-xl border bg-gradient-to-br ${colors[color]} flex items-center justify-center shadow-sm`}
                 >
                     <Icon className="h-6 w-6" />
                 </div>
@@ -400,7 +450,7 @@ function QuizCard({ quiz, tab }) {
     const isCompleted = tab === "completed"
 
     return (
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-white border border-gray-200 rounded-xl hover:shadow-md transition-shadow duration-200">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-gradient-to-r from-white to-slate-50/80 border border-slate-200 rounded-xl hover:shadow-md transition-shadow duration-200">
             <div className="mb-4 sm:mb-0">
                 <div className="flex items-center space-x-2 mb-1">
                     <h3 className="font-semibold text-gray-900 text-lg">

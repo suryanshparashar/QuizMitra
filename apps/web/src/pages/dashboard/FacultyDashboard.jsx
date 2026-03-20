@@ -87,39 +87,46 @@ export default function FacultyDashboard() {
     }
 
     return (
-        <div className="min-h-screen bg-gray-50 py-8">
+        <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-indigo-50/30 py-8">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 {/* Header */}
-                <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between">
-                    <div>
-                        <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                            Faculty Dashboard
-                        </h1>
-                        <p className="text-gray-600">
-                            Manage your classes, quizzes, and track student
-                            progress
-                        </p>
-                    </div>
-                    {user?.facultyId && (
-                        <div className="mt-4 sm:mt-0 flex items-center bg-white px-4 py-2 rounded-lg shadow-sm border border-gray-200">
-                            <span className="text-sm text-gray-500 mr-2">
-                                Faculty ID:
-                            </span>
-                            <span className="font-mono font-medium text-blue-700">
-                                {user.facultyId}
-                            </span>
+                <div className="relative overflow-hidden mb-8 rounded-3xl border border-blue-100 bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 px-6 py-7 shadow-[0_18px_40px_rgba(15,23,42,0.18)] sm:px-8">
+                    <div className="pointer-events-none absolute -top-14 -right-10 h-40 w-40 rounded-full bg-cyan-300/20 blur-2xl" />
+                    <div className="pointer-events-none absolute -bottom-12 left-20 h-36 w-36 rounded-full bg-indigo-300/20 blur-2xl" />
+                    <div className="relative z-10 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-blue-200/90 mb-2">
+                                Faculty Workspace
+                            </p>
+                            <h1 className="text-3xl font-bold text-white mb-2">
+                                Faculty Dashboard
+                            </h1>
+                            <p className="text-blue-100/90">
+                                Manage classes, launch quizzes, and monitor
+                                class-wide performance.
+                            </p>
                         </div>
-                    )}
+                        {user?.facultyId && (
+                            <div className="flex items-center bg-white/10 backdrop-blur px-4 py-2.5 rounded-xl border border-white/20">
+                                <span className="text-sm text-blue-100 mr-2">
+                                    Faculty ID:
+                                </span>
+                                <span className="font-mono font-semibold text-white">
+                                    {user.facultyId}
+                                </span>
+                            </div>
+                        )}
+                    </div>
                 </div>
 
                 {/* Overview Stats */}
                 <div className="mb-8">
-                    <h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
+                    <h2 className="text-xl font-semibold text-slate-900 mb-4 flex items-center">
                         <TrendingUp className="h-5 w-5 mr-2 text-blue-600" />
                         Overview
                     </h2>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow duration-200">
+                        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 hover:shadow-md transition-all duration-200 hover:-translate-y-0.5">
                             <div className="flex items-center justify-between">
                                 <div>
                                     <p className="text-sm font-medium text-gray-600">
@@ -136,7 +143,7 @@ export default function FacultyDashboard() {
                             </div>
                         </div>
 
-                        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow duration-200">
+                        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 hover:shadow-md transition-all duration-200 hover:-translate-y-0.5">
                             <div className="flex items-center justify-between">
                                 <div>
                                     <p className="text-sm font-medium text-gray-600">
@@ -153,7 +160,7 @@ export default function FacultyDashboard() {
                             </div>
                         </div>
 
-                        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow duration-200">
+                        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 hover:shadow-md transition-all duration-200 hover:-translate-y-0.5">
                             <div className="flex items-center justify-between">
                                 <div>
                                     <p className="text-sm font-medium text-gray-600">
@@ -170,7 +177,7 @@ export default function FacultyDashboard() {
                             </div>
                         </div>
 
-                        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow duration-200">
+                        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 hover:shadow-md transition-all duration-200 hover:-translate-y-0.5">
                             <div className="flex items-center justify-between">
                                 <div>
                                     <p className="text-sm font-medium text-gray-600">
@@ -349,10 +356,10 @@ export default function FacultyDashboard() {
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                     {/* Your Classes */}
                     <div className="lg:col-span-3">
-                        <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-                            <div className="p-6 border-b border-gray-200">
+                        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                            <div className="p-6 border-b border-slate-200 bg-slate-50/80">
                                 <div className="flex items-center justify-between">
-                                    <h2 className="text-xl font-semibold text-gray-900 flex items-center">
+                                    <h2 className="text-xl font-semibold text-slate-900 flex items-center">
                                         <BookOpen className="h-5 w-5 mr-2 text-blue-600" />
                                         Your Classes
                                     </h2>
@@ -379,7 +386,7 @@ export default function FacultyDashboard() {
                                             (classItem) => (
                                                 <div
                                                     key={classItem._id}
-                                                    className="border border-gray-200 rounded-lg p-4 hover:shadow-sm transition-shadow duration-200"
+                                                    className="border border-slate-200 rounded-xl p-4 bg-gradient-to-r from-white to-slate-50/80 hover:shadow-sm transition-shadow duration-200"
                                                 >
                                                     <div className="flex items-start justify-between">
                                                         <div className="flex-1">

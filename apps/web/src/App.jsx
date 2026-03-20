@@ -29,6 +29,7 @@ import SuperAdminDashboard from "./pages/dashboard/SuperAdminDashboard"
 import CreateClass from "./pages/classes/CreateClass"
 import ClassDetails from "./pages/classes/ClassDetails"
 import FacultyClasses from "./pages/classes/FacultyClasses"
+import StudentClasses from "./pages/classes/StudentClasses"
 
 // Quiz Pages
 import CreateQuiz from "./pages/quizzes/CreateQuiz"
@@ -209,9 +210,16 @@ function AppRoutes() {
                     <Route
                         path="/classes"
                         element={
-                            <ProtectedRoute requiredRole="faculty">
+                            user?.role === "faculty" ? (
                                 <FacultyClasses />
-                            </ProtectedRoute>
+                            ) : user?.role === "student" ? (
+                                <StudentClasses />
+                            ) : (
+                                <Navigate
+                                    to={getDashboardPath(user?.role)}
+                                    replace
+                                />
+                            )
                         }
                     />
                     <Route
