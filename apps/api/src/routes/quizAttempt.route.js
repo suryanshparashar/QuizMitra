@@ -2,7 +2,9 @@
 import { Router } from "express"
 import { verifyJWT } from "../middlewares/auth.middleware.js"
 import {
+    startQuizAttempt,
     submitQuizAnswers,
+    debarStudentQuizAttempt,
     getMyQuizResult,
     getQuizReport,
     getStudentQuizHistory,
@@ -19,7 +21,9 @@ const router = Router()
 router.use(verifyJWT)
 
 // Quiz attempt submission
+router.route("/quiz/:quizId/start").post(startQuizAttempt)
 router.route("/quiz/:quizId/submit").post(submitQuizAnswers)
+router.route("/quiz/:quizId/debar").post(debarStudentQuizAttempt)
 
 // Student routes
 router.route("/quiz/:quizId/my-result").get(getMyQuizResult)

@@ -6,7 +6,41 @@ import { ApiResponse, ApiError, asyncHandler } from "../utils/index.js"
 import { EvaluationService } from "../services/evaluation.service.js"
 import { AdvisoryService } from "../services/advisory.service.js"
 import { StudentPerformance } from "../models/studentPerformance.model.js"
+import { QuizAttemptSession } from "../models/quizAttemptSession.model.js"
 import mongoose from "mongoose"
+import jwt from "jsonwebtoken"
+
+const ATTEMPT_TIMER_SECRET =
+    process.env.QUIZ_ATTEMPT_TIMER_SECRET || process.env.ACCESS_TOKEN_SECRET
+
+const createAttemptToken = ({ quizId, studentId, startedAt, expiresIn }) => {
+    if (!ATTEMPT_TIMER_SECRET) {
+        throw new ApiError(500, "Attempt timer secret is not configured")
+    }
+
+    return jwt.sign(
+        {
+            quizId: String(quizId),
+            studentId: String(studentId),
+            startedAt: new Date(startedAt).toISOString(),
+            tokenType: "quiz-attempt-timer",
+        },
+        ATTEMPT_TIMER_SECRET,
+        { expiresIn }
+    )
+}
+
+const verifyAttemptToken = (token) => {
+    if (!ATTEMPT_TIMER_SECRET) {
+        throw new ApiError(500, "Attempt timer secret is not configured")
+    }
+
+    try {
+        return jwt.verify(token, ATTEMPT_TIMER_SECRET)
+    } catch (error) {
+        throw new ApiError(401, "Invalid or expired attempt timer token")
+    }
+}
 
 const toLegacyAdvisoryShape = (insights) => {
     return {
@@ -186,22 +220,145 @@ const getQuestionWiseVisibilityForStudent = (quiz) => {
     }
 }
 
+const startQuizAttempt = asyncHandler(async (req, res) => {
+    const { quizId } = req.params
+    const { attemptToken } = req.body || {}
+
+    if (!mongoose.Types.ObjectId.isValid(quizId)) {
+        throw new ApiError(400, "Invalid quiz ID")
+    }
+
+    const quiz = await Quiz.findById(quizId).populate(
+        "classId",
+        "faculty students isArchived"
+    )
+
+    if (!quiz) {
+        throw new ApiError(404, "Quiz not found")
+    }
+
+    if (quiz.status !== "published") {
+        throw new ApiError(400, "Quiz is not published")
+    }
+
+    const now = new Date()
+    if (now < quiz.scheduledAt || now > quiz.deadline) {
+        throw new ApiError(400, "Quiz is not currently active")
+    }
+
+    const classDoc = await Class.findById(quiz.classId)
+    if (!classDoc || !classDoc.isStudent(req.user._id)) {
+        throw new ApiError(403, "You are not enrolled in this class")
+    }
+
+    const existingAttempt = await QuizAttempt.findOne({
+        student: req.user._id,
+        quiz: quizId,
+    }).lean()
+
+    if (existingAttempt) {
+        throw new ApiError(400, "Quiz already submitted")
+    }
+
+    let session = await QuizAttemptSession.findOne({
+        student: req.user._id,
+        quiz: quizId,
+    })
+
+    if (session && session.status !== "active") {
+        throw new ApiError(400, "Quiz attempt session is no longer active")
+    }
+
+    if (session && now > session.expiresAt) {
+        session.status = "expired"
+        await session.save()
+        throw new ApiError(400, "Quiz timer has expired")
+    }
+
+    if (attemptToken && session) {
+        try {
+            const decoded = verifyAttemptToken(attemptToken)
+            const isTokenMatch =
+                String(decoded.quizId) === String(quizId) &&
+                String(decoded.studentId) === String(req.user._id)
+
+            // Ignore stale/mismatched tokens and re-issue a fresh one below.
+            if (!isTokenMatch) {
+                // no-op
+            }
+        } catch (error) {
+            // Ignore invalid/expired token and continue with session-based timer.
+        }
+    }
+
+    if (!session) {
+        const startedAt = now
+        const durationMs = Number(quiz.duration || 0) * 60 * 1000
+        const durationEnd = new Date(startedAt.getTime() + durationMs)
+        const expiresAt =
+            durationEnd < quiz.deadline ? durationEnd : new Date(quiz.deadline)
+
+        session = await QuizAttemptSession.create({
+            student: req.user._id,
+            quiz: quiz._id,
+            class: quiz.classId,
+            startedAt,
+            expiresAt,
+            status: "active",
+        })
+    }
+
+    const remainingSeconds = Math.max(
+        0,
+        Math.floor((session.expiresAt.getTime() - now.getTime()) / 1000)
+    )
+
+    const attemptTokenExpiresIn = Math.max(1, remainingSeconds)
+    const signedAttemptToken = createAttemptToken({
+        quizId,
+        studentId: req.user._id,
+        startedAt: session.startedAt,
+        expiresIn: attemptTokenExpiresIn,
+    })
+
+    return res.status(200).json(
+        new ApiResponse(
+            200,
+            {
+                attemptToken: signedAttemptToken,
+                startedAt: session.startedAt,
+                endsAt: session.expiresAt,
+                serverNow: now,
+                remainingSeconds,
+            },
+            "Quiz timer started"
+        )
+    )
+})
+
 // Submit quiz answers and calculate score
 const submitQuizAnswers = asyncHandler(async (req, res) => {
     const { quizId } = req.params
-    const { answers, startedAt, timeSpent } = req.body
+    const {
+        answers,
+        attemptToken,
+        forceDebar = false,
+        debarReason = "",
+    } = req.body
+
+    const submittedAnswers = Array.isArray(answers) ? answers : []
 
     // ✅ Validate input
     if (!mongoose.Types.ObjectId.isValid(quizId)) {
         throw new ApiError(400, "Invalid quiz ID")
     }
 
-    if (!answers || !Array.isArray(answers) || answers.length === 0) {
+    if (!forceDebar && submittedAnswers.length === 0) {
         throw new ApiError(400, "Quiz answers are required")
     }
 
-    if (!startedAt || !timeSpent) {
-        throw new ApiError(400, "Start time and time spent are required")
+    if (!attemptToken) {
+        throw new ApiError(400, "Attempt timer token is required")
     }
 
     // ✅ Get quiz with questions
@@ -257,11 +414,38 @@ const submitQuizAnswers = asyncHandler(async (req, res) => {
         )
     }
 
-    // ✅ Validate time constraints
+    const session = await QuizAttemptSession.findOne({
+        student: req.user._id,
+        quiz: quizId,
+    })
+
+    if (!session || session.status !== "active") {
+        throw new ApiError(
+            400,
+            "Quiz timer is not active. Please reload and start again"
+        )
+    }
+
+    const decoded = verifyAttemptToken(attemptToken)
+    if (
+        String(decoded.quizId) !== String(quizId) ||
+        String(decoded.studentId) !== String(req.user._id)
+    ) {
+        throw new ApiError(401, "Attempt timer token does not match quiz")
+    }
+
+    if (
+        String(new Date(decoded.startedAt).toISOString()) !==
+        String(new Date(session.startedAt).toISOString())
+    ) {
+        throw new ApiError(401, "Attempt timer token does not match session")
+    }
+
+    // ✅ Validate time constraints using server-side start
     const maxDuration = quiz.duration * 60 // Convert minutes to seconds
     const submissionTime = new Date()
     const actualTimeSpent = Math.floor(
-        (submissionTime - new Date(startedAt)) / 1000
+        (submissionTime - session.startedAt) / 1000
     )
 
     if (actualTimeSpent > maxDuration + 30) {
@@ -281,16 +465,19 @@ const submitQuizAnswers = asyncHandler(async (req, res) => {
     // ✅ Process and score answers
     const scoringResults = await processQuizAnswers(
         quiz,
-        answers,
+        submittedAnswers,
         actualTimeSpent
     )
+
+    const normalizedDebarReason = String(debarReason || "").trim()
+    const isDebarred = Boolean(forceDebar)
 
     // ✅ Create quiz attempt record
     const quizAttempt = new QuizAttempt({
         student: req.user._id,
         quiz: quizId,
         class: quiz.classId,
-        startedAt: new Date(startedAt),
+        startedAt: new Date(session.startedAt),
         submittedAt: submissionTime,
         timeSpent: actualTimeSpent,
         answers: scoringResults.processedAnswers,
@@ -306,9 +493,19 @@ const submitQuizAnswers = asyncHandler(async (req, res) => {
         advisory: scoringResults.advisory,
         ipAddress: req.ip,
         userAgent: req.get("User-Agent"),
+        isDebarred,
+        debarReason: isDebarred
+            ? normalizedDebarReason || "Quiz policy violation detected"
+            : "",
+        debarredAt: isDebarred ? submissionTime : null,
     })
 
     await quizAttempt.save()
+
+    session.status =
+        submissionTime > session.expiresAt ? "expired" : "submitted"
+    session.submittedAt = submissionTime
+    await session.save()
 
     try {
         const performanceInsights = await updateStudentPerformanceInsights({
@@ -350,6 +547,8 @@ const submitQuizAnswers = asyncHandler(async (req, res) => {
                 totalQuestions: quizAttempt.totalQuestions,
                 timeSpent: quizAttempt.timeSpent,
                 submittedAt: quizAttempt.submittedAt,
+                isDebarred: quizAttempt.isDebarred,
+                debarReason: quizAttempt.debarReason,
             },
             "Quiz submitted and scored successfully"
         )
@@ -865,7 +1064,7 @@ const processQuizAnswers = async (quiz, submittedAnswers, timeSpent) => {
         quiz?.settings?.negativeMarkingEnabled === true
     const configuredRatio = Number(quiz?.settings?.negativeMarkingRatio)
     const negativeMarkingRatio = Number.isFinite(configuredRatio)
-        ? Math.min(1, Math.max(0, configuredRatio))
+        ? Math.min(2, Math.max(0, configuredRatio))
         : 0
 
     // ✅ Evaluate answers in parallel (essential for AI speed)
@@ -1439,9 +1638,147 @@ const getStudentPerformanceForFaculty = asyncHandler(async (req, res) => {
         )
 })
 
+// ✅ Debar student quiz attempt (for anti-cheat violations)
+const debarStudentQuizAttempt = asyncHandler(async (req, res) => {
+    const { quizId } = req.params
+    const { attemptToken, debarReason = "" } = req.body
+
+    // ✅ Validate input
+    if (!mongoose.Types.ObjectId.isValid(quizId)) {
+        throw new ApiError(400, "Invalid quiz ID")
+    }
+
+    if (!attemptToken) {
+        throw new ApiError(400, "Attempt timer token is required")
+    }
+
+    // ✅ Get quiz
+    const quiz = await Quiz.findById(quizId).populate(
+        "classId",
+        "faculty students isArchived"
+    )
+
+    if (!quiz) {
+        throw new ApiError(404, "Quiz not found")
+    }
+
+    // ✅ Get class document for access control
+    const classDoc = await Class.findById(quiz.classId)
+    if (!classDoc.isStudent(req.user._id)) {
+        throw new ApiError(403, "You are not enrolled in this class")
+    }
+
+    // ✅ Check if student already has an attempt
+    const existingAttempt = await QuizAttempt.findOne({
+        student: req.user._id,
+        quiz: quizId,
+    })
+
+    if (existingAttempt && existingAttempt.isDebarred) {
+        return res
+            .status(200)
+            .json(
+                new ApiResponse(
+                    200,
+                    { attemptId: existingAttempt._id, isDebarred: true },
+                    "Student already debarred from this quiz"
+                )
+            )
+    }
+
+    // ✅ Verify token matches session
+    const session = await QuizAttemptSession.findOne({
+        student: req.user._id,
+        quiz: quizId,
+    })
+
+    if (session) {
+        try {
+            const decoded = verifyAttemptToken(attemptToken)
+            if (
+                String(decoded.quizId) !== String(quizId) ||
+                String(decoded.studentId) !== String(req.user._id)
+            ) {
+                throw new ApiError(
+                    401,
+                    "Attempt timer token does not match quiz"
+                )
+            }
+        } catch (err) {
+            // Token validation failed, but still allow debar for safety
+            console.warn(`Token validation failed during debar: ${err.message}`)
+        }
+    }
+
+    const submissionTime = new Date()
+    const normalizedDebarReason = String(debarReason || "").trim()
+
+    // ✅ Create debarred attempt record (minimal, no answers)
+    let quizAttempt
+
+    if (existingAttempt) {
+        // Update existing attempt with debar status
+        existingAttempt.isDebarred = true
+        existingAttempt.debarReason =
+            normalizedDebarReason || "Quiz policy violation detected"
+        existingAttempt.debarredAt = submissionTime
+        existingAttempt.status = "submitted"
+        quizAttempt = await existingAttempt.save()
+    } else {
+        // Create new debarred attempt
+        quizAttempt = new QuizAttempt({
+            student: req.user._id,
+            quiz: quizId,
+            class: quiz.classId,
+            startedAt: session ? session.startedAt : submissionTime,
+            submittedAt: submissionTime,
+            timeSpent: session
+                ? Math.floor((submissionTime - session.startedAt) / 1000)
+                : 0,
+            answers: [], // No answers for debar
+            totalQuestions: quiz.questions.length,
+            correctAnswers: 0,
+            incorrectAnswers: quiz.questions.length,
+            marksObtained: 0,
+            maxMarks: quiz.requirements.totalMarks,
+            percentage: 0,
+            isDebarred: true,
+            debarReason:
+                normalizedDebarReason || "Quiz policy violation detected",
+            debarredAt: submissionTime,
+            ipAddress: req.ip,
+            userAgent: req.get("User-Agent"),
+            status: "submitted",
+        })
+        quizAttempt = await quizAttempt.save()
+    }
+
+    // ✅ Update session status
+    if (session) {
+        session.status = "submitted"
+        session.submittedAt = submissionTime
+        await session.save()
+    }
+
+    return res.status(201).json(
+        new ApiResponse(
+            201,
+            {
+                attemptId: quizAttempt._id,
+                isDebarred: true,
+                debarReason: quizAttempt.debarReason,
+                debarredAt: quizAttempt.debarredAt,
+            },
+            "Student debarred from quiz due to policy violation"
+        )
+    )
+})
+
 // ✅ Update the export statement
 export {
+    startQuizAttempt,
     submitQuizAnswers,
+    debarStudentQuizAttempt,
     getMyQuizResult,
     getQuizReport,
     getStudentQuizHistory,

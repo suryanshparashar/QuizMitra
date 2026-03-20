@@ -25,10 +25,24 @@ export default function TakeQuiz() {
     const [timeRemaining, setTimeRemaining] = useState(null) // Null initial state to show loading
     const [loading, setLoading] = useState(true)
     const [submitting, setSubmitting] = useState(false)
+    const [startingAttempt, setStartingAttempt] = useState(false)
+    const [showStartModal, setShowStartModal] = useState(true)
+    const [startError, setStartError] = useState("")
     const [showSubmitModal, setShowSubmitModal] = useState(false)
     const [hasAutoSubmitted, setHasAutoSubmitted] = useState(false)
-    const [startTime, setStartTime] = useState(null)
+    const [attemptToken, setAttemptToken] = useState("")
     const submissionLockRef = useRef(false)
+    const antiCheatTriggeredRef = useRef(false)
+    const fullscreenWasActiveRef = useRef(false)
+    const devtoolsCheckIntervalRef = useRef(null)
+
+    const clearAttemptStorage = () => {
+        localStorage.removeItem(`quiz_answers_${quizId}`)
+        localStorage.removeItem(`quiz_review_${quizId}`)
+        localStorage.removeItem(`quiz_attempt_token_${quizId}`)
+        localStorage.removeItem(`quiz_startTime_${quizId}`)
+        localStorage.removeItem(`quiz_endTime_${quizId}`)
+    }
 
     useEffect(() => {
         fetchQuiz()
@@ -40,14 +54,6 @@ export default function TakeQuiz() {
         const savedReviewList = localStorage.getItem(`quiz_review_${quizId}`)
         if (savedReviewList) {
             setReviewList(new Set(JSON.parse(savedReviewList)))
-        }
-
-        // Restore start time or set new
-        const savedStartTime = localStorage.getItem(`quiz_startTime_${quizId}`)
-        if (savedStartTime) {
-            setStartTime(new Date(savedStartTime))
-        } else {
-            // Will be set when quiz loads
         }
     }, [quizId])
 
@@ -71,6 +77,132 @@ export default function TakeQuiz() {
         }
     }, [timeRemaining, quiz, submitting, hasAutoSubmitted])
 
+    useEffect(() => {
+        if (!quiz || !attemptToken) return
+
+        const goFullscreen = async () => {
+            const element = document.documentElement
+            if (!document.fullscreenElement && element?.requestFullscreen) {
+                try {
+                    await element.requestFullscreen()
+                } catch (error) {
+                    // Fullscreen may require user gesture in some browsers.
+                }
+            }
+            if (document.fullscreenElement) {
+                fullscreenWasActiveRef.current = true
+            }
+        }
+
+        goFullscreen()
+
+        const submitWithDebar = async (reason) => {
+            if (antiCheatTriggeredRef.current) {
+                return
+            }
+            antiCheatTriggeredRef.current = true
+            setHasAutoSubmitted(true)
+            setShowSubmitModal(false)
+            alert(`${reason}. You are debarred from this quiz attempt.`)
+
+            // Call dedicated debar endpoint instead of submitting answers
+            try {
+                const response = await api.post(
+                    `/quiz-attempts/quiz/${quizId}/debar`,
+                    {
+                        attemptToken,
+                        debarReason: reason,
+                    }
+                )
+                clearAttemptStorage()
+                // Redirect to results page after debar
+                navigate(`/quiz-results/${response.data.data.attemptId}`)
+            } catch (error) {
+                console.error("Error debaring student:", error)
+                alert(
+                    error.response?.data?.message ||
+                        "Failed to record debarment. Please refresh and try again."
+                )
+                // Still clear storage and navigate back
+                clearAttemptStorage()
+                navigate(`/quizzes/${quizId}`)
+            }
+        }
+
+        const popStateHandler = (event) => {
+            event.preventDefault()
+            submitWithDebar("Back navigation is not allowed during quiz")
+        }
+
+        const fullscreenChangeHandler = () => {
+            if (document.fullscreenElement) {
+                fullscreenWasActiveRef.current = true
+                return
+            }
+            if (fullscreenWasActiveRef.current) {
+                submitWithDebar("Exiting fullscreen is not allowed")
+            }
+        }
+
+        const contextMenuHandler = (event) => {
+            event.preventDefault() // Suppress context menu without debarring
+        }
+
+        const keyDownHandler = (event) => {
+            const key = String(event.key || "").toLowerCase()
+            const isMac = navigator.platform.toUpperCase().includes("MAC")
+            const commandKey = isMac ? event.metaKey : event.ctrlKey
+            const isDevtoolsShortcut =
+                key === "f12" ||
+                (commandKey &&
+                    event.shiftKey &&
+                    ["i", "j", "c"].includes(key)) ||
+                (commandKey && ["u", "s", "p"].includes(key))
+
+            const isAltBack = event.altKey && key === "arrowleft"
+
+            if (isDevtoolsShortcut || isAltBack) {
+                event.preventDefault()
+                event.stopPropagation()
+                const reason = isAltBack
+                    ? "Alt + Left Arrow is not allowed during quiz"
+                    : "Developer tools shortcut is not allowed"
+                submitWithDebar(reason)
+            }
+        }
+
+        const devtoolsCheck = () => {
+            const widthDiff = window.outerWidth - window.innerWidth
+            const heightDiff = window.outerHeight - window.innerHeight
+            const isLikelyOpen = widthDiff > 160 || heightDiff > 160
+
+            if (isLikelyOpen) {
+                submitWithDebar("Developer tools are not allowed during quiz")
+            }
+        }
+
+        window.history.pushState(null, "", window.location.href)
+        window.addEventListener("popstate", popStateHandler)
+        document.addEventListener("fullscreenchange", fullscreenChangeHandler)
+        document.addEventListener("contextmenu", contextMenuHandler)
+        window.addEventListener("keydown", keyDownHandler, true)
+        devtoolsCheckIntervalRef.current = setInterval(devtoolsCheck, 1000)
+
+        return () => {
+            window.removeEventListener("popstate", popStateHandler)
+            document.removeEventListener(
+                "fullscreenchange",
+                fullscreenChangeHandler
+            )
+            document.removeEventListener("contextmenu", contextMenuHandler)
+            window.removeEventListener("keydown", keyDownHandler, true)
+            if (devtoolsCheckIntervalRef.current) {
+                clearInterval(devtoolsCheckIntervalRef.current)
+                devtoolsCheckIntervalRef.current = null
+            }
+        }
+    }, [quiz, attemptToken])
+
     // Auto-save effect
     useEffect(() => {
         if (Object.keys(answers).length > 0) {
@@ -92,45 +224,81 @@ export default function TakeQuiz() {
             const response = await api.get(`/quizzes/${quizId}`)
             const quizData = response.data.data
             setQuiz(quizData)
-
-            // Timer Logic: Check for existing end time or create new
-            const savedEndTime = localStorage.getItem(`quiz_endTime_${quizId}`)
-            const savedStartTime = localStorage.getItem(
-                `quiz_startTime_${quizId}`
-            )
-
-            if (savedEndTime && savedStartTime) {
-                // Restore session
-                const endTime = parseInt(savedEndTime, 10)
-                const remaining = Math.max(
-                    0,
-                    Math.floor((endTime - Date.now()) / 1000)
-                )
-                setTimeRemaining(remaining)
-                setStartTime(new Date(savedStartTime))
-            } else {
-                // New session
-                const now = new Date()
-                const durationSeconds = quizData.duration * 60
-                const endTime = now.getTime() + durationSeconds * 1000
-
-                localStorage.setItem(
-                    `quiz_startTime_${quizId}`,
-                    now.toISOString()
-                )
-                localStorage.setItem(
-                    `quiz_endTime_${quizId}`,
-                    endTime.toString()
-                )
-
-                setStartTime(now)
-                setTimeRemaining(durationSeconds)
-            }
         } catch (error) {
             console.error("Error fetching quiz:", error)
-            navigate("/dashboard")
+            alert(
+                error.response?.data?.message ||
+                    "Unable to start quiz right now. Please try again."
+            )
+            navigate(`/quizzes/${quizId}`)
         } finally {
             setLoading(false)
+        }
+    }
+
+    const startQuizAttemptSession = async () => {
+        if (startingAttempt) {
+            return
+        }
+
+        setStartError("")
+        setStartingAttempt(true)
+
+        try {
+            const element = document.documentElement
+            if (!document.fullscreenElement && element?.requestFullscreen) {
+                await element.requestFullscreen()
+            }
+
+            if (!document.fullscreenElement) {
+                throw new Error(
+                    "Please allow fullscreen mode to start the quiz"
+                )
+            }
+
+            fullscreenWasActiveRef.current = true
+
+            const savedAttemptToken = localStorage.getItem(
+                `quiz_attempt_token_${quizId}`
+            )
+            let sessionData = null
+
+            try {
+                const sessionResponse = await api.post(
+                    `/quiz-attempts/quiz/${quizId}/start`,
+                    savedAttemptToken ? { attemptToken: savedAttemptToken } : {}
+                )
+                sessionData = sessionResponse?.data?.data || {}
+            } catch (startApiError) {
+                localStorage.removeItem(`quiz_attempt_token_${quizId}`)
+                const retryResponse = await api.post(
+                    `/quiz-attempts/quiz/${quizId}/start`,
+                    {}
+                )
+                sessionData = retryResponse?.data?.data || {}
+            }
+
+            setAttemptToken(sessionData.attemptToken || "")
+            setTimeRemaining(
+                Math.max(0, Number(sessionData.remainingSeconds || 0))
+            )
+
+            if (sessionData.attemptToken) {
+                localStorage.setItem(
+                    `quiz_attempt_token_${quizId}`,
+                    sessionData.attemptToken
+                )
+            }
+
+            setShowStartModal(false)
+        } catch (error) {
+            setStartError(
+                error?.response?.data?.message ||
+                    error?.message ||
+                    "Unable to start quiz right now"
+            )
+        } finally {
+            setStartingAttempt(false)
         }
     }
 
@@ -152,17 +320,21 @@ export default function TakeQuiz() {
     }
 
     const handleSubmitClick = () => {
+        if (!attemptToken) {
+            return
+        }
         setShowSubmitModal(true)
     }
 
-    const handleFinalSubmit = async () => {
-        if (submissionLockRef.current || submitting || !startTime) {
+    const handleFinalSubmit = async (options = {}) => {
+        const { forceDebar = false, debarReason = "" } = options
+
+        if (submissionLockRef.current || submitting || !attemptToken) {
             return
         }
 
         submissionLockRef.current = true
         setSubmitting(true)
-        setShowSubmitModal(false)
 
         const submissionData = {
             answers: Object.keys(answers).map((index) => ({
@@ -170,8 +342,9 @@ export default function TakeQuiz() {
                 selectedAnswer: answers[index],
                 timeSpent: 30, // Placeholder
             })),
-            startedAt: startTime.toISOString(),
-            timeSpent: quiz.duration * 60 - timeRemaining,
+            attemptToken,
+            forceDebar,
+            debarReason,
         }
 
         try {
@@ -179,9 +352,7 @@ export default function TakeQuiz() {
                 `/quiz-attempts/quiz/${quizId}/submit`,
                 submissionData
             )
-            // Clear local storage
-            localStorage.removeItem(`quiz_answers_${quizId}`)
-            localStorage.removeItem(`quiz_review_${quizId}`)
+            clearAttemptStorage()
 
             navigate(`/quiz-results/${response.data.data.attemptId}`)
         } catch (error) {
@@ -256,7 +427,9 @@ export default function TakeQuiz() {
                         >
                             <Timer className="w-5 h-5" />
                             <span className="tabular-nums">
-                                {formatTime(timeRemaining)}
+                                {timeRemaining === null
+                                    ? "--:--"
+                                    : formatTime(timeRemaining)}
                             </span>
                         </div>
                     </div>
@@ -317,6 +490,7 @@ export default function TakeQuiz() {
                                         {answers[currentQuestionKey] && (
                                             <div className="flex items-center space-x-1 px-3 py-1.5 bg-green-100 text-green-700 rounded-lg text-sm font-medium">
                                                 <CheckCircle2 className="w-4 h-4" />
+                                                disabled={!attemptToken}
                                                 <span>Answered</span>
                                             </div>
                                         )}
@@ -541,7 +715,8 @@ export default function TakeQuiz() {
 
                         <button
                             onClick={handleSubmitClick}
-                            className="w-full mt-6 py-3 bg-indigo-50 text-indigo-700 font-medium rounded-lg hover:bg-indigo-100 transition-colors border border-indigo-200 cursor-pointer"
+                            disabled={!attemptToken}
+                            className="w-full mt-6 py-3 bg-indigo-50 text-indigo-700 font-medium rounded-lg hover:bg-indigo-100 transition-colors border border-indigo-200 disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
                         >
                             Submit Quiz
                         </button>
@@ -575,7 +750,8 @@ export default function TakeQuiz() {
                                 </h3>
                                 <button
                                     onClick={() => setShowSubmitModal(false)}
-                                    className="text-gray-400 hover:text-gray-500 cursor-pointer"
+                                    disabled={submitting}
+                                    className="text-gray-400 hover:text-gray-500 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                                 >
                                     <X className="w-6 h-6" />
                                 </button>
@@ -643,7 +819,8 @@ export default function TakeQuiz() {
                             <div className="flex space-x-3">
                                 <button
                                     onClick={() => setShowSubmitModal(false)}
-                                    className="flex-1 px-4 py-2.5 bg-white border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
+                                    disabled={submitting}
+                                    className="flex-1 px-4 py-2.5 bg-white border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                                 >
                                     Review Quiz
                                 </button>
@@ -660,6 +837,67 @@ export default function TakeQuiz() {
                                     ) : (
                                         "Confirm Submit"
                                     )}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {showStartModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+                    <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden">
+                        <div className="p-6">
+                            <h3 className="text-xl font-bold text-gray-900 mb-3">
+                                Before You Start
+                            </h3>
+                            <p className="text-sm text-gray-600 mb-4">
+                                Quiz starts only after you enter fullscreen and
+                                accept anti-cheat rules.
+                            </p>
+
+                            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-sm text-amber-900 space-y-2 mb-4">
+                                <p>
+                                    1. Fullscreen must remain active throughout
+                                    the attempt.
+                                </p>
+                                <p>
+                                    2. Back navigation (including Alt + Left
+                                    Arrow) is blocked.
+                                </p>
+                                <p>3. Developer tools shortcuts are blocked.</p>
+                                <p>
+                                    4. Any violation will immediately debar you
+                                    from this quiz.
+                                </p>
+                            </div>
+
+                            {startError && (
+                                <div className="mb-4 text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg p-3">
+                                    {startError}
+                                </div>
+                            )}
+
+                            <div className="flex gap-3">
+                                <button
+                                    type="button"
+                                    onClick={() =>
+                                        navigate(`/quizzes/${quizId}`)
+                                    }
+                                    className="flex-1 px-4 py-2.5 bg-white border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-colors"
+                                    disabled={startingAttempt}
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={startQuizAttemptSession}
+                                    disabled={startingAttempt}
+                                    className="flex-1 px-4 py-2.5 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    {startingAttempt
+                                        ? "Starting..."
+                                        : "Enter Fullscreen & Start"}
                                 </button>
                             </div>
                         </div>

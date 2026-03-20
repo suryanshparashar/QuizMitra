@@ -430,6 +430,7 @@ const getPendingAttempts = asyncHandler(async (req, res) => {
                                 { $eq: ["$status", "graded"] },
                                 { $lt: ["$percentage", 41] }, // Poor performance
                                 { $eq: ["$isLateSubmission", true] },
+                                { $eq: ["$isDebarred", true] },
                             ],
                         },
                         true,
@@ -458,6 +459,9 @@ const getPendingAttempts = asyncHandler(async (req, res) => {
                 submittedAt: 1,
                 isLateSubmission: 1,
                 wasTimeExceeded: 1,
+                isDebarred: 1,
+                debarReason: 1,
+                debarredAt: 1,
                 status: 1,
                 needsReview: 1,
                 lastGradedAt: { $last: "$gradingHistory.gradedAt" },

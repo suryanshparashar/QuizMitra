@@ -231,6 +231,15 @@ export default function Notifications() {
                                                                     to={
                                                                         action.to
                                                                     }
+                                                                    onClick={() => {
+                                                                        if (
+                                                                            !n.isRead
+                                                                        ) {
+                                                                            handleMarkRead(
+                                                                                n._id
+                                                                            )
+                                                                        }
+                                                                    }}
                                                                     className="text-primary-600 hover:underline font-medium"
                                                                 >
                                                                     {

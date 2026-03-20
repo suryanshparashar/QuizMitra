@@ -188,6 +188,22 @@ const quizAttemptSchema = new Schema(
             default: false,
         },
 
+        isDebarred: {
+            type: Boolean,
+            default: false,
+            index: true,
+        },
+
+        debarReason: {
+            type: String,
+            trim: true,
+            maxlength: [500, "Debar reason cannot exceed 500 characters"],
+        },
+
+        debarredAt: {
+            type: Date,
+        },
+
         // Dispute handling
         isDisputed: {
             type: Boolean,
@@ -355,6 +371,9 @@ quizAttemptSchema.methods.getDetailedSummary = function () {
         advisory: this.advisory,
         status: this.status,
         isDisputed: this.isDisputed,
+        isDebarred: this.isDebarred,
+        debarReason: this.debarReason,
+        debarredAt: this.debarredAt,
     }
 }
 

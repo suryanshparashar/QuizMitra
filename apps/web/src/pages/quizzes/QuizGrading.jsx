@@ -113,6 +113,18 @@ export default function QuizGrading() {
                                                 attempt.submittedAt
                                             ).toLocaleString()}
                                         </p>
+                                        {attempt.isDebarred && (
+                                            <div className="mt-2 inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-700 border border-red-200">
+                                                Debarred
+                                            </div>
+                                        )}
+                                        {attempt.isDebarred &&
+                                            attempt.debarReason && (
+                                                <p className="text-sm text-red-700 mt-1">
+                                                    Reason:{" "}
+                                                    {attempt.debarReason}
+                                                </p>
+                                            )}
                                     </div>
                                     <div className="flex items-center space-x-6">
                                         <div className="text-right">
