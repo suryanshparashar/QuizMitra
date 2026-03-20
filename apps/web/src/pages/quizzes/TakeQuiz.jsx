@@ -227,6 +227,9 @@ export default function TakeQuiz() {
     const answeredCount = Object.keys(answers).length
     const totalQuestions = quiz.questions.length
     const reviewCount = reviewList.size
+    const currentQuestionKey =
+        quiz?.questions?.[currentQuestion]?.originalQuestionIndex ??
+        currentQuestion
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 pb-20">
@@ -290,24 +293,28 @@ export default function TakeQuiz() {
                                     <div className="flex space-x-2">
                                         <button
                                             onClick={() =>
-                                                toggleReview(currentQuestion)
+                                                toggleReview(currentQuestionKey)
                                             }
                                             className={`flex items-center space-x-1 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                                                reviewList.has(currentQuestion)
+                                                reviewList.has(
+                                                    currentQuestionKey
+                                                )
                                                     ? "bg-yellow-100 text-yellow-700 hover:bg-yellow-200"
                                                     : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                                             }`}
                                         >
                                             <Flag
-                                                className={`w-4 h-4 ${reviewList.has(currentQuestion) ? "fill-current" : ""}`}
+                                                className={`w-4 h-4 ${reviewList.has(currentQuestionKey) ? "fill-current" : ""}`}
                                             />
                                             <span>
-                                                {reviewList.has(currentQuestion)
+                                                {reviewList.has(
+                                                    currentQuestionKey
+                                                )
                                                     ? "Marked"
                                                     : "Mark for Review"}
                                             </span>
                                         </button>
-                                        {answers[currentQuestion] && (
+                                        {answers[currentQuestionKey] && (
                                             <div className="flex items-center space-x-1 px-3 py-1.5 bg-green-100 text-green-700 rounded-lg text-sm font-medium">
                                                 <CheckCircle2 className="w-4 h-4" />
                                                 <span>Answered</span>
@@ -335,11 +342,12 @@ export default function TakeQuiz() {
                                         </label>
                                         <textarea
                                             value={
-                                                answers[currentQuestion] || ""
+                                                answers[currentQuestionKey] ||
+                                                ""
                                             }
                                             onChange={(e) =>
                                                 handleAnswerChange(
-                                                    currentQuestion,
+                                                    currentQuestionKey,
                                                     e.target.value
                                                 )
                                             }
@@ -363,11 +371,12 @@ export default function TakeQuiz() {
                                         <input
                                             type="text"
                                             value={
-                                                answers[currentQuestion] || ""
+                                                answers[currentQuestionKey] ||
+                                                ""
                                             }
                                             onChange={(e) =>
                                                 handleAnswerChange(
-                                                    currentQuestion,
+                                                    currentQuestionKey,
                                                     e.target.value
                                                 )
                                             }
@@ -383,8 +392,9 @@ export default function TakeQuiz() {
                                             <label
                                                 key={index}
                                                 className={`flex items-center p-4 rounded-xl border-2 cursor-pointer transition-all hover:shadow-sm ${
-                                                    answers[currentQuestion] ===
-                                                    option
+                                                    answers[
+                                                        currentQuestionKey
+                                                    ] === option
                                                         ? "border-indigo-600 bg-indigo-50/50"
                                                         : "border-gray-200 hover:border-indigo-200 hover:bg-gray-50"
                                                 }`}
@@ -392,14 +402,14 @@ export default function TakeQuiz() {
                                                 <div
                                                     className={`w-5 h-5 rounded-full border-2 mr-4 flex items-center justify-center transition-colors ${
                                                         answers[
-                                                            currentQuestion
+                                                            currentQuestionKey
                                                         ] === option
                                                             ? "border-indigo-600 bg-indigo-600"
                                                             : "border-gray-300 bg-white"
                                                     }`}
                                                 >
                                                     {answers[
-                                                        currentQuestion
+                                                        currentQuestionKey
                                                     ] === option && (
                                                         <div className="w-2.5 h-2.5 rounded-full bg-white" />
                                                     )}
@@ -410,12 +420,12 @@ export default function TakeQuiz() {
                                                     value={option}
                                                     checked={
                                                         answers[
-                                                            currentQuestion
+                                                            currentQuestionKey
                                                         ] === option
                                                     }
                                                     onChange={() =>
                                                         handleAnswerChange(
-                                                            currentQuestion,
+                                                            currentQuestionKey,
                                                             option
                                                         )
                                                     }
@@ -481,16 +491,18 @@ export default function TakeQuiz() {
                             Question Palette
                         </h3>
                         <div className="grid grid-cols-5 gap-2">
-                            {quiz.questions.map((_, index) => {
+                            {quiz.questions.map((question, index) => {
+                                const questionKey =
+                                    question?.originalQuestionIndex ?? index
                                 let statusClass =
                                     "bg-gray-100 text-gray-600 hover:bg-gray-200"
                                 if (index === currentQuestion) {
                                     statusClass =
                                         "ring-2 ring-indigo-600 ring-offset-2 bg-white text-indigo-600 font-bold"
-                                } else if (reviewList.has(index)) {
+                                } else if (reviewList.has(questionKey)) {
                                     statusClass =
                                         "bg-yellow-100 text-yellow-800 border border-yellow-300"
-                                } else if (answers[index]) {
+                                } else if (answers[questionKey]) {
                                     statusClass = "bg-green-100 text-green-800"
                                 }
 
@@ -503,7 +515,7 @@ export default function TakeQuiz() {
                                         className={`w-10 h-10 rounded-lg text-sm font-medium transition-all ${statusClass}`}
                                     >
                                         {index + 1}
-                                        {reviewList.has(index) &&
+                                        {reviewList.has(questionKey) &&
                                             index !== currentQuestion && (
                                                 <div className="absolute top-0 right-0 w-2 h-2 bg-yellow-400 rounded-full -mr-1 -mt-1" />
                                             )}

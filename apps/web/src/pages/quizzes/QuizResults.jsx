@@ -73,6 +73,10 @@ export default function QuizResults() {
             : "text-red-600 bg-red-100 border-red-200"
     }
 
+    const questionWiseVisibility = results?.questionWiseVisibility || {}
+    const canViewAnyQuestionWise =
+        questionWiseVisibility?.canViewAnyQuestionWise === true
+
     return (
         <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
             {/* Header */}
@@ -251,7 +255,81 @@ export default function QuizResults() {
                             </div>
                         </div>
 
-                        {/* Removed answer-by-answer review as requested. */}
+                        {/* Answer Review */}
+                        <div className="bg-white rounded-3xl shadow-xl border border-gray-100 p-8">
+                            <h3 className="text-2xl font-bold text-gray-900 mb-4">
+                                Your Responses
+                            </h3>
+
+                            {!canViewAnyQuestionWise ? (
+                                <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-800">
+                                    {questionWiseVisibility?.releaseAfterDeadline &&
+                                    !questionWiseVisibility?.releaseGateOpen
+                                        ? "Question-wise results are locked until the quiz deadline."
+                                        : "Faculty has currently disabled question-wise result visibility for this quiz."}
+                                </div>
+                            ) : results.answers?.length > 0 ? (
+                                <div className="space-y-4">
+                                    {results.answers.map((answer, index) => (
+                                        <div
+                                            key={index}
+                                            className="rounded-xl border border-gray-200 p-4"
+                                        >
+                                            <p className="font-semibold text-gray-900 mb-2">
+                                                Q{answer.questionIndex + 1}:{" "}
+                                                {answer.questionText}
+                                            </p>
+                                            <p className="text-sm text-gray-700">
+                                                <span className="font-medium">
+                                                    Your Response:
+                                                </span>{" "}
+                                                {answer.selectedAnswer ||
+                                                    "Not answered"}
+                                            </p>
+
+                                            {questionWiseVisibility?.canViewCorrectAnswers && (
+                                                <p className="text-sm text-green-700 mt-1">
+                                                    <span className="font-medium">
+                                                        Correct Answer:
+                                                    </span>{" "}
+                                                    {answer.correctAnswer ||
+                                                        "Not available"}
+                                                </p>
+                                            )}
+
+                                            {questionWiseVisibility?.canViewScores && (
+                                                <p className="text-sm text-blue-700 mt-1">
+                                                    <span className="font-medium">
+                                                        Score:
+                                                    </span>{" "}
+                                                    {Number(
+                                                        answer.marksAwarded || 0
+                                                    ).toFixed(2)}{" "}
+                                                    /{" "}
+                                                    {Number(
+                                                        answer.maxMarks || 0
+                                                    ).toFixed(2)}
+                                                </p>
+                                            )}
+
+                                            {questionWiseVisibility?.canViewFeedback &&
+                                                answer.gradingNotes && (
+                                                    <p className="text-sm text-indigo-700 mt-1">
+                                                        <span className="font-medium">
+                                                            Feedback:
+                                                        </span>{" "}
+                                                        {answer.gradingNotes}
+                                                    </p>
+                                                )}
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <p className="text-gray-500">
+                                    No question-wise responses available yet.
+                                </p>
+                            )}
+                        </div>
                     </div>
 
                     {/* Sidebar */}

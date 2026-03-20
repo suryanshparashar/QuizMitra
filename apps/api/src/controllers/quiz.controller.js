@@ -409,6 +409,19 @@ const generateQuiz = asyncHandler(async (req, res) => {
         settings = {},
     } = req.body
 
+    let parsedSettings = settings
+    if (typeof parsedSettings === "string") {
+        try {
+            parsedSettings = JSON.parse(parsedSettings)
+        } catch (error) {
+            throw new ApiError(400, "Invalid settings format")
+        }
+    }
+
+    if (!parsedSettings || typeof parsedSettings !== "object") {
+        parsedSettings = {}
+    }
+
     // ✅ Enhanced validation
     if (!classId) {
         throw new ApiError(400, "Class ID is required")
@@ -761,22 +774,23 @@ const generateQuiz = asyncHandler(async (req, res) => {
         deadline: deadlineDate,
         tags: Array.isArray(tags) ? tags : [],
         settings: {
-            attemptsAllowed: settings.attemptsAllowed || 1,
-            shuffleQuestions: settings.shuffleQuestions || false,
-            shuffleOptions: settings.shuffleOptions || false,
-            showCorrectAnswers: settings.showCorrectAnswers !== false,
-            showScoreImmediately: settings.showScoreImmediately !== false,
-            allowQuestionWiseScores: settings.allowQuestionWiseScores === true,
+            attemptsAllowed: parsedSettings.attemptsAllowed || 1,
+            shuffleQuestions: parsedSettings.shuffleQuestions || false,
+            shuffleOptions: parsedSettings.shuffleOptions || false,
+            showCorrectAnswers: parsedSettings.showCorrectAnswers !== false,
+            showScoreImmediately: parsedSettings.showScoreImmediately !== false,
+            allowQuestionWiseScores:
+                parsedSettings.allowQuestionWiseScores === true,
             allowQuestionWiseCorrectAnswers:
-                settings.allowQuestionWiseCorrectAnswers === true,
+                parsedSettings.allowQuestionWiseCorrectAnswers === true,
             allowQuestionWiseFeedback:
-                settings.allowQuestionWiseFeedback === true,
+                parsedSettings.allowQuestionWiseFeedback === true,
             releaseQuestionWiseAfterDeadline:
-                settings.releaseQuestionWiseAfterDeadline !== false,
-            allowBackNavigation: settings.allowBackNavigation !== false,
-            passingScore: settings.passingScore || 60,
-            autoSubmit: settings.autoSubmit !== false,
-            ...settings,
+                parsedSettings.releaseQuestionWiseAfterDeadline !== false,
+            allowBackNavigation: parsedSettings.allowBackNavigation !== false,
+            passingScore: parsedSettings.passingScore || 60,
+            autoSubmit: parsedSettings.autoSubmit !== false,
+            ...parsedSettings,
         },
         status: "draft",
         category: parsedRequirements.category || "quiz",
@@ -855,10 +869,42 @@ const getQuiz = asyncHandler(async (req, res) => {
 
     // ✅ Filter questions based on user role and quiz timing
     if (!canViewAnswers) {
-        responseQuiz.questions = responseQuiz.questions.map((question) => {
-            const { correctAnswer, correctOptions, ...safeQuestion } = question
-            return safeQuestion
-        })
+        responseQuiz.questions = responseQuiz.questions.map(
+            (question, index) => {
+                const { correctAnswer, correctOptions, ...safeQuestion } =
+                    question
+                return {
+                    ...safeQuestion,
+                    originalQuestionIndex: index,
+                }
+            }
+        )
+
+        if (req.user.role === "student") {
+            const shouldShuffleOptions =
+                responseQuiz?.settings?.shuffleOptions === true
+            const shouldShuffleQuestions =
+                responseQuiz?.settings?.shuffleQuestions === true
+
+            if (shouldShuffleOptions) {
+                responseQuiz.questions = responseQuiz.questions.map(
+                    (question) => {
+                        if (!Array.isArray(question.options)) {
+                            return question
+                        }
+
+                        return {
+                            ...question,
+                            options: shuffleArray(question.options),
+                        }
+                    }
+                )
+            }
+
+            if (shouldShuffleQuestions) {
+                responseQuiz.questions = shuffleArray(responseQuiz.questions)
+            }
+        }
     }
 
     // ✅ Add computed fields for frontend
@@ -1160,6 +1206,15 @@ const canUserTakeQuiz = (quiz, user, currentTime) => {
     return true
 }
 
+const shuffleArray = (items = []) => {
+    const shuffled = [...items]
+    for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1))
+        ;[shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
+    }
+    return shuffled
+}
+
 // ✅ Create quiz manually (without PDF)
 const createQuizManual = asyncHandler(async (req, res) => {
     if (req.user.role !== "faculty") {
@@ -1362,11 +1417,13 @@ const updateQuiz = asyncHandler(async (req, res) => {
         "tags",
     ]
     const scheduleFields = ["scheduledAt", "deadline"]
-    const visibilitySettingKeys = [
+    const mutableSettingKeys = [
         "allowQuestionWiseScores",
         "allowQuestionWiseCorrectAnswers",
         "allowQuestionWiseFeedback",
         "releaseQuestionWiseAfterDeadline",
+        "shuffleQuestions",
+        "shuffleOptions",
     ]
     const filteredData = {}
 
@@ -1387,7 +1444,7 @@ const updateQuiz = asyncHandler(async (req, res) => {
                 : quiz.settings || {}
 
         const nextSettings = { ...currentSettings }
-        for (const key of visibilitySettingKeys) {
+        for (const key of mutableSettingKeys) {
             if (typeof filteredData.settings[key] === "boolean") {
                 nextSettings[key] = filteredData.settings[key]
             }
@@ -1404,9 +1461,7 @@ const updateQuiz = asyncHandler(async (req, res) => {
 
             const incomingSettings = updateData.settings || {}
             const incomingKeys = Object.keys(incomingSettings)
-            return incomingKeys.some(
-                (key) => !visibilitySettingKeys.includes(key)
-            )
+            return incomingKeys.some((key) => !mutableSettingKeys.includes(key))
         })
     ) {
         throw new ApiError(

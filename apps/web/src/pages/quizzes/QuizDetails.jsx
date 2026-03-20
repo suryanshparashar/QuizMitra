@@ -32,6 +32,10 @@ export default function QuizDetails() {
     const [newScheduledAt, setNewScheduledAt] = useState("")
     const [newDeadline, setNewDeadline] = useState("")
     const [savingDates, setSavingDates] = useState(false)
+    const [savingVisibility, setSavingVisibility] = useState(false)
+    const [questionWiseViewEnabled, setQuestionWiseViewEnabled] =
+        useState(false)
+    const [savingSettingKey, setSavingSettingKey] = useState("")
 
     useEffect(() => {
         fetchQuiz()
@@ -40,7 +44,12 @@ export default function QuizDetails() {
     const fetchQuiz = async () => {
         try {
             const response = await api.get(`/quizzes/${quizId}`)
-            setQuiz(response.data.data)
+            const data = response.data.data
+            setQuiz(data)
+            setQuestionWiseViewEnabled(
+                data?.settings?.allowQuestionWiseScores === true &&
+                    data?.settings?.allowQuestionWiseCorrectAnswers === true
+            )
         } catch (error) {
             console.error("Error fetching quiz:", error)
         } finally {
@@ -90,6 +99,67 @@ export default function QuizDetails() {
         }
     }
 
+    const handleToggleQuestionWiseView = async () => {
+        const nextEnabled = !questionWiseViewEnabled
+        setSavingVisibility(true)
+        try {
+            const nextSettings = {
+                allowQuestionWiseScores: nextEnabled,
+                allowQuestionWiseCorrectAnswers: nextEnabled,
+                allowQuestionWiseFeedback: false,
+                releaseQuestionWiseAfterDeadline: false,
+            }
+
+            await api.patch(`/quizzes/${quizId}`, {
+                settings: nextSettings,
+            })
+
+            setQuiz((prev) => ({
+                ...prev,
+                settings: {
+                    ...(prev?.settings || {}),
+                    ...nextSettings,
+                },
+            }))
+            setQuestionWiseViewEnabled(nextEnabled)
+        } catch (error) {
+            console.log(error)
+            alert(
+                error.response?.data?.message ||
+                    "Failed to update result visibility settings"
+            )
+        } finally {
+            setSavingVisibility(false)
+        }
+    }
+
+    const handleToggleQuizSetting = async (settingKey) => {
+        const currentValue = quiz?.settings?.[settingKey] === true
+        const nextValue = !currentValue
+
+        setSavingSettingKey(settingKey)
+        try {
+            await api.patch(`/quizzes/${quizId}`, {
+                settings: {
+                    [settingKey]: nextValue,
+                },
+            })
+
+            setQuiz((prev) => ({
+                ...prev,
+                settings: {
+                    ...(prev?.settings || {}),
+                    [settingKey]: nextValue,
+                },
+            }))
+        } catch (error) {
+            console.log(error)
+            alert(error.response?.data?.message || "Failed to update setting")
+        } finally {
+            setSavingSettingKey("")
+        }
+    }
+
     const getStatusColor = (status) => {
         switch (status?.toLowerCase()) {
             case "published":
@@ -126,6 +196,10 @@ export default function QuizDetails() {
             </div>
         )
     }
+
+    const canManageQuiz =
+        user?.role === "faculty" &&
+        (quiz.userId?._id === user._id || quiz.userId === user._id)
 
     return (
         <div className="min-h-screen bg-gray-50 py-8">
@@ -342,71 +416,157 @@ export default function QuizDetails() {
 
                             <div className="space-y-4">
                                 {/* Faculty Controls */}
-                                {user?.role === "faculty" &&
-                                    (quiz.userId?._id === user._id ||
-                                        quiz.userId === user._id) && (
-                                        <>
-                                            {(quiz.status === "draft" ||
-                                                new Date(quiz.deadline) <
-                                                    new Date()) && (
-                                                <>
-                                                    <button
-                                                        onClick={handlePublish}
-                                                        className="w-full inline-flex items-center justify-center px-4 py-3 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 mb-3"
-                                                    >
-                                                        <Play className="h-4 w-4 mr-2" />
-                                                        {quiz.status === "draft"
-                                                            ? "Publish Quiz"
-                                                            : "Re-publish Quiz"}
-                                                    </button>
+                                {canManageQuiz && (
+                                    <>
+                                        {(quiz.status === "draft" ||
+                                            new Date(quiz.deadline) <
+                                                new Date()) && (
+                                            <>
+                                                <button
+                                                    onClick={handlePublish}
+                                                    className="w-full inline-flex items-center justify-center px-4 py-3 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 mb-3"
+                                                >
+                                                    <Play className="h-4 w-4 mr-2" />
+                                                    {quiz.status === "draft"
+                                                        ? "Publish Quiz"
+                                                        : "Re-publish Quiz"}
+                                                </button>
 
-                                                    <Link
-                                                        to={`/quizzes/${quizId}/edit`}
-                                                        className="block mb-3"
-                                                    >
-                                                        <button className="w-full inline-flex items-center justify-center px-4 py-3 bg-white text-gray-700 border border-gray-300 text-sm font-medium rounded-lg hover:bg-gray-50 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2">
-                                                            <Edit className="h-4 w-4 mr-2" />
-                                                            Edit Questions
-                                                        </button>
-                                                    </Link>
-
-                                                    <button
-                                                        onClick={
-                                                            handleOpenEditModal
-                                                        }
-                                                        className="w-full inline-flex items-center justify-center px-4 py-3 bg-white text-gray-700 border border-gray-300 text-sm font-medium rounded-lg hover:bg-gray-50 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 mb-3"
-                                                    >
-                                                        <Calendar className="h-4 w-4 mr-2" />
-                                                        Edit Timings
+                                                <Link
+                                                    to={`/quizzes/${quizId}/edit`}
+                                                    className="block mb-3"
+                                                >
+                                                    <button className="w-full inline-flex items-center justify-center px-4 py-3 bg-white text-gray-700 border border-gray-300 text-sm font-medium rounded-lg hover:bg-gray-50 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2">
+                                                        <Edit className="h-4 w-4 mr-2" />
+                                                        Edit Questions
                                                     </button>
-                                                </>
+                                                </Link>
+
+                                                <button
+                                                    onClick={
+                                                        handleOpenEditModal
+                                                    }
+                                                    className="w-full inline-flex items-center justify-center px-4 py-3 bg-white text-gray-700 border border-gray-300 text-sm font-medium rounded-lg hover:bg-gray-50 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 mb-3"
+                                                >
+                                                    <Calendar className="h-4 w-4 mr-2" />
+                                                    Edit Timings
+                                                </button>
+                                            </>
+                                        )}
+
+                                        {quiz.status === "published" &&
+                                            new Date(quiz.deadline) >=
+                                                new Date() && (
+                                                <button
+                                                    onClick={
+                                                        handleOpenEditModal
+                                                    }
+                                                    className="w-full inline-flex items-center justify-center px-4 py-3 bg-white text-gray-700 border border-gray-300 text-sm font-medium rounded-lg hover:bg-gray-50 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 mb-3"
+                                                >
+                                                    <Calendar className="h-4 w-4 mr-2" />
+                                                    Edit Timings
+                                                </button>
                                             )}
 
-                                            {quiz.status === "published" &&
-                                                new Date(quiz.deadline) >=
-                                                    new Date() && (
-                                                    <button
-                                                        onClick={
-                                                            handleOpenEditModal
-                                                        }
-                                                        className="w-full inline-flex items-center justify-center px-4 py-3 bg-white text-gray-700 border border-gray-300 text-sm font-medium rounded-lg hover:bg-gray-50 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 mb-3"
-                                                    >
-                                                        <Calendar className="h-4 w-4 mr-2" />
-                                                        Edit Timings
-                                                    </button>
-                                                )}
+                                        <Link
+                                            to={`/quiz-grading/${quizId}`}
+                                            className="block"
+                                        >
+                                            <button className="w-full inline-flex items-center justify-center px-4 py-3 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+                                                <Eye className="h-4 w-4 mr-2" />
+                                                View Results
+                                            </button>
+                                        </Link>
 
-                                            <Link
-                                                to={`/quiz-grading/${quizId}`}
-                                                className="block"
+                                        <div className="mt-4 border border-gray-200 rounded-lg p-3 space-y-3">
+                                            <p className="text-sm font-semibold text-gray-800">
+                                                Student Result Visibility
+                                            </p>
+
+                                            <p className="text-xs text-gray-500">
+                                                When enabled, students can view
+                                                their answer, correct answer,
+                                                and score.
+                                            </p>
+
+                                            <button
+                                                onClick={
+                                                    handleToggleQuestionWiseView
+                                                }
+                                                disabled={savingVisibility}
+                                                className={`w-full inline-flex items-center justify-center px-3 py-2 text-white text-xs font-medium rounded-md disabled:opacity-50 ${
+                                                    questionWiseViewEnabled
+                                                        ? "bg-rose-600 hover:bg-rose-700"
+                                                        : "bg-indigo-600 hover:bg-indigo-700"
+                                                }`}
                                             >
-                                                <button className="w-full inline-flex items-center justify-center px-4 py-3 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
-                                                    <Eye className="h-4 w-4 mr-2" />
-                                                    View Results
-                                                </button>
-                                            </Link>
-                                        </>
-                                    )}
+                                                {savingVisibility
+                                                    ? "Saving..."
+                                                    : questionWiseViewEnabled
+                                                      ? "Disable Question-wise View"
+                                                      : "Enable Question-wise View"}
+                                            </button>
+                                        </div>
+
+                                        <div className="mt-4 border border-gray-200 rounded-lg p-3 space-y-3">
+                                            <p className="text-sm font-semibold text-gray-800">
+                                                Anti-Cheat Shuffle
+                                            </p>
+
+                                            <button
+                                                onClick={() =>
+                                                    handleToggleQuizSetting(
+                                                        "shuffleQuestions"
+                                                    )
+                                                }
+                                                disabled={
+                                                    savingSettingKey ===
+                                                    "shuffleQuestions"
+                                                }
+                                                className={`w-full inline-flex items-center justify-center px-3 py-2 text-white text-xs font-medium rounded-md disabled:opacity-50 ${
+                                                    quiz?.settings
+                                                        ?.shuffleQuestions
+                                                        ? "bg-rose-600 hover:bg-rose-700"
+                                                        : "bg-emerald-600 hover:bg-emerald-700"
+                                                }`}
+                                            >
+                                                {savingSettingKey ===
+                                                "shuffleQuestions"
+                                                    ? "Saving..."
+                                                    : quiz?.settings
+                                                            ?.shuffleQuestions
+                                                      ? "Disable Shuffle Questions"
+                                                      : "Enable Shuffle Questions"}
+                                            </button>
+
+                                            <button
+                                                onClick={() =>
+                                                    handleToggleQuizSetting(
+                                                        "shuffleOptions"
+                                                    )
+                                                }
+                                                disabled={
+                                                    savingSettingKey ===
+                                                    "shuffleOptions"
+                                                }
+                                                className={`w-full inline-flex items-center justify-center px-3 py-2 text-white text-xs font-medium rounded-md disabled:opacity-50 ${
+                                                    quiz?.settings
+                                                        ?.shuffleOptions
+                                                        ? "bg-rose-600 hover:bg-rose-700"
+                                                        : "bg-emerald-600 hover:bg-emerald-700"
+                                                }`}
+                                            >
+                                                {savingSettingKey ===
+                                                "shuffleOptions"
+                                                    ? "Saving..."
+                                                    : quiz?.settings
+                                                            ?.shuffleOptions
+                                                      ? "Disable Shuffle Options"
+                                                      : "Enable Shuffle Options"}
+                                            </button>
+                                        </div>
+                                    </>
+                                )}
 
                                 {/* Student Controls */}
                                 {user?.role === "student" && (

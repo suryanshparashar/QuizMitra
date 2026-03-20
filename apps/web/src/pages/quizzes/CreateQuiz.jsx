@@ -647,13 +647,9 @@ export default function CreateQuiz() {
             : []
 
         const isAlreadySelected = selectedTypes.includes(typeValue)
-        let nextTypes
-
-        if (isAlreadySelected) {
-            nextTypes = selectedTypes.filter((entry) => entry !== typeValue)
-        } else {
-            nextTypes = [...selectedTypes, typeValue]
-        }
+        const nextTypes = isAlreadySelected
+            ? selectedTypes.filter((entry) => entry !== typeValue)
+            : [...selectedTypes, typeValue]
 
         setFormData({
             ...formData,
