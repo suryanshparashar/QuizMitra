@@ -174,26 +174,182 @@ export const AdvisoryService = {
         attempt,
         student,
         previousInsights,
+        recentPerformances = [],
     }) => {
-        try {
-            const currentAnswers = (attempt?.answers || []).map((answer) => {
-                const question = quiz.questions?.[answer.questionIndex]
-                return {
-                    questionText: answer.questionText,
-                    topic: question?.topic || "General understanding",
-                    questionType: question?.questionType || "unknown",
-                    selectedAnswer: answer.selectedAnswer,
-                    marksAwarded: answer.marksAwarded,
-                    maxMarks: answer.maxMarks,
-                    correctnessScore: Number(answer.correctnessScore || 0),
+        const flattenTopicSignals = (items = []) => {
+            return items.flatMap((entry) => {
+                const quizTitle = entry?.quizTitle || "Quiz"
+                const answers = Array.isArray(entry?.answers)
+                    ? entry.answers
+                    : []
+
+                return answers.map((ans) => {
+                    const topic = String(
+                        ans?.topic || "General understanding"
+                    ).trim()
+                    const correctnessScore = Number(ans?.correctnessScore)
+                    const marksAwarded = Number(ans?.marksAwarded || 0)
+                    const maxMarks = Number(ans?.maxMarks || 0)
+
+                    let scoreRatio = 0
+                    if (Number.isFinite(correctnessScore)) {
+                        scoreRatio = Math.max(0, Math.min(1, correctnessScore))
+                    } else if (maxMarks > 0) {
+                        scoreRatio = Math.max(
+                            0,
+                            Math.min(1, marksAwarded / maxMarks)
+                        )
+                    }
+
+                    return {
+                        topic,
+                        scoreRatio,
+                        quizTitle,
+                    }
+                })
+            })
+        }
+
+        const buildTopicWiseInsights = (items = []) => {
+            const topicSignals = flattenTopicSignals(items)
+            const topicMap = new Map()
+
+            topicSignals.forEach((signal) => {
+                const key = signal.topic.toLowerCase()
+                if (!topicMap.has(key)) {
+                    topicMap.set(key, {
+                        topic: signal.topic,
+                        scores: [],
+                        quizTitles: new Set(),
+                    })
                 }
+
+                const bucket = topicMap.get(key)
+                bucket.scores.push(signal.scoreRatio)
+                bucket.quizTitles.add(signal.quizTitle)
             })
 
+            const topicStats = [...topicMap.values()]
+                .map((item) => {
+                    const count = item.scores.length
+                    const avg =
+                        count > 0
+                            ? item.scores.reduce((sum, s) => sum + s, 0) / count
+                            : 0
+
+                    return {
+                        topic: item.topic,
+                        count,
+                        avg,
+                        quizCount: item.quizTitles.size,
+                    }
+                })
+                .sort((a, b) => b.avg - a.avg)
+
+            const strongTopics = topicStats
+                .filter((entry) => entry.count >= 2 && entry.avg >= 0.7)
+                .slice(0, 3)
+
+            const weakTopics = topicStats
+                .filter((entry) => entry.count >= 2 && entry.avg < 0.6)
+                .sort((a, b) => a.avg - b.avg)
+                .slice(0, 3)
+
+            const strongAreas =
+                strongTopics.length > 0
+                    ? strongTopics.map(
+                          (entry) =>
+                              `${entry.topic}: ${Math.round(entry.avg * 100)}% average across ${entry.count} recent questions.`
+                      )
+                    : [
+                          "You are maintaining quiz participation and building foundational consistency.",
+                      ]
+
+            const weakAreas =
+                weakTopics.length > 0
+                    ? weakTopics.map(
+                          (entry) =>
+                              `${entry.topic}: ${Math.round(entry.avg * 100)}% average across ${entry.count} recent questions; needs focused revision.`
+                      )
+                    : [
+                          "No persistent weak topic detected yet from recent data.",
+                      ]
+
+            const improvementRoadmap =
+                weakTopics.length > 0
+                    ? weakTopics
+                          .slice(0, 2)
+                          .map(
+                              (entry) =>
+                                  `Revise ${entry.topic} using mistakes from recent quizzes and reattempt similar questions within 48 hours.`
+                          )
+                    : [
+                          "Continue revising recently covered topics to maintain performance stability.",
+                      ]
+
+            const practiceGuide =
+                weakTopics.length > 0
+                    ? weakTopics
+                          .slice(0, 2)
+                          .map(
+                              (entry) =>
+                                  `Practice one focused set on ${entry.topic} daily, then summarize key rules/formulas in your own words.`
+                          )
+                    : [
+                          "Attempt one mixed-topic practice set daily to keep all topics active.",
+                      ]
+
+            return {
+                strongAreas,
+                weakAreas,
+                improvementRoadmap,
+                practiceGuide,
+                summary:
+                    "Topic-wise insights generated from recent quiz performance trends.",
+            }
+        }
+
+        const currentAnswers = (attempt?.answers || []).map((answer) => {
+            const question = quiz.questions?.[answer.questionIndex]
+            return {
+                questionText: answer.questionText,
+                topic: question?.topic || "General understanding",
+                questionType: question?.questionType || "unknown",
+                selectedAnswer: answer.selectedAnswer,
+                marksAwarded: answer.marksAwarded,
+                maxMarks: answer.maxMarks,
+                correctnessScore: Number(answer.correctnessScore || 0),
+            }
+        })
+
+        const baseRecent = Array.isArray(recentPerformances)
+            ? recentPerformances
+            : []
+
+        const hasCurrentQuizInRecent = baseRecent.some(
+            (entry) =>
+                String(entry?.quizTitle || "") === String(quiz?.title || "")
+        )
+
+        const mergedRecent = hasCurrentQuizInRecent
+            ? baseRecent
+            : [
+                  {
+                      quizTitle: quiz?.title || "Current Quiz",
+                      answers: currentAnswers,
+                  },
+                  ...baseRecent,
+              ]
+
+        const deterministicInsights = buildTopicWiseInsights(mergedRecent)
+
+        try {
             const prompt = `
 You are QuizMitra's Student Performance Insight Agent.
 You are given:
 1) Previous performance insights of the student (if available)
 2) Latest quiz responses and scores
+3) Topic-level trends extracted from recent performances
 
 Generate updated and cumulative insights that reflect progress over time.
 
@@ -207,6 +363,9 @@ ${JSON.stringify(previousInsights || {}, null, 2)}
 
 Latest Quiz Answers (with correctness signal):
 ${JSON.stringify(currentAnswers, null, 2)}
+
+Recent Topic Trends:
+${JSON.stringify(deterministicInsights, null, 2)}
 
 Return ONLY valid JSON:
 {
@@ -240,41 +399,40 @@ Rules:
 
             const parsed = JSON.parse(extractJsonObject(rawContent))
 
+            const sanitizeArray = (arr, fallback) => {
+                if (!Array.isArray(arr)) return fallback
+                const cleaned = arr
+                    .map((item) => String(item || "").trim())
+                    .filter(Boolean)
+                return cleaned.length > 0 ? cleaned : fallback
+            }
+
+            const summary = String(parsed?.summary || "").trim()
+
             return {
-                strongAreas: Array.isArray(parsed?.strongAreas)
-                    ? parsed.strongAreas.filter(Boolean)
-                    : [],
-                weakAreas: Array.isArray(parsed?.weakAreas)
-                    ? parsed.weakAreas.filter(Boolean)
-                    : [],
-                improvementRoadmap: Array.isArray(parsed?.improvementRoadmap)
-                    ? parsed.improvementRoadmap.filter(Boolean)
-                    : [],
-                practiceGuide: Array.isArray(parsed?.practiceGuide)
-                    ? parsed.practiceGuide.filter(Boolean)
-                    : [],
-                summary: String(parsed?.summary || "").trim(),
+                strongAreas: sanitizeArray(
+                    parsed?.strongAreas,
+                    deterministicInsights.strongAreas
+                ),
+                weakAreas: sanitizeArray(
+                    parsed?.weakAreas,
+                    deterministicInsights.weakAreas
+                ),
+                improvementRoadmap: sanitizeArray(
+                    parsed?.improvementRoadmap,
+                    deterministicInsights.improvementRoadmap
+                ),
+                practiceGuide: sanitizeArray(
+                    parsed?.practiceGuide,
+                    deterministicInsights.practiceGuide
+                ),
+                summary: summary || deterministicInsights.summary,
                 generatedAt: new Date(),
             }
         } catch (error) {
             console.error("Performance Insight Generation Error:", error)
             return {
-                strongAreas: [
-                    "You are maintaining participation and completing quizzes.",
-                ],
-                weakAreas: [
-                    "Detailed trend-based analysis is temporarily unavailable.",
-                ],
-                improvementRoadmap: [
-                    "Revise key concepts from incorrect or partially-correct responses.",
-                    "Track recurring weak topics and practice them weekly.",
-                ],
-                practiceGuide: [
-                    "Attempt one topic-focused practice set daily.",
-                    "Summarize each weak topic in your own words after revision.",
-                ],
-                summary:
-                    "Keep building consistency. Your preparation insights will improve as more quiz data accumulates.",
+                ...deterministicInsights,
                 generatedAt: new Date(),
             }
         }

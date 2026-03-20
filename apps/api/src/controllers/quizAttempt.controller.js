@@ -37,6 +37,47 @@ const updateStudentPerformanceInsights = async ({
     previousInsights,
     student,
 }) => {
+    const recentAttempts = await QuizAttempt.find({
+        student: studentId,
+        class: classId,
+        status: { $in: ["submitted", "graded", "reviewed"] },
+    })
+        .populate({
+            path: "quiz",
+            select: "title questions.topic questions.difficulty questions.questionType",
+        })
+        .sort({ submittedAt: -1 })
+        .limit(8)
+        .select("quiz answers percentage submittedAt")
+        .lean()
+
+    const recentPerformances = recentAttempts.map((attemptDoc) => {
+        const quizDoc = attemptDoc?.quiz || {}
+        const quizQuestions = Array.isArray(quizDoc?.questions)
+            ? quizDoc.questions
+            : []
+
+        const answers = Array.isArray(attemptDoc?.answers)
+            ? attemptDoc.answers.map((ans) => {
+                  const q = quizQuestions[ans.questionIndex] || {}
+                  return {
+                      topic: q.topic || q.difficulty || "General understanding",
+                      questionType: q.questionType || "unknown",
+                      marksAwarded: ans.marksAwarded,
+                      maxMarks: ans.maxMarks,
+                      correctnessScore: Number(ans.correctnessScore || 0),
+                  }
+              })
+            : []
+
+        return {
+            quizTitle: quizDoc?.title || "Quiz",
+            percentage: Number(attemptDoc?.percentage || 0),
+            submittedAt: attemptDoc?.submittedAt,
+            answers,
+        }
+    })
+
     const newInsights = await AdvisoryService.generatePerformanceInsights({
         quiz,
         attempt: {
@@ -47,6 +88,7 @@ const updateStudentPerformanceInsights = async ({
         },
         student,
         previousInsights,
+        recentPerformances,
     })
 
     const existingPerformance = await StudentPerformance.findOne({

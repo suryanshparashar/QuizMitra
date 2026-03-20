@@ -173,6 +173,11 @@ export default function PerformanceInsights() {
 
     const renderInsightsPanel = (performanceDoc) => {
         const insights = performanceDoc?.latestInsights || {}
+        const safeSummary =
+            String(insights.summary || "").trim() ===
+            "Keep building consistency. Your preparation insights will improve as more quiz data accumulates."
+                ? "Topic-wise insights generated from recent quiz performance trends."
+                : insights.summary
         const stats = performanceDoc?.stats || {}
         const history = Array.isArray(performanceDoc?.history)
             ? [...performanceDoc.history].slice(-5).reverse()
@@ -186,7 +191,7 @@ export default function PerformanceInsights() {
                         Latest Insights Summary
                     </h2>
                     <p className="text-gray-700">
-                        {insights.summary ||
+                        {safeSummary ||
                             "No summary generated yet. Complete more quizzes to build insights."}
                     </p>
                 </div>
