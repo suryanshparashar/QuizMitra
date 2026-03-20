@@ -497,7 +497,7 @@ const getStudentDashboardData = async (studentId) => {
         })),
         recentAttempts: recentAttempts.map((attempt) => ({
             ...attempt,
-            grade: calculateGrade(attempt.percentage),
+            grade: calculateGrade(attempt.percentage, attempt.isDebarred),
             isPassed: attempt.percentage >= 41,
         })),
         recentMessages: messages,
@@ -650,7 +650,8 @@ const getTimeUntilDate = (date) => {
     return `${hours}h`
 }
 
-const calculateGrade = (percentage) => {
+const calculateGrade = (percentage, isDebarred = false) => {
+    if (isDebarred) return "N"
     if (percentage >= 91) return "S"
     if (percentage >= 81) return "A"
     if (percentage >= 71) return "B"

@@ -333,6 +333,7 @@ quizAttemptSchema.virtual("accuracy").get(function () {
 
 // ✅ Instance methods (using different names than schema fields)
 quizAttemptSchema.methods.calculateGrade = function () {
+    if (this.isDebarred) return "N"
     if (this.percentage >= 91) return "S"
     if (this.percentage >= 81) return "A"
     if (this.percentage >= 71) return "B"
@@ -343,6 +344,7 @@ quizAttemptSchema.methods.calculateGrade = function () {
 }
 
 quizAttemptSchema.methods.checkIfPassed = function (passingScore = 41) {
+    if (this.isDebarred) return false
     return this.percentage >= passingScore
 }
 

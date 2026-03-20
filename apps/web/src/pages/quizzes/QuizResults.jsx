@@ -62,6 +62,8 @@ export default function QuizResults() {
                 return "text-rose-600 bg-rose-100"
             case "F":
                 return "text-red-600 bg-red-100"
+            case "N":
+                return "text-red-800 bg-red-200"
             default:
                 return "text-red-600 bg-red-100"
         }

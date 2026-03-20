@@ -312,7 +312,10 @@ const updateAttemptMarks = asyncHandler(async (req, res) => {
 
         // Only notify if status is reviewed or completed
         if (attempt.status === "reviewed") {
-            const newGrade = calculateGrade(attempt.percentage)
+            const newGrade = calculateGrade(
+                attempt.percentage,
+                attempt.isDebarred
+            )
 
             await createNotification({
                 recipient: attempt.student,
@@ -348,7 +351,8 @@ const updateAttemptMarks = asyncHandler(async (req, res) => {
                     ).toFixed(2),
                     newPercentage: attempt.percentage.toFixed(2),
                     oldGrade: calculateGrade(
-                        (oldTotalMarks / attempt.maxMarks) * 100
+                        (oldTotalMarks / attempt.maxMarks) * 100,
+                        attempt.isDebarred
                     ),
                     newGrade: attempt.calculateGrade(),
                     questionsUpdated: questionUpdates.length,
@@ -572,7 +576,8 @@ const addFacultyFeedback = asyncHandler(async (req, res) => {
 })
 
 // Helper function for grade calculation
-const calculateGrade = (percentage) => {
+const calculateGrade = (percentage, isDebarred = false) => {
+    if (isDebarred) return "N"
     if (percentage >= 91) return "S"
     if (percentage >= 81) return "A"
     if (percentage >= 71) return "B"
