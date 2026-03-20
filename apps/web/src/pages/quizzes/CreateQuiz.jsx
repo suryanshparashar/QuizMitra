@@ -22,6 +22,7 @@ const MAX_PDF_SIZE_BYTES = 10 * 1024 * 1024
 const DEFAULT_DURATION_MINUTES = 30
 const MIN_DEADLINE_BUFFER_MINUTES = 10
 const MAX_TOTAL_MARKS = 100
+const TOPIC_CHAR_LIMIT = 200
 const QUESTION_TYPE_OPTIONS = [
     { value: "multiple-choice", label: "MCQ" },
     { value: "true-false", label: "True / False" },
@@ -148,6 +149,8 @@ export default function CreateQuiz() {
     const pdfProcessingFinalizedRef = useRef(false)
     const materialInputRef = useRef(null)
     const materialProcessingPollRef = useRef(null)
+    const topicCharCount = formData.topic.length
+    const isTopicCharLimitExceeded = topicCharCount > TOPIC_CHAR_LIMIT
 
     useEffect(() => {
         const fetchClasses = async () => {
@@ -537,6 +540,13 @@ export default function CreateQuiz() {
 
         if (inputMode === "topic" && !formData.topic.trim()) {
             showToast.error("Please enter a topic")
+            return
+        }
+
+        if (inputMode === "topic" && formData.topic.length > TOPIC_CHAR_LIMIT) {
+            showToast.error(
+                `Topic cannot exceed ${TOPIC_CHAR_LIMIT} characters`
+            )
             return
         }
 
@@ -1402,16 +1412,31 @@ export default function CreateQuiz() {
                                             })
                                         }
                                         rows={4}
-                                        className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-colors duration-200 resize-none disabled:bg-gray-100 disabled:cursor-not-allowed"
+                                        className={`w-full pl-10 pr-4 py-3 border rounded-lg focus:ring-2 focus:border-transparent transition-colors duration-200 resize-none disabled:bg-gray-100 disabled:cursor-not-allowed ${
+                                            isTopicCharLimitExceeded
+                                                ? "border-red-400 outline outline-1 outline-red-400 focus:ring-red-500 focus:outline-red-500"
+                                                : "border-gray-300 outline outline-1 outline-transparent focus:ring-purple-500"
+                                        }`}
                                         required={inputMode === "topic"}
                                         disabled={loading}
                                     />
                                 </div>
-                                <p className="mt-2 text-sm text-gray-500">
-                                    The AI will generate questions based purely
-                                    on this topic. Be specific for better
-                                    results.
-                                </p>
+                                <div className="mt-2 flex items-center justify-between gap-3">
+                                    <p className="text-sm text-gray-500">
+                                        The AI will generate questions based
+                                        purely on this topic. Be specific for
+                                        better results.
+                                    </p>
+                                    <span
+                                        className={`text-xs font-medium ${
+                                            isTopicCharLimitExceeded
+                                                ? "text-red-600"
+                                                : "text-gray-500"
+                                        }`}
+                                    >
+                                        {topicCharCount}/{TOPIC_CHAR_LIMIT}
+                                    </span>
+                                </div>
                             </div>
                         )}
                     </div>
