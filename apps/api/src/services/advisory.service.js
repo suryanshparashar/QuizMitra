@@ -168,4 +168,115 @@ export const AdvisoryService = {
             }
         }
     },
+
+    generatePerformanceInsights: async ({
+        quiz,
+        attempt,
+        student,
+        previousInsights,
+    }) => {
+        try {
+            const currentAnswers = (attempt?.answers || []).map((answer) => {
+                const question = quiz.questions?.[answer.questionIndex]
+                return {
+                    questionText: answer.questionText,
+                    topic: question?.topic || "General understanding",
+                    questionType: question?.questionType || "unknown",
+                    selectedAnswer: answer.selectedAnswer,
+                    marksAwarded: answer.marksAwarded,
+                    maxMarks: answer.maxMarks,
+                    correctnessScore: Number(answer.correctnessScore || 0),
+                }
+            })
+
+            const prompt = `
+You are QuizMitra's Student Performance Insight Agent.
+You are given:
+1) Previous performance insights of the student (if available)
+2) Latest quiz responses and scores
+
+Generate updated and cumulative insights that reflect progress over time.
+
+Student: ${student?.fullName || "Student"}
+Quiz: ${quiz?.title || "Untitled Quiz"}
+Current Score: ${attempt?.marksObtained || 0}/${attempt?.maxMarks || 0}
+Current Percentage: ${attempt?.percentage || 0}
+
+Previous Insights:
+${JSON.stringify(previousInsights || {}, null, 2)}
+
+Latest Quiz Answers (with correctness signal):
+${JSON.stringify(currentAnswers, null, 2)}
+
+Return ONLY valid JSON:
+{
+  "strongAreas": ["string", "string"],
+  "weakAreas": ["string", "string"],
+  "improvementRoadmap": ["string", "string"],
+  "practiceGuide": ["string", "string"],
+  "summary": "string"
+}
+
+Rules:
+- Keep recommendations actionable and topic-specific.
+- Consider previous insights and update them based on latest answers.
+- Do not include markdown or extra text.
+`.trim()
+
+            const result = await getAdvisoryModel().invoke([
+                new SystemMessage(
+                    "You are an expert learning coach. Always return strict JSON only."
+                ),
+                new HumanMessage(prompt),
+            ])
+
+            const rawContent = Array.isArray(result.content)
+                ? result.content
+                      .map((part) =>
+                          typeof part === "string" ? part : part?.text || ""
+                      )
+                      .join("\n")
+                : result.content
+
+            const parsed = JSON.parse(extractJsonObject(rawContent))
+
+            return {
+                strongAreas: Array.isArray(parsed?.strongAreas)
+                    ? parsed.strongAreas.filter(Boolean)
+                    : [],
+                weakAreas: Array.isArray(parsed?.weakAreas)
+                    ? parsed.weakAreas.filter(Boolean)
+                    : [],
+                improvementRoadmap: Array.isArray(parsed?.improvementRoadmap)
+                    ? parsed.improvementRoadmap.filter(Boolean)
+                    : [],
+                practiceGuide: Array.isArray(parsed?.practiceGuide)
+                    ? parsed.practiceGuide.filter(Boolean)
+                    : [],
+                summary: String(parsed?.summary || "").trim(),
+                generatedAt: new Date(),
+            }
+        } catch (error) {
+            console.error("Performance Insight Generation Error:", error)
+            return {
+                strongAreas: [
+                    "You are maintaining participation and completing quizzes.",
+                ],
+                weakAreas: [
+                    "Detailed trend-based analysis is temporarily unavailable.",
+                ],
+                improvementRoadmap: [
+                    "Revise key concepts from incorrect or partially-correct responses.",
+                    "Track recurring weak topics and practice them weekly.",
+                ],
+                practiceGuide: [
+                    "Attempt one topic-focused practice set daily.",
+                    "Summarize each weak topic in your own words after revision.",
+                ],
+                summary:
+                    "Keep building consistency. Your preparation insights will improve as more quiz data accumulates.",
+                generatedAt: new Date(),
+            }
+        }
+    },
 }

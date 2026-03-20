@@ -5,7 +5,115 @@ import { User } from "../models/user.model.js"
 import { ApiResponse, ApiError, asyncHandler } from "../utils/index.js"
 import { EvaluationService } from "../services/evaluation.service.js"
 import { AdvisoryService } from "../services/advisory.service.js"
+import { StudentPerformance } from "../models/studentPerformance.model.js"
 import mongoose from "mongoose"
+
+const toLegacyAdvisoryShape = (insights) => {
+    return {
+        strengths: Array.isArray(insights?.strongAreas)
+            ? insights.strongAreas
+            : [],
+        weaknesses: Array.isArray(insights?.weakAreas)
+            ? insights.weakAreas
+            : [],
+        recommendations: [
+            ...(Array.isArray(insights?.improvementRoadmap)
+                ? insights.improvementRoadmap
+                : []),
+            ...(Array.isArray(insights?.practiceGuide)
+                ? insights.practiceGuide
+                : []),
+        ].slice(0, 6),
+        motivationalMessage:
+            insights?.summary || "Keep learning with consistent practice.",
+    }
+}
+
+const updateStudentPerformanceInsights = async ({
+    studentId,
+    classId,
+    quiz,
+    quizAttempt,
+    previousInsights,
+    student,
+}) => {
+    const newInsights = await AdvisoryService.generatePerformanceInsights({
+        quiz,
+        attempt: {
+            answers: quizAttempt.answers,
+            marksObtained: quizAttempt.marksObtained,
+            maxMarks: quizAttempt.maxMarks,
+            percentage: quizAttempt.percentage,
+        },
+        student,
+        previousInsights,
+    })
+
+    const existingPerformance = await StudentPerformance.findOne({
+        student: studentId,
+        class: classId,
+    })
+
+    const previousHistory = Array.isArray(existingPerformance?.history)
+        ? existingPerformance.history
+        : []
+    const updatedHistory = [
+        ...previousHistory,
+        {
+            attempt: quizAttempt._id,
+            quiz: quiz._id,
+            score: quizAttempt.marksObtained,
+            maxMarks: quizAttempt.maxMarks,
+            percentage: quizAttempt.percentage,
+            insightsSnapshot: newInsights,
+            generatedAt: new Date(),
+        },
+    ]
+
+    const attemptsCount = updatedHistory.length
+    const averagePercentage =
+        attemptsCount > 0
+            ? updatedHistory.reduce(
+                  (sum, item) => sum + Number(item.percentage || 0),
+                  0
+              ) / attemptsCount
+            : 0
+    const bestPercentage =
+        attemptsCount > 0
+            ? Math.max(
+                  ...updatedHistory.map((item) => Number(item.percentage || 0))
+              )
+            : 0
+
+    await StudentPerformance.findOneAndUpdate(
+        { student: studentId, class: classId },
+        {
+            $set: {
+                latestInsights: newInsights,
+                stats: {
+                    attemptsCount,
+                    averagePercentage,
+                    bestPercentage,
+                    lastPercentage: Number(quizAttempt.percentage || 0),
+                },
+            },
+            $push: {
+                history: {
+                    attempt: quizAttempt._id,
+                    quiz: quiz._id,
+                    score: quizAttempt.marksObtained,
+                    maxMarks: quizAttempt.maxMarks,
+                    percentage: quizAttempt.percentage,
+                    insightsSnapshot: newInsights,
+                    generatedAt: new Date(),
+                },
+            },
+        },
+        { upsert: true, new: true, setDefaultsOnInsert: true }
+    )
+
+    return newInsights
+}
 
 // Submit quiz answers and calculate score
 const submitQuizAnswers = asyncHandler(async (req, res) => {
@@ -93,6 +201,12 @@ const submitQuizAnswers = asyncHandler(async (req, res) => {
     // ✅ Check if late submission
     const isLateSubmission = submissionTime > quiz.deadline
 
+    const studentDoc = await User.findById(req.user._id).select("fullName")
+    const existingPerformance = await StudentPerformance.findOne({
+        student: req.user._id,
+        class: quiz.classId,
+    }).lean()
+
     // ✅ Process and score answers
     const scoringResults = await processQuizAnswers(
         quiz,
@@ -124,6 +238,26 @@ const submitQuizAnswers = asyncHandler(async (req, res) => {
     })
 
     await quizAttempt.save()
+
+    try {
+        const performanceInsights = await updateStudentPerformanceInsights({
+            studentId: req.user._id,
+            classId: quiz.classId,
+            quiz,
+            quizAttempt,
+            previousInsights: existingPerformance?.latestInsights,
+            student: { fullName: studentDoc?.fullName || "Student" },
+        })
+
+        // Keep compatibility with existing advisory card in quiz results page.
+        quizAttempt.advisory = toLegacyAdvisoryShape(performanceInsights)
+        await quizAttempt.save()
+    } catch (insightError) {
+        console.error(
+            "Failed to update student performance insights:",
+            insightError
+        )
+    }
 
     // ✅ Populate student and quiz details for response
     await quizAttempt.populate([
@@ -1089,6 +1223,92 @@ const manualGradeAttempt = asyncHandler(async (req, res) => {
     )
 })
 
+const getMyPerformance = asyncHandler(async (req, res) => {
+    const { classId } = req.query
+
+    const query = { student: req.user._id }
+    if (classId) {
+        if (!mongoose.Types.ObjectId.isValid(classId)) {
+            throw new ApiError(400, "Invalid class ID")
+        }
+        query.class = classId
+    }
+
+    const performanceDocs = await StudentPerformance.find(query)
+        .populate("class", "subjectName subjectCode")
+        .populate("history.quiz", "title")
+        .sort({ updatedAt: -1 })
+
+    return res
+        .status(200)
+        .json(
+            new ApiResponse(
+                200,
+                performanceDocs,
+                "Student performance insights retrieved successfully"
+            )
+        )
+})
+
+const getStudentPerformanceForFaculty = asyncHandler(async (req, res) => {
+    const { studentId } = req.params
+    const { classId } = req.query
+
+    if (!mongoose.Types.ObjectId.isValid(studentId)) {
+        throw new ApiError(400, "Invalid student ID")
+    }
+
+    if (!classId || !mongoose.Types.ObjectId.isValid(classId)) {
+        throw new ApiError(400, "Valid classId query param is required")
+    }
+
+    const classDoc = await Class.findById(classId)
+    if (!classDoc) {
+        throw new ApiError(404, "Class not found")
+    }
+
+    if (!classDoc.isFaculty(req.user._id)) {
+        throw new ApiError(
+            403,
+            "Only class faculty can view student performance"
+        )
+    }
+
+    if (!classDoc.isStudent(studentId)) {
+        throw new ApiError(404, "Student is not enrolled in this class")
+    }
+
+    const performanceDoc = await StudentPerformance.findOne({
+        student: studentId,
+        class: classId,
+    })
+        .populate("student", "fullName email studentId")
+        .populate("class", "subjectName subjectCode")
+        .populate("history.quiz", "title")
+
+    if (!performanceDoc) {
+        return res
+            .status(200)
+            .json(
+                new ApiResponse(
+                    200,
+                    null,
+                    "No performance insights found for this student in the selected class"
+                )
+            )
+    }
+
+    return res
+        .status(200)
+        .json(
+            new ApiResponse(
+                200,
+                performanceDoc,
+                "Student performance insights retrieved successfully"
+            )
+        )
+})
+
 // ✅ Update the export statement
 export {
     submitQuizAnswers,
@@ -1100,4 +1320,6 @@ export {
     bulkGradeAttempts,
     getGradingHistory,
     manualGradeAttempt,
+    getMyPerformance,
+    getStudentPerformanceForFaculty,
 }

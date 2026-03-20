@@ -13,6 +13,7 @@ import {
     Users,
     BookOpen,
     Shield,
+    BarChart3,
 } from "lucide-react"
 import JoinClassModal from "./JoinClassModal"
 
@@ -107,17 +108,33 @@ export default function Layout() {
                                         <FileText className="w-4 h-4" />
                                         Uploaded Docs
                                     </Link>
+                                    <Link
+                                        to="/performance-insights"
+                                        className="hidden md:flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium text-gray-700 hover:text-primary-600 hover:bg-primary-50 transition"
+                                    >
+                                        <BarChart3 className="w-4 h-4" />
+                                        Insights
+                                    </Link>
                                 </>
                             )}
 
                             {user.role === "student" && (
-                                <button
-                                    onClick={() => setIsJoinModalOpen(true)}
-                                    className="hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium text-gray-700 hover:text-primary-600 hover:bg-primary-50 transition"
-                                >
-                                    <Users className="w-4 h-4" />
-                                    Join Class
-                                </button>
+                                <>
+                                    <button
+                                        onClick={() => setIsJoinModalOpen(true)}
+                                        className="hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium text-gray-700 hover:text-primary-600 hover:bg-primary-50 transition"
+                                    >
+                                        <Users className="w-4 h-4" />
+                                        Join Class
+                                    </button>
+                                    <Link
+                                        to="/performance-insights"
+                                        className="hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium text-gray-700 hover:text-primary-600 hover:bg-primary-50 transition"
+                                    >
+                                        <BarChart3 className="w-4 h-4" />
+                                        Insights
+                                    </Link>
+                                </>
                             )}
 
                             {/* ── Notification Bell ── */}

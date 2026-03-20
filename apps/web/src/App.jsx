@@ -38,6 +38,7 @@ import TakeQuiz from "./pages/quizzes/TakeQuiz"
 import QuizResults from "./pages/quizzes/QuizResults"
 import QuizGrading from "./pages/quizzes/QuizGrading"
 import QuizGradingReview from "./pages/quizzes/QuizGradingReview"
+import PerformanceInsights from "./pages/quizzes/PerformanceInsights"
 
 // Profile Pages
 import Profile from "./pages/profile/Profile"
@@ -239,6 +240,10 @@ function AppRoutes() {
                     <Route
                         path="/quiz-results/:attemptId"
                         element={<QuizResults />}
+                    />
+                    <Route
+                        path="/performance-insights"
+                        element={<PerformanceInsights />}
                     />
                     <Route
                         path="/quiz-grading/:quizId"
