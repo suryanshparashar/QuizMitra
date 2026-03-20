@@ -861,6 +861,12 @@ const processQuizAnswers = async (quiz, submittedAnswers, timeSpent) => {
     const processedAnswers = []
     let correctCount = 0
     let totalMarks = 0
+    const negativeMarkingEnabled =
+        quiz?.settings?.negativeMarkingEnabled === true
+    const configuredRatio = Number(quiz?.settings?.negativeMarkingRatio)
+    const negativeMarkingRatio = Number.isFinite(configuredRatio)
+        ? Math.min(1, Math.max(0, configuredRatio))
+        : 0
 
     // ✅ Evaluate answers in parallel (essential for AI speed)
     const evaluationPromises = quiz.questions.map(async (question, i) => {
@@ -914,7 +920,24 @@ const processQuizAnswers = async (quiz, submittedAnswers, timeSpent) => {
         processedAnswers.push(res)
         if (res.isCorrect) correctCount++
         totalMarks += res.marksAwarded
+
+        const hasAttemptedAnswer =
+            String(res.selectedAnswer || "").trim().length > 0
+        if (
+            negativeMarkingEnabled &&
+            negativeMarkingRatio > 0 &&
+            hasAttemptedAnswer &&
+            !res.isCorrect
+        ) {
+            const deduction = Number(
+                (Number(res.maxMarks || 0) * negativeMarkingRatio).toFixed(4)
+            )
+            totalMarks -= deduction
+            res.negativeMarksDeducted = deduction
+        }
     })
+
+    totalMarks = Number(Math.max(0, totalMarks).toFixed(4))
 
     // Sort by index to maintain order
     processedAnswers.sort((a, b) => a.questionIndex - b.questionIndex)

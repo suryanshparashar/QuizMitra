@@ -1424,6 +1424,7 @@ const updateQuiz = asyncHandler(async (req, res) => {
         "releaseQuestionWiseAfterDeadline",
         "shuffleQuestions",
         "shuffleOptions",
+        "negativeMarkingEnabled",
     ]
     const filteredData = {}
 
@@ -1450,6 +1451,20 @@ const updateQuiz = asyncHandler(async (req, res) => {
             }
         }
 
+        if (
+            filteredData.settings.negativeMarkingRatio !== undefined &&
+            filteredData.settings.negativeMarkingRatio !== null
+        ) {
+            const ratio = Number(filteredData.settings.negativeMarkingRatio)
+            if (!Number.isFinite(ratio) || ratio < 0 || ratio > 2) {
+                throw new ApiError(
+                    400,
+                    "Negative marking ratio must be between 0 and 2"
+                )
+            }
+            nextSettings.negativeMarkingRatio = ratio
+        }
+
         filteredData.settings = nextSettings
     }
 
@@ -1461,7 +1476,11 @@ const updateQuiz = asyncHandler(async (req, res) => {
 
             const incomingSettings = updateData.settings || {}
             const incomingKeys = Object.keys(incomingSettings)
-            return incomingKeys.some((key) => !mutableSettingKeys.includes(key))
+            return incomingKeys.some(
+                (key) =>
+                    !mutableSettingKeys.includes(key) &&
+                    key !== "negativeMarkingRatio"
+            )
         })
     ) {
         throw new ApiError(

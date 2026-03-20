@@ -52,6 +52,20 @@ import { NotificationProvider } from "./context/NotificationContext"
 import Notifications from "./pages/Notifications"
 import { ToastProvider } from "./components/Toast"
 
+function ScrollToTop() {
+    const location = useLocation()
+
+    useEffect(() => {
+        if (typeof window !== "undefined" && window.history) {
+            window.history.scrollRestoration = "manual"
+        }
+
+        window.scrollTo({ top: 0, left: 0, behavior: "auto" })
+    }, [location.pathname, location.search])
+
+    return null
+}
+
 function AppRoutes() {
     const { user, isAuthenticated, initializeAuth } = useAuthStore()
     const location = useLocation()
@@ -282,6 +296,7 @@ function AppRoutes() {
 function App() {
     return (
         <Router>
+            <ScrollToTop />
             <NotificationProvider>
                 <ToastProvider />
                 <AppRoutes />

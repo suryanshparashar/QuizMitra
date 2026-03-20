@@ -118,6 +118,10 @@ export default function CreateQuiz() {
             marksPerQuestion: 1,
             totalMarks: 10,
         },
+        settings: {
+            negativeMarkingEnabled: false,
+            negativeMarkingRatio: 0,
+        },
         topic: "",
     })
     const [inputMode, setInputMode] = useState(
@@ -598,6 +602,18 @@ export default function CreateQuiz() {
             questionCount
         )
 
+        const negativeMarkingRatio = Number(
+            formData.settings?.negativeMarkingRatio ?? 0
+        )
+        if (
+            !Number.isFinite(negativeMarkingRatio) ||
+            negativeMarkingRatio < 0 ||
+            negativeMarkingRatio > 2
+        ) {
+            showToast.error("Negative marking must be between 0 and 2")
+            return
+        }
+
         setLoading(true)
 
         const formDataObj = new FormData()
@@ -619,6 +635,12 @@ export default function CreateQuiz() {
                     marksPerQuestion: computedMarksPerQuestion,
                 }
                 formDataObj.append(key, JSON.stringify(normalizedRequirements))
+            } else if (key === "settings") {
+                const normalizedSettings = {
+                    negativeMarkingEnabled: negativeMarkingRatio > 0,
+                    negativeMarkingRatio,
+                }
+                formDataObj.append(key, JSON.stringify(normalizedSettings))
             } else if (key === "scheduledAt" || key === "deadline") {
                 formDataObj.append(key, toUtcIsoString(formData[key]) || "")
             } else {
@@ -982,6 +1004,53 @@ export default function CreateQuiz() {
                                         <option value="hard">Hard</option>
                                     </select>
                                 </div>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Negative Marking
+                                </label>
+                                <input
+                                    type="number"
+                                    min="0"
+                                    max="2"
+                                    step="0.25"
+                                    value={
+                                        formData.settings
+                                            ?.negativeMarkingRatio ?? 0
+                                    }
+                                    onChange={(e) => {
+                                        const nextValue = Number(e.target.value)
+                                        const normalizedValue = Number.isFinite(
+                                            nextValue
+                                        )
+                                            ? Math.min(
+                                                  2,
+                                                  Math.max(0, nextValue)
+                                              )
+                                            : 0
+
+                                        setFormData({
+                                            ...formData,
+                                            settings: {
+                                                ...formData.settings,
+                                                negativeMarkingEnabled:
+                                                    normalizedValue > 0,
+                                                negativeMarkingRatio:
+                                                    normalizedValue,
+                                            },
+                                        })
+                                    }}
+                                    className={`w-full px-4 py-3 border rounded-lg transition-colors duration-200 focus:outline-none ${
+                                        Number(
+                                            formData.settings
+                                                ?.negativeMarkingRatio || 0
+                                        ) > 0
+                                            ? "border-red-300 bg-red-50 text-red-700 focus:ring-2 focus:ring-red-500"
+                                            : "border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    }`}
+                                    disabled={loading}
+                                />
                             </div>
                         </div>
 

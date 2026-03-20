@@ -404,6 +404,19 @@ const quizSchema = new Schema(
                 default: false,
             },
 
+            negativeMarkingEnabled: {
+                type: Boolean,
+                default: false,
+            },
+
+            // Deduction multiplier for each incorrect answered question
+            negativeMarkingRatio: {
+                type: Number,
+                default: 0,
+                min: [0, "Negative marking ratio cannot be negative"],
+                max: [2, "Negative marking ratio cannot exceed 2"],
+            },
+
             showCorrectAnswers: {
                 type: Boolean,
                 default: true,
