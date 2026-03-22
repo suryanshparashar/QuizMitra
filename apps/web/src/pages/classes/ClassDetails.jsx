@@ -221,63 +221,94 @@ export default function ClassDetails() {
                     {/* Main Content */}
                     <div className="lg:col-span-2 space-y-6">
                         {/* Class Information Card */}
-                        <div className="bg-white/85 backdrop-blur-md rounded-2xl shadow-lg ring-1 ring-blue-100 p-6">
-                            <h2 className="text-xl font-semibold text-gray-900 mb-6 flex items-center">
-                                <BookOpen className="w-5 h-5 mr-2 text-blue-600" />
-                                Class Information
-                            </h2>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <div className="flex items-center space-x-3">
-                                    <div className="w-10 h-10 bg-blue-100/90 rounded-lg flex items-center justify-center shadow-sm">
-                                        <Calendar className="w-5 h-5 text-blue-600" />
-                                    </div>
+                        <div className="relative overflow-hidden bg-white/90 backdrop-blur-md rounded-2xl shadow-lg ring-1 ring-blue-100 p-6">
+                            <div className="pointer-events-none absolute -top-14 -right-14 h-36 w-36 rounded-full bg-blue-200/30 blur-2xl" />
+                            <div className="relative">
+                                <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                                     <div>
-                                        <p className="text-sm text-gray-500">
-                                            Semester
+                                        <h2 className="text-xl font-semibold text-gray-900 flex items-center">
+                                            <BookOpen className="w-5 h-5 mr-2 text-blue-600" />
+                                            Class Information
+                                        </h2>
+                                        <p className="text-sm text-slate-600 mt-1">
+                                            Schedule and class identity details.
                                         </p>
-                                        <p className="font-medium text-gray-900">
-                                            {classInfo.semester}
-                                        </p>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <span className="inline-flex items-center rounded-full bg-blue-50 text-blue-700 px-3 py-1 text-xs font-semibold ring-1 ring-blue-100">
+                                            {classInfo.totalStudents || 0}{" "}
+                                            Students
+                                        </span>
+                                        <span className="inline-flex items-center rounded-full bg-indigo-50 text-indigo-700 px-3 py-1 text-xs font-semibold ring-1 ring-indigo-100">
+                                            {quizzes.length} Quizzes
+                                        </span>
                                     </div>
                                 </div>
-                                <div className="flex items-center space-x-3">
-                                    <div className="w-10 h-10 bg-emerald-100/90 rounded-lg flex items-center justify-center shadow-sm">
-                                        <Clock className="w-5 h-5 text-green-600" />
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div className="rounded-xl bg-gradient-to-br from-blue-50 to-indigo-50 ring-1 ring-blue-100 p-4">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center shadow-sm">
+                                                <Calendar className="w-5 h-5 text-blue-600" />
+                                            </div>
+                                            <div>
+                                                <p className="text-xs uppercase tracking-wide text-blue-700/80 font-semibold">
+                                                    Semester
+                                                </p>
+                                                <p className="font-semibold text-slate-900 mt-0.5">
+                                                    {classInfo.semester || "-"}
+                                                </p>
+                                            </div>
+                                        </div>
                                     </div>
-                                    <div>
-                                        <p className="text-sm text-gray-500">
-                                            Slot
-                                        </p>
-                                        <p className="font-medium text-gray-900">
-                                            {classInfo.classSlot}
-                                        </p>
+
+                                    <div className="rounded-xl bg-gradient-to-br from-emerald-50 to-teal-50 ring-1 ring-emerald-100 p-4">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-10 h-10 bg-emerald-100 rounded-lg flex items-center justify-center shadow-sm">
+                                                <Clock className="w-5 h-5 text-emerald-600" />
+                                            </div>
+                                            <div>
+                                                <p className="text-xs uppercase tracking-wide text-emerald-700/80 font-semibold">
+                                                    Slot
+                                                </p>
+                                                <p className="font-semibold text-slate-900 mt-0.5">
+                                                    {classInfo.classSlot || "-"}
+                                                </p>
+                                            </div>
+                                        </div>
                                     </div>
-                                </div>
-                                <div className="flex items-center space-x-3">
-                                    <div className="w-10 h-10 bg-indigo-100/90 rounded-lg flex items-center justify-center shadow-sm">
-                                        <MapPin className="w-5 h-5 text-purple-600" />
+
+                                    <div className="rounded-xl bg-gradient-to-br from-indigo-50 to-violet-50 ring-1 ring-indigo-100 p-4">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-10 h-10 bg-indigo-100 rounded-lg flex items-center justify-center shadow-sm">
+                                                <MapPin className="w-5 h-5 text-indigo-600" />
+                                            </div>
+                                            <div>
+                                                <p className="text-xs uppercase tracking-wide text-indigo-700/80 font-semibold">
+                                                    Venue
+                                                </p>
+                                                <p className="font-semibold text-slate-900 mt-0.5">
+                                                    {classInfo.venue || "-"}
+                                                </p>
+                                            </div>
+                                        </div>
                                     </div>
-                                    <div>
-                                        <p className="text-sm text-gray-500">
-                                            Venue
-                                        </p>
-                                        <p className="font-medium text-gray-900">
-                                            {classInfo.venue}
-                                        </p>
-                                    </div>
-                                </div>
-                                <div className="flex items-center space-x-3">
-                                    <div className="w-10 h-10 bg-amber-100/90 rounded-lg flex items-center justify-center shadow-sm">
-                                        <Hash className="w-5 h-5 text-orange-600" />
-                                    </div>
-                                    <div className="flex-1">
-                                        <p className="text-sm text-gray-500">
-                                            Class Code
-                                        </p>
-                                        <div className="flex items-center space-x-2">
-                                            <p className="font-medium text-gray-900">
-                                                {classInfo.classCode}
-                                            </p>
+
+                                    <div className="rounded-xl bg-gradient-to-br from-amber-50 to-orange-50 ring-1 ring-amber-100 p-4">
+                                        <div className="flex items-center justify-between gap-3">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-10 h-10 bg-amber-100 rounded-lg flex items-center justify-center shadow-sm">
+                                                    <Hash className="w-5 h-5 text-amber-600" />
+                                                </div>
+                                                <div>
+                                                    <p className="text-xs uppercase tracking-wide text-amber-700/80 font-semibold">
+                                                        Class Code
+                                                    </p>
+                                                    <p className="font-semibold text-slate-900 mt-0.5">
+                                                        {classInfo.classCode}
+                                                    </p>
+                                                </div>
+                                            </div>
                                             <button
                                                 onClick={() => {
                                                     navigator.clipboard.writeText(
@@ -289,8 +320,8 @@ export default function ClassDetails() {
                                                         2000
                                                     )
                                                 }}
-                                                className="p-1.5 text-orange-600 hover:bg-orange-100 rounded-md transition-colors flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-1 cursor-pointer"
-                                                title="Copy Invite Link"
+                                                className="p-2 text-amber-700 hover:bg-amber-100 rounded-lg transition-colors flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-1 cursor-pointer"
+                                                title="Copy Class Code"
                                             >
                                                 {copied ? (
                                                     <Check className="w-4 h-4 text-green-600" />
@@ -447,109 +478,149 @@ export default function ClassDetails() {
 
                         {/* Quizzes List */}
                         {activeTab === "quizzes" && (
-                            <div className="bg-white/85 backdrop-blur-md rounded-2xl shadow-lg ring-1 ring-blue-100 p-6">
-                                <div className="flex items-center justify-between mb-6">
-                                    <h2 className="text-xl font-semibold text-gray-900 flex items-center">
-                                        <BookOpen className="w-5 h-5 mr-2 text-blue-600" />
-                                        Class Quizzes ({quizzes.length})
-                                    </h2>
-                                    <Link
-                                        to={`/quizzes/create?classId=${classId}`}
-                                    >
-                                        <button className="text-sm text-blue-600 hover:text-blue-700 font-medium cursor-pointer">
-                                            Create Quiz
-                                        </button>
-                                    </Link>
-                                </div>
-
-                                {quizzesLoading ? (
-                                    <div className="flex justify-center py-4">
-                                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                                    </div>
-                                ) : quizzes.length === 0 ? (
-                                    <div className="text-center py-8">
-                                        <p className="text-gray-500 mb-4">
-                                            {isFaculty
-                                                ? "No quizzes have been created for this class yet."
-                                                : "No active or published quizzes available for this class."}
-                                        </p>
+                            <div className="relative overflow-hidden bg-white/90 backdrop-blur-md rounded-2xl shadow-lg ring-1 ring-blue-100 p-6">
+                                <div className="pointer-events-none absolute -top-16 -right-14 h-36 w-36 rounded-full bg-violet-200/30 blur-2xl" />
+                                <div className="relative">
+                                    <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                        <div>
+                                            <h2 className="text-xl font-semibold text-gray-900 flex items-center">
+                                                <BookOpen className="w-5 h-5 mr-2 text-blue-600" />
+                                                Class Quizzes
+                                            </h2>
+                                            <p className="text-sm text-slate-600 mt-1">
+                                                Explore and manage quizzes for
+                                                this class.
+                                            </p>
+                                        </div>
                                         {isFaculty && (
                                             <Link
                                                 to={`/quizzes/create?classId=${classId}`}
                                             >
-                                                <button className="bg-blue-50 text-blue-600 px-4 py-2 rounded-lg font-medium hover:bg-blue-100 transition-colors cursor-pointer">
-                                                    Create First Quiz
+                                                <button className="inline-flex items-center gap-2 rounded-xl bg-blue-600 text-white px-4 py-2 text-sm font-medium hover:bg-blue-700 transition-colors cursor-pointer shadow-sm">
+                                                    <FileText className="w-4 h-4" />
+                                                    Create Quiz
                                                 </button>
                                             </Link>
                                         )}
                                     </div>
-                                ) : (
-                                    <>
-                                        <div className="space-y-4">
-                                            {visibleQuizzes.map((quiz) => (
-                                                <Link
-                                                    key={quiz._id}
-                                                    to={`/quizzes/${quiz._id}`}
-                                                >
-                                                    <div className="flex items-center space-x-4 p-4 rounded-xl bg-white/80 ring-1 ring-slate-100 hover:ring-blue-200 hover:bg-blue-50/70 transition-all cursor-pointer mb-3">
-                                                        <div className="w-10 h-10 bg-indigo-100 rounded-lg flex items-center justify-center flex-shrink-0 shadow-sm">
-                                                            <FileText className="w-5 h-5 text-purple-600" />
-                                                        </div>
-                                                        <div className="flex-1">
-                                                            <h3 className="font-medium text-gray-900">
-                                                                {quiz.title}
-                                                            </h3>
-                                                            <p className="text-sm text-gray-500 line-clamp-1">
-                                                                {
-                                                                    quiz.description
-                                                                }
-                                                            </p>
-                                                        </div>
-                                                        <div className="text-right">
-                                                            <span
-                                                                className={`inline-flex px-2 py-1 rounded-full text-xs font-medium capitalize ${
-                                                                    quiz.status ===
-                                                                    "published"
-                                                                        ? "bg-green-100 text-green-800"
-                                                                        : quiz.status ===
-                                                                            "draft"
-                                                                          ? "bg-yellow-100 text-yellow-800"
-                                                                          : "bg-gray-100 text-gray-800"
-                                                                }`}
-                                                            >
-                                                                {quiz.status}
-                                                            </span>
-                                                            <p className="text-xs text-gray-500 mt-1">
-                                                                {new Date(
-                                                                    quiz.createdAt
-                                                                ).toLocaleDateString()}
-                                                            </p>
-                                                        </div>
-                                                    </div>
-                                                </Link>
-                                            ))}
-                                        </div>
 
-                                        {quizzes.length >
-                                            MAX_VISIBLE_QUIZZES && (
-                                            <div className="pt-2 text-center">
-                                                <button
-                                                    type="button"
-                                                    onClick={() =>
-                                                        setShowAllQuizzes(
-                                                            (prev) => !prev
-                                                        )
-                                                    }
-                                                    className="text-sm font-medium text-blue-600 hover:text-blue-700 cursor-pointer"
+                                    <div className="mb-5 flex flex-wrap items-center gap-2">
+                                        <span className="inline-flex items-center rounded-full bg-violet-50 text-violet-700 px-3 py-1 text-xs font-semibold ring-1 ring-violet-100">
+                                            Total: {quizzes.length}
+                                        </span>
+                                        <span className="inline-flex items-center rounded-full bg-green-50 text-green-700 px-3 py-1 text-xs font-semibold ring-1 ring-green-100">
+                                            Published:{" "}
+                                            {
+                                                quizzes.filter(
+                                                    (q) =>
+                                                        q.status === "published"
+                                                ).length
+                                            }
+                                        </span>
+                                        <span className="inline-flex items-center rounded-full bg-amber-50 text-amber-700 px-3 py-1 text-xs font-semibold ring-1 ring-amber-100">
+                                            Draft:{" "}
+                                            {
+                                                quizzes.filter(
+                                                    (q) => q.status === "draft"
+                                                ).length
+                                            }
+                                        </span>
+                                    </div>
+
+                                    {quizzesLoading ? (
+                                        <div className="flex flex-col items-center justify-center py-10">
+                                            <div className="animate-spin rounded-full h-9 w-9 border-4 border-blue-500 border-t-transparent"></div>
+                                            <p className="text-sm text-slate-500 mt-3">
+                                                Loading quizzes...
+                                            </p>
+                                        </div>
+                                    ) : quizzes.length === 0 ? (
+                                        <div className="text-center py-10 rounded-xl bg-slate-50/70 ring-1 ring-slate-100">
+                                            <FileText className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+                                            <p className="text-gray-600 mb-4">
+                                                {isFaculty
+                                                    ? "No quizzes have been created for this class yet."
+                                                    : "No active or published quizzes available for this class."}
+                                            </p>
+                                            {isFaculty && (
+                                                <Link
+                                                    to={`/quizzes/create?classId=${classId}`}
                                                 >
-                                                    {showAllQuizzes
-                                                        ? "Show fewer quizzes"
-                                                        : `Show all ${quizzes.length} quizzes`}
-                                                </button>
+                                                    <button className="bg-blue-50 text-blue-600 px-4 py-2 rounded-lg font-medium hover:bg-blue-100 transition-colors cursor-pointer ring-1 ring-blue-100">
+                                                        Create First Quiz
+                                                    </button>
+                                                </Link>
+                                            )}
+                                        </div>
+                                    ) : (
+                                        <>
+                                            <div className="space-y-3">
+                                                {visibleQuizzes.map((quiz) => (
+                                                    <Link
+                                                        key={quiz._id}
+                                                        to={`/quizzes/${quiz._id}`}
+                                                    >
+                                                        <div className="group flex items-center gap-4 p-4 rounded-xl bg-white/85 ring-1 ring-slate-100 hover:ring-blue-200 hover:bg-blue-50/60 transition-all cursor-pointer">
+                                                            <div className="w-11 h-11 bg-gradient-to-br from-indigo-100 to-violet-100 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm group-hover:scale-105 transition-transform">
+                                                                <FileText className="w-5 h-5 text-violet-700" />
+                                                            </div>
+                                                            <div className="flex-1 min-w-0">
+                                                                <h3 className="font-semibold text-gray-900 truncate">
+                                                                    {quiz.title}
+                                                                </h3>
+                                                                <p className="text-sm text-gray-500 line-clamp-1 mt-0.5">
+                                                                    {quiz.description ||
+                                                                        "No description"}
+                                                                </p>
+                                                            </div>
+                                                            <div className="text-right flex-shrink-0">
+                                                                <span
+                                                                    className={`inline-flex px-2.5 py-1 rounded-full text-xs font-semibold capitalize ${
+                                                                        quiz.status ===
+                                                                        "published"
+                                                                            ? "bg-green-100 text-green-800 ring-1 ring-green-200"
+                                                                            : quiz.status ===
+                                                                                "draft"
+                                                                              ? "bg-yellow-100 text-yellow-800 ring-1 ring-yellow-200"
+                                                                              : "bg-gray-100 text-gray-800 ring-1 ring-gray-200"
+                                                                    }`}
+                                                                >
+                                                                    {
+                                                                        quiz.status
+                                                                    }
+                                                                </span>
+                                                                <p className="text-xs text-gray-500 mt-1.5">
+                                                                    {new Date(
+                                                                        quiz.createdAt
+                                                                    ).toLocaleDateString()}
+                                                                </p>
+                                                            </div>
+                                                        </div>
+                                                    </Link>
+                                                ))}
                                             </div>
-                                        )}
-                                    </>
-                                )}
+
+                                            {quizzes.length >
+                                                MAX_VISIBLE_QUIZZES && (
+                                                <div className="pt-3 text-center">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() =>
+                                                            setShowAllQuizzes(
+                                                                (prev) => !prev
+                                                            )
+                                                        }
+                                                        className="inline-flex items-center rounded-full px-4 py-1.5 text-sm font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 ring-1 ring-blue-100 cursor-pointer"
+                                                    >
+                                                        {showAllQuizzes
+                                                            ? "Show fewer quizzes"
+                                                            : `Show all ${quizzes.length} quizzes`}
+                                                    </button>
+                                                </div>
+                                            )}
+                                        </>
+                                    )}
+                                </div>
                             </div>
                         )}
                     </div>
@@ -557,52 +628,72 @@ export default function ClassDetails() {
                     {/* Sidebar */}
                     <div className="space-y-6">
                         {/* Statistics Card */}
-                        <div className="bg-white/85 backdrop-blur-md rounded-2xl shadow-lg ring-1 ring-blue-100 p-6">
-                            <h2 className="text-xl font-semibold text-gray-900 mb-6 flex items-center">
-                                <BarChart3 className="w-5 h-5 mr-2 text-blue-600" />
-                                Statistics
-                            </h2>
-                            <div className="space-y-4">
-                                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-4 ring-1 ring-blue-100">
-                                    <div className="flex items-center justify-between">
-                                        <div className="flex items-center space-x-2">
-                                            <Users className="w-5 h-5 text-blue-600" />
-                                            <span className="text-blue-900 font-medium">
-                                                Total Students
+                        <div className="relative overflow-hidden bg-white/90 backdrop-blur-md rounded-2xl shadow-lg ring-1 ring-blue-100 p-6">
+                            <div className="pointer-events-none absolute -bottom-16 -left-10 h-36 w-36 rounded-full bg-indigo-200/25 blur-3xl" />
+                            <div className="relative">
+                                <h2 className="text-xl font-semibold text-gray-900 mb-1 flex items-center">
+                                    <BarChart3 className="w-5 h-5 mr-2 text-blue-600" />
+                                    Statistics
+                                </h2>
+                                <p className="text-sm text-slate-600 mb-5">
+                                    Snapshot of class participation and profile.
+                                </p>
+
+                                <div className="grid grid-cols-1 gap-3">
+                                    <div className="rounded-xl bg-gradient-to-r from-blue-50 to-indigo-50 ring-1 ring-blue-100 p-4">
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-2">
+                                                <Users className="w-5 h-5 text-blue-600" />
+                                                <span className="text-blue-900 font-medium">
+                                                    Total Students
+                                                </span>
+                                            </div>
+                                            <span className="text-2xl font-bold text-blue-700">
+                                                {classInfo.totalStudents || 0}
                                             </span>
                                         </div>
-                                        <span className="text-2xl font-bold text-blue-600">
-                                            {classInfo.totalStudents || 0}{" "}
-                                            {/* Updated */}
-                                        </span>
                                     </div>
-                                </div>
-                                <div className="bg-gradient-to-r from-emerald-50 to-teal-50 rounded-xl p-4 ring-1 ring-emerald-100">
-                                    <div className="flex items-center justify-between">
-                                        <div className="flex items-center space-x-2">
-                                            <BookOpen className="w-5 h-5 text-green-600" />
-                                            <span className="text-green-900 font-medium">
-                                                Department
+
+                                    <div className="rounded-xl bg-gradient-to-r from-violet-50 to-indigo-50 ring-1 ring-violet-100 p-4">
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-2">
+                                                <FileText className="w-5 h-5 text-violet-600" />
+                                                <span className="text-violet-900 font-medium">
+                                                    Total Quizzes
+                                                </span>
+                                            </div>
+                                            <span className="text-2xl font-bold text-violet-700">
+                                                {quizzes.length}
                                             </span>
                                         </div>
-                                        <span className="text-lg font-bold text-green-600">
-                                            {classInfo.department}{" "}
-                                            {/* Changed from totalQuizzes to department */}
-                                        </span>
                                     </div>
-                                </div>
-                                <div className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl p-4 ring-1 ring-amber-100">
-                                    <div className="flex items-center justify-between">
-                                        <div className="flex items-center space-x-2">
-                                            <Calendar className="w-5 h-5 text-orange-600" />
-                                            <span className="text-orange-900 font-medium">
-                                                Academic Year
+
+                                    <div className="rounded-xl bg-gradient-to-r from-emerald-50 to-teal-50 ring-1 ring-emerald-100 p-4">
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-2">
+                                                <BookOpen className="w-5 h-5 text-emerald-600" />
+                                                <span className="text-emerald-900 font-medium">
+                                                    Department
+                                                </span>
+                                            </div>
+                                            <span className="text-base font-bold text-emerald-700 text-right max-w-[55%] truncate">
+                                                {classInfo.department || "-"}
                                             </span>
                                         </div>
-                                        <span className="text-lg font-bold text-orange-600">
-                                            {classInfo.academicYear}{" "}
-                                            {/* Changed from activeQuizzes to academicYear */}
-                                        </span>
+                                    </div>
+
+                                    <div className="rounded-xl bg-gradient-to-r from-amber-50 to-orange-50 ring-1 ring-amber-100 p-4">
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-2">
+                                                <Calendar className="w-5 h-5 text-orange-600" />
+                                                <span className="text-orange-900 font-medium">
+                                                    Academic Year
+                                                </span>
+                                            </div>
+                                            <span className="text-base font-bold text-orange-700">
+                                                {classInfo.academicYear || "-"}
+                                            </span>
+                                        </div>
                                     </div>
                                 </div>
                             </div>

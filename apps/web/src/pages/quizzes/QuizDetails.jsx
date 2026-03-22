@@ -19,12 +19,14 @@ import {
     Settings,
     Play,
     Eye,
+    ChevronDown,
 } from "lucide-react"
 
 export default function QuizDetails() {
     const { quizId } = useParams()
     const { user } = useAuthStore()
     const [quiz, setQuiz] = useState(null)
+    const [quizStats, setQuizStats] = useState(null)
     const [loading, setLoading] = useState(true)
 
     // Edit Dates Modal State
@@ -50,6 +52,22 @@ export default function QuizDetails() {
                 data?.settings?.allowQuestionWiseScores === true &&
                     data?.settings?.allowQuestionWiseCorrectAnswers === true
             )
+
+            const isOwnerFaculty =
+                user?.role === "faculty" &&
+                (data?.userId?._id === user?._id || data?.userId === user?._id)
+
+            if (isOwnerFaculty) {
+                try {
+                    const statsRes = await api.get(
+                        `/quizzes/${quizId}/statistics`
+                    )
+                    setQuizStats(statsRes?.data?.data || null)
+                } catch (statsError) {
+                    // Keep UI usable with fallback values from quiz payload.
+                    console.error("Error fetching quiz statistics:", statsError)
+                }
+            }
         } catch (error) {
             console.error("Error fetching quiz:", error)
         } finally {
@@ -201,8 +219,17 @@ export default function QuizDetails() {
         user?.role === "faculty" &&
         (quiz.userId?._id === user._id || quiz.userId === user._id)
 
+    const totalAttempts =
+        quizStats?.totalAttempts ??
+        quiz?.totalAttempts ??
+        quiz?.attemptCount ??
+        quiz?.attempts ??
+        0
+    const averageScore =
+        quizStats?.averageScore ?? quiz?.averageScore ?? quiz?.avgScore ?? 0
+
     return (
-        <div className="min-h-screen bg-gray-50 py-8">
+        <div className="min-h-screen bg-gray-50 pt-3 pb-8 sm:pt-4">
             <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
                 {/* Header */}
                 <div className="mb-8">
@@ -408,239 +435,386 @@ export default function QuizDetails() {
 
                     {/* Sidebar */}
                     <div className="lg:col-span-1">
-                        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 sticky top-8">
-                            <h3 className="text-lg font-semibold text-gray-900 mb-6 flex items-center">
-                                <Settings className="h-5 w-5 mr-2 text-blue-600" />
-                                Actions
-                            </h3>
+                        <div className="relative overflow-hidden bg-white/90 backdrop-blur-md rounded-2xl shadow-lg ring-1 ring-blue-100 p-6 lg:sticky lg:top-20 lg:max-h-[calc(100vh-5rem)] overflow-y-auto pr-3">
+                            <div className="pointer-events-none absolute -top-16 -right-12 h-32 w-32 rounded-full bg-blue-200/30 blur-2xl" />
+                            <div className="relative">
+                                <h3 className="text-lg font-semibold text-gray-900 mb-1 flex items-center">
+                                    <Settings className="h-5 w-5 mr-2 text-blue-600" />
+                                    Actions
+                                </h3>
+                                <p className="text-xs text-slate-500 mb-5">
+                                    Manage quiz lifecycle, visibility, and
+                                    anti-cheat settings.
+                                </p>
 
-                            <div className="space-y-4">
-                                {/* Faculty Controls */}
-                                {canManageQuiz && (
-                                    <>
-                                        {(quiz.status === "draft" ||
-                                            new Date(quiz.deadline) <
-                                                new Date()) && (
-                                            <>
-                                                <button
-                                                    onClick={handlePublish}
-                                                    className="w-full inline-flex items-center justify-center px-4 py-3 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 mb-3"
-                                                >
-                                                    <Play className="h-4 w-4 mr-2" />
-                                                    {quiz.status === "draft"
-                                                        ? "Publish Quiz"
-                                                        : "Re-publish Quiz"}
-                                                </button>
+                                <div className="space-y-4">
+                                    {/* Faculty Controls */}
+                                    {canManageQuiz && (
+                                        <div className="grid grid-cols-1 gap-4">
+                                            <div className="rounded-xl bg-gradient-to-r from-slate-50 to-blue-50/70 ring-1 ring-slate-200 p-3 space-y-3">
+                                                {(quiz.status === "draft" ||
+                                                    new Date(quiz.deadline) <
+                                                        new Date()) && (
+                                                    <>
+                                                        <button
+                                                            onClick={
+                                                                handlePublish
+                                                            }
+                                                            className="w-full inline-flex items-center justify-center px-4 py-3 bg-gradient-to-r from-emerald-600 to-green-600 text-white text-sm font-semibold rounded-lg hover:from-emerald-700 hover:to-green-700 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
+                                                        >
+                                                            <Play className="h-4 w-4 mr-2" />
+                                                            {quiz.status ===
+                                                            "draft"
+                                                                ? "Publish Quiz"
+                                                                : "Re-publish Quiz"}
+                                                        </button>
+
+                                                        <Link
+                                                            to={`/quizzes/${quizId}/edit`}
+                                                            className="block"
+                                                        >
+                                                            <button className="w-full inline-flex items-center justify-center px-4 py-3 bg-white text-gray-700 ring-1 ring-gray-300 text-sm font-medium rounded-lg hover:bg-gray-50 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2">
+                                                                <Edit className="h-4 w-4 mr-2" />
+                                                                Edit Questions
+                                                            </button>
+                                                        </Link>
+
+                                                        <button
+                                                            onClick={
+                                                                handleOpenEditModal
+                                                            }
+                                                            className="w-full inline-flex items-center justify-center px-4 py-3 bg-white text-gray-700 ring-1 ring-gray-300 text-sm font-medium rounded-lg hover:bg-gray-50 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
+                                                        >
+                                                            <Calendar className="h-4 w-4 mr-2" />
+                                                            Edit Timings
+                                                        </button>
+                                                    </>
+                                                )}
+
+                                                {quiz.status === "published" &&
+                                                    new Date(quiz.deadline) >=
+                                                        new Date() && (
+                                                        <button
+                                                            onClick={
+                                                                handleOpenEditModal
+                                                            }
+                                                            className="w-full inline-flex items-center justify-center px-4 py-3 bg-white text-gray-700 ring-1 ring-gray-300 text-sm font-medium rounded-lg hover:bg-gray-50 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
+                                                        >
+                                                            <Calendar className="h-4 w-4 mr-2" />
+                                                            Edit Timings
+                                                        </button>
+                                                    )}
 
                                                 <Link
-                                                    to={`/quizzes/${quizId}/edit`}
-                                                    className="block mb-3"
+                                                    to={`/quiz-grading/${quizId}`}
+                                                    className="block"
                                                 >
-                                                    <button className="w-full inline-flex items-center justify-center px-4 py-3 bg-white text-gray-700 border border-gray-300 text-sm font-medium rounded-lg hover:bg-gray-50 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2">
-                                                        <Edit className="h-4 w-4 mr-2" />
-                                                        Edit Questions
+                                                    <button className="w-full inline-flex items-center justify-center px-4 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-sm font-semibold rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+                                                        <Eye className="h-4 w-4 mr-2" />
+                                                        View Results
                                                     </button>
                                                 </Link>
+                                            </div>
 
-                                                <button
-                                                    onClick={
-                                                        handleOpenEditModal
-                                                    }
-                                                    className="w-full inline-flex items-center justify-center px-4 py-3 bg-white text-gray-700 border border-gray-300 text-sm font-medium rounded-lg hover:bg-gray-50 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 mb-3"
-                                                >
-                                                    <Calendar className="h-4 w-4 mr-2" />
-                                                    Edit Timings
-                                                </button>
-                                            </>
-                                        )}
-
-                                        {quiz.status === "published" &&
-                                            new Date(quiz.deadline) >=
-                                                new Date() && (
-                                                <button
-                                                    onClick={
-                                                        handleOpenEditModal
-                                                    }
-                                                    className="w-full inline-flex items-center justify-center px-4 py-3 bg-white text-gray-700 border border-gray-300 text-sm font-medium rounded-lg hover:bg-gray-50 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 mb-3"
-                                                >
-                                                    <Calendar className="h-4 w-4 mr-2" />
-                                                    Edit Timings
-                                                </button>
-                                            )}
-
-                                        <Link
-                                            to={`/quiz-grading/${quizId}`}
-                                            className="block"
-                                        >
-                                            <button className="w-full inline-flex items-center justify-center px-4 py-3 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
-                                                <Eye className="h-4 w-4 mr-2" />
-                                                View Results
-                                            </button>
-                                        </Link>
-
-                                        <div className="mt-4 border border-gray-200 rounded-lg p-3 space-y-3">
-                                            <p className="text-sm font-semibold text-gray-800">
-                                                Student Result Visibility
-                                            </p>
-
-                                            <p className="text-xs text-gray-500">
-                                                When enabled, students can view
-                                                their answer, correct answer,
-                                                and score.
-                                            </p>
-
-                                            <button
-                                                onClick={
-                                                    handleToggleQuestionWiseView
-                                                }
-                                                disabled={savingVisibility}
-                                                className={`w-full inline-flex items-center justify-center px-3 py-2 text-white text-xs font-medium rounded-md disabled:opacity-50 ${
-                                                    questionWiseViewEnabled
-                                                        ? "bg-rose-600 hover:bg-rose-700"
-                                                        : "bg-indigo-600 hover:bg-indigo-700"
-                                                }`}
+                                            <details
+                                                className="group border border-gray-200 rounded-xl p-3 bg-white/80"
+                                                open={false}
                                             >
-                                                {savingVisibility
-                                                    ? "Saving..."
-                                                    : questionWiseViewEnabled
-                                                      ? "Disable Question-wise View"
-                                                      : "Enable Question-wise View"}
-                                            </button>
-                                        </div>
+                                                <summary className="cursor-pointer list-none flex items-center justify-between">
+                                                    <div className="flex items-center gap-2">
+                                                        <ChevronDown className="h-4 w-4 text-slate-500 transition-transform duration-200 group-open:rotate-180" />
+                                                        <span className="text-sm font-semibold text-gray-800">
+                                                            Student Result
+                                                            Visibility
+                                                        </span>
+                                                    </div>
+                                                    <span
+                                                        className={`text-[11px] font-semibold px-2 py-1 rounded-full ${questionWiseViewEnabled ? "bg-violet-100 text-violet-700" : "bg-slate-200 text-slate-600"}`}
+                                                    >
+                                                        {questionWiseViewEnabled
+                                                            ? "ON"
+                                                            : "OFF"}
+                                                    </span>
+                                                </summary>
 
-                                        <div className="mt-4 border border-gray-200 rounded-lg p-3 space-y-3">
-                                            <p className="text-sm font-semibold text-gray-800">
-                                                Anti-Cheat Shuffle
-                                            </p>
+                                                <div className="mt-3">
+                                                    <button
+                                                        onClick={
+                                                            handleToggleQuestionWiseView
+                                                        }
+                                                        disabled={
+                                                            savingVisibility
+                                                        }
+                                                        role="switch"
+                                                        aria-checked={
+                                                            questionWiseViewEnabled
+                                                        }
+                                                        className="w-full inline-flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50/80 px-3 py-2 transition-all duration-200 hover:bg-slate-100/80 disabled:opacity-60 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                                                    >
+                                                        <span className="text-xs font-semibold text-slate-800">
+                                                            Question-wise View
+                                                        </span>
 
-                                            <button
-                                                onClick={() =>
-                                                    handleToggleQuizSetting(
-                                                        "shuffleQuestions"
-                                                    )
-                                                }
-                                                disabled={
-                                                    savingSettingKey ===
-                                                    "shuffleQuestions"
-                                                }
-                                                className={`w-full inline-flex items-center justify-center px-3 py-2 text-white text-xs font-medium rounded-md disabled:opacity-50 ${
-                                                    quiz?.settings
-                                                        ?.shuffleQuestions
-                                                        ? "bg-rose-600 hover:bg-rose-700"
-                                                        : "bg-emerald-600 hover:bg-emerald-700"
-                                                }`}
+                                                        <span
+                                                            className={`relative inline-flex h-7 w-16 items-center rounded-full transition-colors duration-200 ${
+                                                                questionWiseViewEnabled
+                                                                    ? "bg-gradient-to-r from-violet-600 to-fuchsia-600"
+                                                                    : "bg-slate-300"
+                                                            }`}
+                                                        >
+                                                            <span
+                                                                className={`absolute text-[10px] font-bold tracking-wide ${
+                                                                    questionWiseViewEnabled
+                                                                        ? "left-2 text-white"
+                                                                        : "right-2 text-slate-600"
+                                                                }`}
+                                                            >
+                                                                {questionWiseViewEnabled
+                                                                    ? "ON"
+                                                                    : "OFF"}
+                                                            </span>
+                                                            <span
+                                                                className={`inline-block h-5 w-5 rounded-full bg-white shadow-md transform transition-transform duration-200 ${
+                                                                    questionWiseViewEnabled
+                                                                        ? "translate-x-10"
+                                                                        : "translate-x-1"
+                                                                }`}
+                                                            />
+                                                        </span>
+                                                    </button>
+                                                    {savingVisibility && (
+                                                        <p className="mt-2 text-[11px] text-slate-500">
+                                                            Saving...
+                                                        </p>
+                                                    )}
+                                                </div>
+                                            </details>
+
+                                            <details
+                                                className="group border border-gray-200 rounded-xl p-3 bg-white/80"
+                                                open={false}
                                             >
-                                                {savingSettingKey ===
-                                                "shuffleQuestions"
-                                                    ? "Saving..."
-                                                    : quiz?.settings
-                                                            ?.shuffleQuestions
-                                                      ? "Disable Shuffle Questions"
-                                                      : "Enable Shuffle Questions"}
-                                            </button>
-
-                                            <button
-                                                onClick={() =>
-                                                    handleToggleQuizSetting(
-                                                        "shuffleOptions"
-                                                    )
-                                                }
-                                                disabled={
-                                                    savingSettingKey ===
-                                                    "shuffleOptions"
-                                                }
-                                                className={`w-full inline-flex items-center justify-center px-3 py-2 text-white text-xs font-medium rounded-md disabled:opacity-50 ${
-                                                    quiz?.settings
-                                                        ?.shuffleOptions
-                                                        ? "bg-rose-600 hover:bg-rose-700"
-                                                        : "bg-emerald-600 hover:bg-emerald-700"
-                                                }`}
-                                            >
-                                                {savingSettingKey ===
-                                                "shuffleOptions"
-                                                    ? "Saving..."
-                                                    : quiz?.settings
+                                                <summary className="cursor-pointer list-none flex items-center justify-between">
+                                                    <div className="flex items-center gap-2">
+                                                        <ChevronDown className="h-4 w-4 text-slate-500 transition-transform duration-200 group-open:rotate-180" />
+                                                        <span className="text-sm font-semibold text-gray-800">
+                                                            Anti-Cheat Shuffle
+                                                        </span>
+                                                    </div>
+                                                    <span
+                                                        className={`text-[11px] font-semibold px-2 py-1 rounded-full ${quiz?.settings?.shuffleQuestions || quiz?.settings?.shuffleOptions ? "bg-violet-100 text-violet-700" : "bg-slate-200 text-slate-600"}`}
+                                                    >
+                                                        {quiz?.settings
+                                                            ?.shuffleQuestions ||
+                                                        quiz?.settings
                                                             ?.shuffleOptions
-                                                      ? "Disable Shuffle Options"
-                                                      : "Enable Shuffle Options"}
-                                            </button>
-                                        </div>
-                                    </>
-                                )}
+                                                            ? "ACTIVE"
+                                                            : "OFF"}
+                                                    </span>
+                                                </summary>
 
-                                {/* Student Controls */}
-                                {user?.role === "student" && (
-                                    <div className="space-y-3">
-                                        {quiz.userAttempt ? (
-                                            <div className="bg-green-50 text-green-800 p-4 rounded-lg flex flex-col border border-green-200">
-                                                <div className="flex items-center mb-2">
-                                                    <CheckCircle className="h-5 w-5 mr-2 flex-shrink-0" />
+                                                <div className="mt-3 space-y-2">
+                                                    <button
+                                                        onClick={() =>
+                                                            handleToggleQuizSetting(
+                                                                "shuffleQuestions"
+                                                            )
+                                                        }
+                                                        disabled={
+                                                            savingSettingKey ===
+                                                            "shuffleQuestions"
+                                                        }
+                                                        role="switch"
+                                                        aria-checked={
+                                                            quiz?.settings
+                                                                ?.shuffleQuestions ===
+                                                            true
+                                                        }
+                                                        className={`w-full inline-flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50/80 px-3 py-2 transition-all duration-200 hover:bg-slate-100/80 disabled:opacity-60 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-offset-2 ${
+                                                            quiz?.settings
+                                                                ?.shuffleQuestions
+                                                                ? "focus:ring-violet-500"
+                                                                : "focus:ring-slate-400"
+                                                        }`}
+                                                    >
+                                                        <span className="text-xs font-semibold text-slate-800">
+                                                            Shuffle Questions
+                                                        </span>
+
+                                                        <span
+                                                            className={`relative inline-flex h-7 w-16 items-center rounded-full transition-colors duration-200 ${
+                                                                quiz?.settings
+                                                                    ?.shuffleQuestions
+                                                                    ? "bg-gradient-to-r from-violet-600 to-fuchsia-600"
+                                                                    : "bg-slate-300"
+                                                            }`}
+                                                        >
+                                                            <span
+                                                                className={`absolute text-[10px] font-bold tracking-wide ${
+                                                                    quiz
+                                                                        ?.settings
+                                                                        ?.shuffleQuestions
+                                                                        ? "left-2 text-white"
+                                                                        : "right-2 text-slate-600"
+                                                                }`}
+                                                            >
+                                                                {quiz?.settings
+                                                                    ?.shuffleQuestions
+                                                                    ? "ON"
+                                                                    : "OFF"}
+                                                            </span>
+                                                            <span
+                                                                className={`inline-block h-5 w-5 rounded-full bg-white shadow-md transform transition-transform duration-200 ${
+                                                                    quiz
+                                                                        ?.settings
+                                                                        ?.shuffleQuestions
+                                                                        ? "translate-x-10"
+                                                                        : "translate-x-1"
+                                                                }`}
+                                                            />
+                                                        </span>
+                                                    </button>
+
+                                                    <button
+                                                        onClick={() =>
+                                                            handleToggleQuizSetting(
+                                                                "shuffleOptions"
+                                                            )
+                                                        }
+                                                        disabled={
+                                                            savingSettingKey ===
+                                                            "shuffleOptions"
+                                                        }
+                                                        role="switch"
+                                                        aria-checked={
+                                                            quiz?.settings
+                                                                ?.shuffleOptions ===
+                                                            true
+                                                        }
+                                                        className={`w-full inline-flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50/80 px-3 py-2 transition-all duration-200 hover:bg-slate-100/80 disabled:opacity-60 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-offset-2 ${
+                                                            quiz?.settings
+                                                                ?.shuffleOptions
+                                                                ? "focus:ring-violet-500"
+                                                                : "focus:ring-slate-400"
+                                                        }`}
+                                                    >
+                                                        <span className="text-xs font-semibold text-slate-800">
+                                                            Shuffle Options
+                                                        </span>
+
+                                                        <span
+                                                            className={`relative inline-flex h-7 w-16 items-center rounded-full transition-colors duration-200 ${
+                                                                quiz?.settings
+                                                                    ?.shuffleOptions
+                                                                    ? "bg-gradient-to-r from-violet-600 to-fuchsia-600"
+                                                                    : "bg-slate-300"
+                                                            }`}
+                                                        >
+                                                            <span
+                                                                className={`absolute text-[10px] font-bold tracking-wide ${
+                                                                    quiz
+                                                                        ?.settings
+                                                                        ?.shuffleOptions
+                                                                        ? "left-2 text-white"
+                                                                        : "right-2 text-slate-600"
+                                                                }`}
+                                                            >
+                                                                {quiz?.settings
+                                                                    ?.shuffleOptions
+                                                                    ? "ON"
+                                                                    : "OFF"}
+                                                            </span>
+                                                            <span
+                                                                className={`inline-block h-5 w-5 rounded-full bg-white shadow-md transform transition-transform duration-200 ${
+                                                                    quiz
+                                                                        ?.settings
+                                                                        ?.shuffleOptions
+                                                                        ? "translate-x-10"
+                                                                        : "translate-x-1"
+                                                                }`}
+                                                            />
+                                                        </span>
+                                                    </button>
+
+                                                    {(savingSettingKey ===
+                                                        "shuffleQuestions" ||
+                                                        savingSettingKey ===
+                                                            "shuffleOptions") && (
+                                                        <p className="text-[11px] text-slate-500">
+                                                            Saving...
+                                                        </p>
+                                                    )}
+                                                </div>
+                                            </details>
+                                        </div>
+                                    )}
+
+                                    {/* Student Controls */}
+                                    {user?.role === "student" && (
+                                        <div className="space-y-3">
+                                            {quiz.userAttempt ? (
+                                                <div className="bg-green-50/90 text-green-800 p-4 rounded-xl flex flex-col border border-green-200 shadow-sm">
+                                                    <div className="flex items-center mb-2">
+                                                        <CheckCircle className="h-5 w-5 mr-2 flex-shrink-0" />
+                                                        <p className="font-medium text-sm">
+                                                            You have already
+                                                            completed this quiz.
+                                                        </p>
+                                                    </div>
+                                                    <Link
+                                                        to={`/quiz-results/${quiz.userAttempt._id}`}
+                                                        className="inline-flex items-center justify-center px-4 py-2 mt-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition-colors duration-200"
+                                                    >
+                                                        <Eye className="h-4 w-4 mr-2" />
+                                                        View Results
+                                                    </Link>
+                                                </div>
+                                            ) : !quiz.canTakeQuiz ? (
+                                                <div className="bg-yellow-50/90 text-yellow-800 p-4 rounded-xl flex items-center border border-yellow-200 shadow-sm">
+                                                    <Clock className="h-5 w-5 mr-2 flex-shrink-0" />
                                                     <p className="font-medium text-sm">
-                                                        You have already
-                                                        completed this quiz.
+                                                        This quiz is not
+                                                        currently active. Check
+                                                        the schedule above.
                                                     </p>
                                                 </div>
+                                            ) : (
                                                 <Link
-                                                    to={`/quiz-results/${quiz.userAttempt._id}`}
-                                                    className="inline-flex items-center justify-center px-4 py-2 mt-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition-colors duration-200"
+                                                    to={`/quizzes/${quizId}/take`}
+                                                    className="block"
                                                 >
-                                                    <Eye className="h-4 w-4 mr-2" />
-                                                    View Results
+                                                    <button className="w-full inline-flex items-center justify-center px-4 py-3 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
+                                                        <Play className="h-4 w-4 mr-2" />
+                                                        Take Quiz
+                                                    </button>
                                                 </Link>
-                                            </div>
-                                        ) : !quiz.canTakeQuiz ? (
-                                            <div className="bg-yellow-50 text-yellow-800 p-4 rounded-lg flex items-center border border-yellow-200">
-                                                <Clock className="h-5 w-5 mr-2 flex-shrink-0" />
-                                                <p className="font-medium text-sm">
-                                                    This quiz is not currently
-                                                    active. Check the schedule
-                                                    above.
-                                                </p>
-                                            </div>
-                                        ) : (
-                                            <Link
-                                                to={`/quizzes/${quizId}/take`}
-                                                className="block"
-                                            >
-                                                <button className="w-full inline-flex items-center justify-center px-4 py-3 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
-                                                    <Play className="h-4 w-4 mr-2" />
-                                                    Take Quiz
-                                                </button>
-                                            </Link>
-                                        )}
-                                    </div>
-                                )}
-                            </div>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
 
-                            {/* Quiz Stats */}
-                            <div className="mt-8 pt-6 border-t border-gray-200">
-                                <h4 className="text-sm font-medium text-gray-600 mb-4">
-                                    Quiz Statistics
-                                </h4>
-                                <div className="space-y-3">
-                                    <div className="flex justify-between items-center">
-                                        <span className="text-sm text-gray-600">
-                                            Attempts
-                                        </span>
-                                        <span className="text-sm font-medium text-gray-900">
-                                            {quiz.totalAttempts || 0}
-                                        </span>
-                                    </div>
-                                    <div className="flex justify-between items-center">
-                                        <span className="text-sm text-gray-600">
-                                            Average Score
-                                        </span>
-                                        <span className="text-sm font-medium text-gray-900">
-                                            {quiz.averageScore || 0}%
-                                        </span>
-                                    </div>
-                                    <div className="flex justify-between items-center">
-                                        <span className="text-sm text-gray-600">
-                                            Pass Rate
-                                        </span>
-                                        <span className="text-sm font-medium text-gray-900">
-                                            {quiz.passRate || 0}%
-                                        </span>
+                                {/* Quiz Stats */}
+                                <div className="mt-8 pt-6 border-t border-gray-200">
+                                    <h4 className="text-sm font-semibold text-gray-700 mb-4">
+                                        Quiz Statistics
+                                    </h4>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                        <div className="rounded-xl bg-slate-50 px-4 py-3 ring-1 ring-slate-100">
+                                            <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+                                                Attempts
+                                            </p>
+                                            <p className="text-xl font-semibold text-gray-900 mt-1">
+                                                {totalAttempts}
+                                            </p>
+                                        </div>
+                                        <div className="rounded-xl bg-slate-50 px-4 py-3 ring-1 ring-slate-100">
+                                            <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+                                                Average Score
+                                            </p>
+                                            <p className="text-xl font-semibold text-gray-900 mt-1">
+                                                {averageScore}%
+                                            </p>
+                                        </div>
                                     </div>
                                 </div>
                             </div>

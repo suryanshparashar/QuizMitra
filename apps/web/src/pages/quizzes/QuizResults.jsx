@@ -75,6 +75,11 @@ export default function QuizResults() {
             : "text-red-600 bg-red-100 border-red-200"
     }
 
+    const isDebarred = results?.score?.grade === "N"
+    const statusPillClass = isDebarred
+        ? "text-rose-700 bg-rose-100 border-rose-300"
+        : getStatusColor(results.score.isPassed)
+
     const questionWiseVisibility = results?.questionWiseVisibility || {}
     const canViewAnyQuestionWise =
         questionWiseVisibility?.canViewAnyQuestionWise === true
@@ -144,9 +149,14 @@ export default function QuizResults() {
                                     </div>
                                 </div>
                                 <div
-                                    className={`inline-flex items-center px-6 py-3 rounded-full text-lg font-bold mt-6 border-2 ${getStatusColor(results.score.isPassed)}`}
+                                    className={`inline-flex items-center px-6 py-3 rounded-full text-lg font-bold mt-6 border-2 ${statusPillClass}`}
                                 >
-                                    {results.score.isPassed ? (
+                                    {isDebarred ? (
+                                        <>
+                                            <XCircle className="w-5 h-5 mr-2" />
+                                            DEBARRED
+                                        </>
+                                    ) : results.score.isPassed ? (
                                         <>
                                             <CheckCircle className="w-5 h-5 mr-2" />
                                             PASSED
