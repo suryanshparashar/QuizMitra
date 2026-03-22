@@ -10,10 +10,13 @@ import {
     CheckCircle,
     Sparkles,
     ArrowRight,
-    Shield,
     ClipboardCheck,
     Star,
-    Zap,
+    Target,
+    School,
+    BookMarked,
+    LineChart,
+    Layers,
     Lock,
 } from "lucide-react"
 
@@ -22,57 +25,57 @@ import {
 const FEATURES = [
     {
         icon: Brain,
-        color: "bg-violet-100 text-violet-700",
-        title: "AI-Generated Quizzes",
-        desc: "Upload lecture notes or paste a topic — our AI agent builds a fully-structured quiz in seconds, complete with distractors and explanations.",
-    },
-    {
-        icon: BarChart3,
-        color: "bg-blue-100 text-blue-700",
-        title: "Real-Time Analytics",
-        desc: "Dashboards for faculty show class-wide performance trends, per-student breakdowns, and question-level difficulty signals.",
-    },
-    {
-        icon: Users,
-        color: "bg-emerald-100 text-emerald-700",
-        title: "Class Management",
-        desc: "Create and manage virtual classrooms, assign class representatives, and keep students enrolled with a simple invite code.",
+        color: "bg-indigo-100 text-indigo-700",
+        title: "Curriculum-Aware Quiz Generation",
+        desc: "Generate assessments from uploaded course material or topic keywords with controlled question type distribution and difficulty.",
     },
     {
         icon: ClipboardCheck,
-        color: "bg-amber-100 text-amber-700",
-        title: "Automated & Manual Grading",
-        desc: "Objective questions are graded instantly. Subjective answers are scored with AI assistance and reviewed by the faculty.",
+        color: "bg-emerald-100 text-emerald-700",
+        title: "Blended Evaluation Pipeline",
+        desc: "Objective questions are scored instantly, while subjective answers are evaluated with AI-assisted reasoning for faculty review.",
     },
     {
-        icon: Sparkles,
-        color: "bg-pink-100 text-pink-700",
-        title: "Adaptive Difficulty",
-        desc: "Quiz generation respects difficulty levels — Easy, Medium, Hard — so assessments align with learning objectives at every stage.",
+        icon: LineChart,
+        color: "bg-blue-100 text-blue-700",
+        title: "Outcome-Focused Analytics",
+        desc: "Track class trends, learner progress, and quiz-level signals to identify weak areas early and improve instructional planning.",
+    },
+    {
+        icon: School,
+        color: "bg-cyan-100 text-cyan-700",
+        title: "Academic Role Workflows",
+        desc: "Dedicated experiences for faculty, students, administrators, and class representatives with institutional permission boundaries.",
+    },
+    {
+        icon: BookMarked,
+        color: "bg-violet-100 text-violet-700",
+        title: "Material Reuse Library",
+        desc: "Upload and maintain reusable academic materials for future quiz creation, improving consistency across sessions.",
     },
     {
         icon: Lock,
-        color: "bg-gray-100 text-gray-700",
-        title: "Secure & Role-Based",
-        desc: "Separate portals for students, faculty, admins, and superadmins, each with the exact permissions they need — nothing more.",
+        color: "bg-slate-100 text-slate-700",
+        title: "Integrity & Policy Controls",
+        desc: "Server-managed timing, controlled result visibility, and anti-cheat policy enforcement support fair assessment delivery.",
     },
 ]
 
 const FACULTY_STEPS = [
     {
         num: "01",
-        title: "Create a Class",
-        desc: "Set up a virtual classroom and share the invite code with your students.",
+        title: "Set Up Course Context",
+        desc: "Create class spaces, upload materials, and define quiz expectations aligned to your syllabus.",
     },
     {
         num: "02",
-        title: "Generate a Quiz",
-        desc: "Paste your topic or notes — the AI constructs questions, options, and an answer key.",
+        title: "Generate and Refine Assessment",
+        desc: "Produce AI-assisted questions, review quality, and tune marks, timing, and visibility controls before publishing.",
     },
     {
         num: "03",
-        title: "Review & Publish",
-        desc: "Edit any question, set the time window, and publish. Results update live as students submit.",
+        title: "Monitor Learning Outcomes",
+        desc: "Track submissions, evaluate responses, and use analytics to plan the next teaching intervention.",
     },
 ]
 
@@ -80,40 +83,57 @@ const STUDENT_STEPS = [
     {
         num: "01",
         title: "Join a Class",
-        desc: "Enter the invite code shared by your faculty to enroll instantly.",
+        desc: "Enroll quickly using the class code provided by faculty and access course assessments from one workspace.",
     },
     {
         num: "02",
-        title: "Attempt Quizzes",
-        desc: "Active quizzes appear on your dashboard. Submit before the deadline.",
+        title: "Attempt with Clarity",
+        desc: "Take scheduled quizzes with clear timing, status indicators, and a focused interface.",
     },
     {
         num: "03",
-        title: "Track Progress",
-        desc: "See your scores, compare performance, and identify weak areas with detailed results.",
+        desc: "Review grades, trends, and personalized guidance to improve continuously across attempts.",
     },
 ]
 
 const STATS = [
-    { value: "AI-Powered", label: "Quiz Generation" },
-    { value: "Multi-Role", label: "Access Control" },
-    { value: "Real-Time", label: "Performance Analytics" },
-    { value: "Instant", label: "Auto Grading" },
+    { value: "Role-Aware", label: "Academic Workflows" },
+    { value: "Data-Driven", label: "Performance Insights" },
+    { value: "Policy-First", label: "Assessment Integrity" },
+    { value: "AI-Assisted", label: "Evaluation Pipeline" },
+]
+
+const ACADEMIC_PILLARS = [
+    {
+        icon: Target,
+        title: "Outcome-Based Assessment",
+        desc: "Structure quizzes around explicit learning outcomes with configurable marks and question types.",
+    },
+    {
+        icon: Layers,
+        title: "Continuous Evaluation",
+        desc: "Move from one-off testing to iterative progress tracking with dashboard-ready evidence.",
+    },
+    {
+        icon: Users,
+        title: "Collaborative Classroom Ops",
+        desc: "Enable faculty-led class governance with CR support and clear student participation workflows.",
+    },
 ]
 
 // ─── Components ───────────────────────────────────────────────────────────────
 
 function FeatureCard({ icon: Icon, color, title, desc }) {
     return (
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 flex flex-col gap-4 hover:shadow-md transition-shadow">
+        <div className="group bg-white/5 backdrop-blur rounded-2xl border border-white/15 shadow-sm p-6 flex flex-col gap-4 hover:bg-white/10 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200">
             <div
                 className={`w-11 h-11 rounded-xl flex items-center justify-center ${color}`}
             >
                 <Icon className="w-5 h-5" />
             </div>
             <div>
-                <h3 className="font-semibold text-gray-900 mb-1">{title}</h3>
-                <p className="text-sm text-gray-500 leading-relaxed">{desc}</p>
+                <h3 className="font-semibold text-slate-100 mb-1">{title}</h3>
+                <p className="text-sm text-slate-300 leading-relaxed">{desc}</p>
             </div>
         </div>
     )
@@ -122,12 +142,12 @@ function FeatureCard({ icon: Icon, color, title, desc }) {
 function StepCard({ num, title, desc }) {
     return (
         <div className="flex gap-4">
-            <div className="flex-shrink-0 w-10 h-10 rounded-full bg-primary-600 text-white flex items-center justify-center text-sm font-bold">
+            <div className="flex-shrink-0 w-10 h-10 rounded-full bg-gradient-to-br from-primary-600 to-accent-600 text-white flex items-center justify-center text-sm font-bold shadow-sm">
                 {num}
             </div>
             <div>
-                <h4 className="font-semibold text-gray-900 mb-1">{title}</h4>
-                <p className="text-sm text-gray-500 leading-relaxed">{desc}</p>
+                <h4 className="font-semibold text-slate-100 mb-1">{title}</h4>
+                <p className="text-sm text-slate-300 leading-relaxed">{desc}</p>
             </div>
         </div>
     )
@@ -139,9 +159,9 @@ export default function LandingPage() {
     const { isAuthenticated, user } = useAuthStore()
 
     return (
-        <div className="min-h-screen bg-white font-sans text-gray-900">
+        <div className="min-h-screen bg-gradient-to-br from-slate-950 via-indigo-950 to-blue-950 font-sans text-slate-100">
             {/* ── Navbar ─────────────────────────────────────────────────── */}
-            <header className="sticky top-0 z-50 bg-white/80 backdrop-blur border-b border-gray-100 shadow-sm">
+            <header className="sticky top-0 z-50 bg-slate-950/70 backdrop-blur border-b border-white/10 shadow-sm">
                 <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
                     <Link
                         to="/"
@@ -167,7 +187,7 @@ export default function LandingPage() {
                             <>
                                 <Link
                                     to="/login"
-                                    className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-primary-600 transition-colors"
+                                    className="px-4 py-2 text-sm font-medium text-slate-200 hover:text-cyan-200 transition-colors"
                                 >
                                     Sign In
                                 </Link>
@@ -184,42 +204,41 @@ export default function LandingPage() {
             </header>
 
             {/* ── Hero ───────────────────────────────────────────────────── */}
-            <section className="relative overflow-hidden bg-gradient-to-br from-primary-50 via-white to-violet-50 py-24 sm:py-32">
-                {/* decorative blobs */}
-                <div className="absolute -top-32 -left-32 w-96 h-96 bg-primary-100 rounded-full blur-3xl opacity-50 pointer-events-none" />
-                <div className="absolute -bottom-32 -right-32 w-96 h-96 bg-violet-100 rounded-full blur-3xl opacity-50 pointer-events-none" />
+            <section className="relative overflow-hidden bg-gradient-to-br from-slate-950 via-indigo-950 to-blue-950 py-24 sm:py-28">
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(99,102,241,0.28),transparent_38%),radial-gradient(circle_at_85%_15%,rgba(56,189,248,0.22),transparent_32%),radial-gradient(circle_at_65%_90%,rgba(129,140,248,0.2),transparent_35%)]" />
+                <div className="absolute inset-0 opacity-20 [background-image:linear-gradient(rgba(148,163,184,0.25)_1px,transparent_1px),linear-gradient(90deg,rgba(148,163,184,0.25)_1px,transparent_1px)] [background-size:38px_38px]" />
 
                 <div className="relative max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-                    <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-primary-50 border border-primary-100 rounded-full text-primary-700 text-sm font-medium mb-8">
-                        <Zap className="w-3.5 h-3.5" />
-                        AI-Powered Academic Assessment Platform
+                    <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-white/10 border border-white/20 rounded-full text-blue-100 text-sm font-medium mb-8 backdrop-blur">
+                        <GraduationCap className="w-3.5 h-3.5" />
+                        Academic Assessment Intelligence Platform
                     </div>
 
-                    <h1 className="text-5xl sm:text-6xl font-bold tracking-tight text-gray-900 mb-6 leading-tight">
-                        Smarter Quizzes.{" "}
-                        <span className="bg-gradient-to-r from-primary-600 to-accent-600 bg-clip-text text-transparent">
-                            Better Learning.
+                    <h1 className="text-4xl sm:text-6xl font-bold tracking-tight text-white mb-6 leading-tight">
+                        Designed for classrooms.
+                        <span className="block bg-gradient-to-r from-cyan-200 via-blue-200 to-indigo-200 bg-clip-text text-transparent">
+                            Built for measurable learning.
                         </span>
                     </h1>
 
-                    <p className="text-xl text-gray-500 max-w-2xl mx-auto mb-10 leading-relaxed">
-                        QuizMitra helps faculty create AI-generated assessments
-                        in seconds, manage classes effortlessly, and track
-                        student performance with actionable insights — all in
-                        one place.
+                    <p className="text-lg sm:text-xl text-blue-100/90 max-w-3xl mx-auto mb-10 leading-relaxed">
+                        QuizMitra helps institutions manage the full assessment
+                        lifecycle, from quiz creation to evaluation and
+                        performance analytics, through role-aware workflows and
+                        AI-assisted academic operations.
                     </p>
 
                     <div className="flex flex-col sm:flex-row gap-4 justify-center">
                         <Link
                             to="/register"
-                            className="inline-flex items-center justify-center gap-2 px-7 py-3.5 text-base font-semibold text-white bg-gradient-to-r from-primary-600 to-accent-600 rounded-2xl hover:from-primary-700 hover:to-purple-700 shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-0.5"
+                            className="inline-flex items-center justify-center gap-2 px-7 py-3.5 text-base font-semibold text-slate-900 bg-white rounded-2xl hover:bg-slate-100 shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-0.5"
                         >
-                            Get Started Free
+                            Start Your Academic Workspace
                             <ArrowRight className="w-4 h-4" />
                         </Link>
                         <Link
                             to="/login"
-                            className="inline-flex items-center justify-center gap-2 px-7 py-3.5 text-base font-semibold text-gray-700 bg-white border border-gray-200 rounded-2xl hover:border-gray-300 hover:bg-gray-50 shadow-sm hover:shadow-md transition-all"
+                            className="inline-flex items-center justify-center gap-2 px-7 py-3.5 text-base font-semibold text-white bg-white/10 border border-white/30 rounded-2xl hover:bg-white/20 transition-all"
                         >
                             Sign In
                         </Link>
@@ -228,14 +247,14 @@ export default function LandingPage() {
             </section>
 
             {/* ── Stats strip ────────────────────────────────────────────── */}
-            <section className="border-y border-gray-100 bg-gray-50">
+            <section className="border-y border-white/10 bg-slate-900/40 backdrop-blur">
                 <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-2 sm:grid-cols-4 gap-8">
                     {STATS.map(({ value, label }) => (
                         <div key={label} className="text-center">
                             <p className="text-2xl font-bold bg-gradient-to-r from-primary-600 to-accent-600 bg-clip-text text-transparent">
                                 {value}
                             </p>
-                            <p className="text-sm text-gray-500 mt-1">
+                            <p className="text-sm text-slate-300 mt-1">
                                 {label}
                             </p>
                         </div>
@@ -244,15 +263,15 @@ export default function LandingPage() {
             </section>
 
             {/* ── Features ───────────────────────────────────────────────── */}
-            <section className="py-24 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <section className="relative py-24 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div className="text-center mb-14">
-                    <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
-                        Everything you need for modern assessment
+                    <h2 className="text-3xl sm:text-4xl font-bold text-slate-100 mb-4">
+                        Core capabilities for modern academic assessment
                     </h2>
-                    <p className="text-gray-500 max-w-xl mx-auto">
-                        Purpose-built for academic environments, with the
-                        intelligence of AI and the simplicity of a modern web
-                        app.
+                    <p className="text-slate-300 max-w-2xl mx-auto">
+                        Built from PRD-backed requirements and a classroom-first
+                        design approach, QuizMitra supports assessment quality,
+                        faculty productivity, and student growth.
                     </p>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -262,27 +281,61 @@ export default function LandingPage() {
                 </div>
             </section>
 
+            {/* ── Academic Pillars ──────────────────────────────────────── */}
+            <section className="py-20 bg-slate-900/40 border-y border-white/10 backdrop-blur">
+                <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+                    <div className="text-center mb-12">
+                        <h2 className="text-3xl font-bold text-slate-100 mb-3">
+                            Built Around Academic Priorities
+                        </h2>
+                        <p className="text-slate-300 max-w-2xl mx-auto">
+                            Every workflow is aligned to instructional planning,
+                            fair evaluation, and continuous improvement in
+                            learner outcomes.
+                        </p>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                        {ACADEMIC_PILLARS.map(({ icon: Icon, title, desc }) => (
+                            <div
+                                key={title}
+                                className="rounded-2xl border border-white/15 bg-gradient-to-b from-white/8 to-white/5 p-6"
+                            >
+                                <div className="w-11 h-11 rounded-xl bg-primary-100 text-primary-700 flex items-center justify-center mb-4">
+                                    <Icon className="w-5 h-5" />
+                                </div>
+                                <h3 className="text-lg font-semibold text-slate-100 mb-2">
+                                    {title}
+                                </h3>
+                                <p className="text-sm text-slate-300 leading-relaxed">
+                                    {desc}
+                                </p>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </section>
+
             {/* ── How it works ───────────────────────────────────────────── */}
-            <section className="py-24 bg-gradient-to-br from-gray-50 to-primary-50">
+            <section className="py-24 bg-gradient-to-br from-slate-900/40 to-indigo-900/35">
                 <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="text-center mb-14">
-                        <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
-                            How it works
+                        <h2 className="text-3xl sm:text-4xl font-bold text-slate-100 mb-4">
+                            Workflow by Role
                         </h2>
-                        <p className="text-gray-500">
-                            A simple three-step flow for both faculty and
-                            students.
+                        <p className="text-slate-300">
+                            Structured journeys for faculty and students to
+                            maintain operational clarity.
                         </p>
                     </div>
 
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
                         {/* Faculty */}
-                        <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-8">
+                        <div className="bg-white/6 backdrop-blur rounded-3xl border border-white/15 shadow-sm p-8">
                             <div className="flex items-center gap-3 mb-8">
                                 <div className="w-10 h-10 rounded-xl bg-primary-100 text-primary-700 flex items-center justify-center">
                                     <BookOpen className="w-5 h-5" />
                                 </div>
-                                <h3 className="text-lg font-bold text-gray-900">
+                                <h3 className="text-lg font-bold text-slate-100">
                                     For Faculty
                                 </h3>
                             </div>
@@ -294,12 +347,12 @@ export default function LandingPage() {
                         </div>
 
                         {/* Students */}
-                        <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-8">
+                        <div className="bg-white/6 backdrop-blur rounded-3xl border border-white/15 shadow-sm p-8">
                             <div className="flex items-center gap-3 mb-8">
                                 <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center">
                                     <GraduationCap className="w-5 h-5" />
                                 </div>
-                                <h3 className="text-lg font-bold text-gray-900">
+                                <h3 className="text-lg font-bold text-slate-100">
                                     For Students
                                 </h3>
                             </div>
@@ -316,50 +369,50 @@ export default function LandingPage() {
             {/* ── Why QuizMitra ──────────────────────────────────────────── */}
             <section className="py-24 max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div className="text-center mb-14">
-                    <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
-                        Built for academia, not just testing
+                    <h2 className="text-3xl sm:text-4xl font-bold text-slate-100 mb-4">
+                        Why institutions choose QuizMitra
                     </h2>
-                    <p className="text-gray-500 max-w-xl mx-auto">
-                        Unlike generic quiz tools, QuizMitra understands the
-                        academic context — syllabi, roles, grading, and
-                        collective learning.
+                    <p className="text-slate-300 max-w-2xl mx-auto">
+                        The platform is engineered for institutional assessment
+                        operations, not generic survey-style testing.
                     </p>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     {[
-                        "Institutional role hierarchy: student, faculty, admin, superadmin",
-                        "AI evaluates even subjective / descriptive answers",
-                        "Class representatives for peer-based classroom management",
-                        "Faculty can review and override AI-generated grades",
-                        "Secure OTP-based registration for institutional emails",
-                        "Admin portal completely separate from the academic portal",
-                        "Topic or notes → quiz in under 10 seconds",
-                        "Built-in notification system for class and quiz events",
+                        "Role hierarchy with focused interfaces for faculty, students, admins, and superadmins",
+                        "Support for objective and subjective question evaluation workflows",
+                        "Class-level governance with representative and permission controls",
+                        "Configurable post-submission visibility and feedback policies",
+                        "OTP-enabled registration and secure auth lifecycle",
+                        "Dashboard analytics for course-level and learner-level insights",
+                        "PDF and topic-driven generation modes for flexible academic use",
+                        "Integrated notifications for class and quiz lifecycle events",
                     ].map((point) => (
                         <div
                             key={point}
-                            className="flex items-start gap-3 p-4 rounded-xl border border-gray-100 bg-white shadow-sm"
+                            className="flex items-start gap-3 p-4 rounded-xl border border-white/15 bg-white/6 backdrop-blur shadow-sm"
                         >
                             <CheckCircle className="w-5 h-5 text-emerald-500 flex-shrink-0 mt-0.5" />
-                            <p className="text-sm text-gray-700">{point}</p>
+                            <p className="text-sm text-slate-200">{point}</p>
                         </div>
                     ))}
                 </div>
             </section>
 
             {/* ── CTA ────────────────────────────────────────────────────── */}
-            <section className="py-24 bg-gradient-to-br from-primary-600 to-accent-600">
+            <section className="py-24 bg-gradient-to-br from-primary-700 via-indigo-700 to-accent-700">
                 <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
                     <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center mx-auto mb-6">
                         <Star className="w-8 h-8 text-white" />
                     </div>
                     <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">
-                        Ready to transform how you assess?
+                        Ready to modernize your assessment workflow?
                     </h2>
                     <p className="text-primary-100 text-lg mb-10 max-w-xl mx-auto">
-                        Join QuizMitra today. It takes less than two minutes to
-                        create your account and generate your first AI quiz.
+                        Start with role-based dashboards, AI-assisted quiz
+                        operations, and student-centric learning feedback in one
+                        platform.
                     </p>
                     <div className="flex flex-col sm:flex-row gap-4 justify-center">
                         <Link
@@ -376,21 +429,11 @@ export default function LandingPage() {
                             Sign In
                         </Link>
                     </div>
-
-                    {/* <div className="mt-8">
-                        <Link
-                            to="/admin/login"
-                            className="inline-flex items-center gap-1.5 text-sm text-primary-200 hover:text-white transition-colors"
-                        >
-                            <Shield className="w-4 h-4" />
-                            Admin / Superadmin Portal
-                        </Link>
-                    </div> */}
                 </div>
             </section>
 
             {/* ── Footer ─────────────────────────────────────────────────── */}
-            <footer className="bg-gray-900 text-gray-400 py-10">
+            <footer className="bg-slate-950/80 border-t border-white/10 text-slate-400 py-10">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
                     <div className="flex items-center gap-2 text-white font-semibold">
                         <img
@@ -417,7 +460,6 @@ export default function LandingPage() {
                         >
                             Register
                         </Link>
-                        {/* <Link to="/admin/login" className="hover:text-white transition-colors">Admin</Link> */}
                     </div>
                 </div>
             </footer>
