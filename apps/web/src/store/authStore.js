@@ -11,13 +11,41 @@ export const useAuthStore = create()(
             isAuthenticated: false,
             loading: true,
 
-            // Initialize auth state from storage
-            initializeAuth: () => {
+            // Initialize auth state from storage and always sync user from DB
+            initializeAuth: async () => {
                 const state = get()
-                if (state.accessToken && state.user) {
-                    set({ isAuthenticated: true, loading: false })
-                } else {
-                    set({ loading: false })
+
+                if (!state.accessToken) {
+                    set({
+                        user: null,
+                        accessToken: null,
+                        isAuthenticated: false,
+                        loading: false,
+                    })
+                    return
+                }
+
+                try {
+                    const response = await api.get("/users/profile")
+                    const freshUser = response?.data?.data || null
+
+                    if (!freshUser) {
+                        throw new Error("Failed to fetch current user")
+                    }
+
+                    set({
+                        user: freshUser,
+                        isAuthenticated: true,
+                        loading: false,
+                    })
+                } catch (error) {
+                    // Token invalid/expired or user no longer valid -> clear auth state
+                    set({
+                        user: null,
+                        accessToken: null,
+                        isAuthenticated: false,
+                        loading: false,
+                    })
                 }
             },
 
