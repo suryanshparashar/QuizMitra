@@ -95,7 +95,30 @@ export default function StudentDashboard() {
     }
 
     return (
-        <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-blue-50/40 py-8">
+        <div
+            className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-blue-50/40 py-8"
+            style={{
+                backgroundImage: `
+                  radial-gradient(circle at 20% 50%, rgba(99, 102, 241, 0.08) 0%, transparent 50%),
+                  radial-gradient(circle at 80% 80%, rgba(59, 130, 246, 0.08) 0%, transparent 50%),
+                  repeating-linear-gradient(
+                    0deg,
+                    transparent,
+                    transparent 32px,
+                    rgba(0, 0, 0, 0.015) 32px,
+                    rgba(0, 0, 0, 0.015) 33px
+                  ),
+                  repeating-linear-gradient(
+                    90deg,
+                    transparent,
+                    transparent 32px,
+                    rgba(0, 0, 0, 0.015) 32px,
+                    rgba(0, 0, 0, 0.015) 33px
+                  )
+                `,
+                backgroundBlendMode: "overlay",
+            }}
+        >
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 {/* Header */}
                 <div className="relative overflow-hidden mb-8 rounded-3xl border border-blue-100 bg-gradient-to-r from-slate-900 via-indigo-900 to-blue-900 px-6 py-7 shadow-[0_18px_40px_rgba(15,23,42,0.18)] sm:px-8">
@@ -291,7 +314,7 @@ export default function StudentDashboard() {
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                     {/* Main Content - Quiz List */}
                     <div className="lg:col-span-2 space-y-6">
-                        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 h-98 overflow-hidden">
                             <div className="border-b border-slate-200 bg-slate-50/80">
                                 <div className="flex items-center justify-between px-2 sm:px-4">
                                     <nav className="flex py-2 gap-1">
@@ -343,7 +366,7 @@ export default function StudentDashboard() {
                                     </div>
                                 ) : (
                                     <div className="space-y-4">
-                                        {quizzes.slice(0, 3).map((quiz) => (
+                                        {quizzes.slice(0, 2).map((quiz) => (
                                             <QuizCard
                                                 key={quiz._id}
                                                 quiz={quiz}
@@ -416,29 +439,73 @@ export default function StudentDashboard() {
 }
 
 function StatCard({ title, value, icon: Icon, color }) {
-    const colors = {
-        blue: "from-blue-100 to-cyan-100 text-blue-700 border-blue-200",
-        green: "from-emerald-100 to-green-100 text-emerald-700 border-emerald-200",
-        purple: "from-violet-100 to-fuchsia-100 text-violet-700 border-violet-200",
-        indigo: "from-indigo-100 to-blue-100 text-indigo-700 border-indigo-200",
-        orange: "from-amber-100 to-orange-100 text-orange-700 border-orange-200",
+    const colorConfig = {
+        blue: {
+            bg: "from-blue-50/80 to-white",
+            border: "border-blue-100/50",
+            label: "text-blue-600",
+            icon: "from-blue-500 to-blue-600",
+            gradient: "bg-blue-200/30",
+            hoverGradient: "group-hover:bg-blue-300/40",
+        },
+        green: {
+            bg: "from-emerald-50/80 to-white",
+            border: "border-emerald-100/50",
+            label: "text-emerald-600",
+            icon: "from-emerald-500 to-emerald-600",
+            gradient: "bg-emerald-200/30",
+            hoverGradient: "group-hover:bg-emerald-300/40",
+        },
+        purple: {
+            bg: "from-violet-50/80 to-white",
+            border: "border-violet-100/50",
+            label: "text-violet-600",
+            icon: "from-violet-500 to-violet-600",
+            gradient: "bg-violet-200/30",
+            hoverGradient: "group-hover:bg-violet-300/40",
+        },
+        indigo: {
+            bg: "from-indigo-50/80 to-white",
+            border: "border-indigo-100/50",
+            label: "text-indigo-600",
+            icon: "from-indigo-500 to-indigo-600",
+            gradient: "bg-indigo-200/30",
+            hoverGradient: "group-hover:bg-indigo-300/40",
+        },
+        orange: {
+            bg: "from-amber-50/80 to-white",
+            border: "border-amber-100/50",
+            label: "text-amber-600",
+            icon: "from-amber-500 to-amber-600",
+            gradient: "bg-amber-200/30",
+            hoverGradient: "group-hover:bg-amber-300/40",
+        },
     }
 
+    const config = colorConfig[color] || colorConfig.blue
+
     return (
-        <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 hover:shadow-md transition-all duration-200 hover:-translate-y-0.5">
-            <div className="flex items-center justify-between">
+        <div
+            className={`group relative overflow-hidden rounded-2xl shadow-sm border ${config.border} bg-gradient-to-br ${config.bg} p-6 hover:shadow-xl transition-all duration-300 hover:-translate-y-1`}
+        >
+            <div
+                className={`pointer-events-none absolute -top-8 -right-8 h-24 w-24 rounded-full ${config.gradient} blur-2xl ${config.hoverGradient} transition-all duration-300`}
+            />
+            <div className="relative z-10 flex items-center justify-between">
                 <div>
-                    <p className="text-sm font-medium text-slate-500">
+                    <p
+                        className={`text-xs font-semibold uppercase tracking-wider ${config.label} mb-1`}
+                    >
                         {title}
                     </p>
-                    <p className="text-2xl font-bold text-slate-900 mt-2">
+                    <p className="text-4xl font-bold text-slate-900 mt-2">
                         {value}
                     </p>
                 </div>
                 <div
-                    className={`h-12 w-12 rounded-xl border bg-gradient-to-br ${colors[color]} flex items-center justify-center shadow-sm`}
+                    className={`h-16 w-16 bg-gradient-to-br ${config.icon} rounded-xl flex items-center justify-center shadow-lg group-hover:shadow-xl transition-all duration-300 group-hover:scale-110`}
                 >
-                    <Icon className="h-6 w-6" />
+                    <Icon className="h-8 w-8 text-white" />
                 </div>
             </div>
         </div>
