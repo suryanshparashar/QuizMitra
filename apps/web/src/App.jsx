@@ -53,6 +53,7 @@ import LandingPage from "./pages/LandingPage"
 import { NotificationProvider } from "./context/NotificationContext"
 import Notifications from "./pages/Notifications"
 import { ToastProvider } from "./components/Toast"
+import { api } from "./services/api"
 
 function ScrollToTop() {
     const location = useLocation()
@@ -311,6 +312,23 @@ function AppRoutes() {
 }
 
 function App() {
+    useEffect(() => {
+        const sessionWakeKey = "quizmitra-healthcheck-sent"
+
+        if (typeof window === "undefined") {
+            return
+        }
+
+        const alreadySent = window.sessionStorage.getItem(sessionWakeKey)
+        if (alreadySent) {
+            return
+        }
+
+        // Fire once per browser tab session to wake the API for this visit.
+        api.get("/healthcheck").catch(() => {})
+        window.sessionStorage.setItem(sessionWakeKey, "1")
+    }, [])
+
     return (
         <Router>
             <ScrollToTop />
