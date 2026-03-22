@@ -86,7 +86,30 @@ export default function FacultyDashboard() {
     }
 
     return (
-        <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-indigo-50/30 py-8">
+        <div
+            className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-indigo-50/30 py-8"
+            style={{
+                backgroundImage: `
+                  radial-gradient(circle at 20% 50%, rgba(59, 130, 246, 0.08) 0%, transparent 50%),
+                  radial-gradient(circle at 80% 80%, rgba(99, 102, 241, 0.08) 0%, transparent 50%),
+                  repeating-linear-gradient(
+                    0deg,
+                    transparent,
+                    transparent 32px,
+                    rgba(0, 0, 0, 0.015) 32px,
+                    rgba(0, 0, 0, 0.015) 33px
+                  ),
+                  repeating-linear-gradient(
+                    90deg,
+                    transparent,
+                    transparent 32px,
+                    rgba(0, 0, 0, 0.015) 32px,
+                    rgba(0, 0, 0, 0.015) 33px
+                  )
+                `,
+                backgroundBlendMode: "overlay",
+            }}
+        >
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 {/* Header */}
                 <div className="relative overflow-hidden mb-8 rounded-3xl border border-blue-100 bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 px-6 py-7 shadow-[0_18px_40px_rgba(15,23,42,0.18)] sm:px-8">
@@ -120,76 +143,84 @@ export default function FacultyDashboard() {
 
                 {/* Overview Stats */}
                 <div className="mb-8">
-                    <h2 className="text-xl font-semibold text-slate-900 mb-4 flex items-center">
+                    <h2 className="text-xl font-semibold text-slate-900 mb-5 flex items-center">
                         <TrendingUp className="h-5 w-5 mr-2 text-blue-600" />
                         Overview
                     </h2>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 hover:shadow-md transition-all duration-200 hover:-translate-y-0.5">
-                            <div className="flex items-center justify-between">
+                        {/* Total Classes Card */}
+                        <div className="group relative overflow-hidden rounded-2xl shadow-sm border border-blue-100/50 bg-gradient-to-br from-blue-50/80 to-white p-6 hover:shadow-xl hover:border-blue-200 transition-all duration-300 hover:-translate-y-1">
+                            <div className="pointer-events-none absolute -top-8 -right-8 h-24 w-24 rounded-full bg-blue-200/30 blur-2xl group-hover:bg-blue-300/40 transition-all duration-300" />
+                            <div className="relative z-10 flex items-center justify-between">
                                 <div>
-                                    <p className="text-sm font-medium text-gray-600">
+                                    <p className="text-xs font-semibold uppercase tracking-wider text-blue-600 mb-1">
                                         Total Classes
                                     </p>
-                                    <p className="text-3xl font-bold text-gray-900 mt-1">
+                                    <p className="text-4xl font-bold text-slate-900 mt-2">
                                         {dashboardData?.overview
                                             ?.totalClasses || 0}
                                     </p>
                                 </div>
-                                <div className="h-12 w-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                                    <BookOpen className="h-6 w-6 text-blue-600" />
+                                <div className="h-16 w-16 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center shadow-lg group-hover:shadow-xl transition-all duration-300 group-hover:scale-110">
+                                    <BookOpen className="h-8 w-8 text-white" />
                                 </div>
                             </div>
                         </div>
 
-                        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 hover:shadow-md transition-all duration-200 hover:-translate-y-0.5">
-                            <div className="flex items-center justify-between">
+                        {/* Total Students Card */}
+                        <div className="group relative overflow-hidden rounded-2xl shadow-sm border border-emerald-100/50 bg-gradient-to-br from-emerald-50/80 to-white p-6 hover:shadow-xl hover:border-emerald-200 transition-all duration-300 hover:-translate-y-1">
+                            <div className="pointer-events-none absolute -top-8 -right-8 h-24 w-24 rounded-full bg-emerald-200/30 blur-2xl group-hover:bg-emerald-300/40 transition-all duration-300" />
+                            <div className="relative z-10 flex items-center justify-between">
                                 <div>
-                                    <p className="text-sm font-medium text-gray-600">
+                                    <p className="text-xs font-semibold uppercase tracking-wider text-emerald-600 mb-1">
                                         Total Students
                                     </p>
-                                    <p className="text-3xl font-bold text-gray-900 mt-1">
+                                    <p className="text-4xl font-bold text-slate-900 mt-2">
                                         {dashboardData?.overview
                                             ?.totalStudents || 0}
                                     </p>
                                 </div>
-                                <div className="h-12 w-12 bg-green-100 rounded-lg flex items-center justify-center">
-                                    <Users className="h-6 w-6 text-green-600" />
+                                <div className="h-16 w-16 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-xl flex items-center justify-center shadow-lg group-hover:shadow-xl transition-all duration-300 group-hover:scale-110">
+                                    <Users className="h-8 w-8 text-white" />
                                 </div>
                             </div>
                         </div>
 
-                        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 hover:shadow-md transition-all duration-200 hover:-translate-y-0.5">
-                            <div className="flex items-center justify-between">
+                        {/* Total Quizzes Card */}
+                        <div className="group relative overflow-hidden rounded-2xl shadow-sm border border-violet-100/50 bg-gradient-to-br from-violet-50/80 to-white p-6 hover:shadow-xl hover:border-violet-200 transition-all duration-300 hover:-translate-y-1">
+                            <div className="pointer-events-none absolute -top-8 -right-8 h-24 w-24 rounded-full bg-violet-200/30 blur-2xl group-hover:bg-violet-300/40 transition-all duration-300" />
+                            <div className="relative z-10 flex items-center justify-between">
                                 <div>
-                                    <p className="text-sm font-medium text-gray-600">
+                                    <p className="text-xs font-semibold uppercase tracking-wider text-violet-600 mb-1">
                                         Total Quizzes
                                     </p>
-                                    <p className="text-3xl font-bold text-gray-900 mt-1">
+                                    <p className="text-4xl font-bold text-slate-900 mt-2">
                                         {dashboardData?.overview
                                             ?.totalQuizzes || 0}
                                     </p>
                                 </div>
-                                <div className="h-12 w-12 bg-purple-100 rounded-lg flex items-center justify-center">
-                                    <FileText className="h-6 w-6 text-purple-600" />
+                                <div className="h-16 w-16 bg-gradient-to-br from-violet-500 to-violet-600 rounded-xl flex items-center justify-center shadow-lg group-hover:shadow-xl transition-all duration-300 group-hover:scale-110">
+                                    <FileText className="h-8 w-8 text-white" />
                                 </div>
                             </div>
                         </div>
 
-                        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 hover:shadow-md transition-all duration-200 hover:-translate-y-0.5">
-                            <div className="flex items-center justify-between">
+                        {/* Avg Performance Card */}
+                        <div className="group relative overflow-hidden rounded-2xl shadow-sm border border-amber-100/50 bg-gradient-to-br from-amber-50/80 to-white p-6 hover:shadow-xl hover:border-amber-200 transition-all duration-300 hover:-translate-y-1">
+                            <div className="pointer-events-none absolute -top-8 -right-8 h-24 w-24 rounded-full bg-amber-200/30 blur-2xl group-hover:bg-amber-300/40 transition-all duration-300" />
+                            <div className="relative z-10 flex items-center justify-between">
                                 <div>
-                                    <p className="text-sm font-medium text-gray-600">
+                                    <p className="text-xs font-semibold uppercase tracking-wider text-amber-600 mb-1">
                                         Avg Performance
                                     </p>
-                                    <p className="text-3xl font-bold text-gray-900 mt-1">
+                                    <p className="text-4xl font-bold text-slate-900 mt-2">
                                         {dashboardData?.overview
                                             ?.averagePerformance || 0}
                                         %
                                     </p>
                                 </div>
-                                <div className="h-12 w-12 bg-orange-100 rounded-lg flex items-center justify-center">
-                                    <TrendingUp className="h-6 w-6 text-orange-600" />
+                                <div className="h-16 w-16 bg-gradient-to-br from-amber-500 to-amber-600 rounded-xl flex items-center justify-center shadow-lg group-hover:shadow-xl transition-all duration-300 group-hover:scale-110">
+                                    <TrendingUp className="h-8 w-8 text-white" />
                                 </div>
                             </div>
                         </div>
