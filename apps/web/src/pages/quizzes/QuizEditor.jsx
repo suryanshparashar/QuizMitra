@@ -14,7 +14,7 @@ import {
     Calendar,
     Clock,
 } from "lucide-react"
-import { formatForDateTimeLocal, toUtcIsoString } from "../../utils/datetime.js"
+import { formatForDateTimeLocal, toUtcIsoString } from "../../utils/dateTime.js"
 import { showToast } from "../../components/Toast.jsx"
 
 export default function QuizEditor() {

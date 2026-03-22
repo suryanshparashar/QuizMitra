@@ -3,7 +3,7 @@ import { useState, useEffect } from "react"
 import { useParams, Link } from "react-router-dom"
 import { api } from "../../services/api.js"
 import { useAuthStore } from "../../store/authStore.js"
-import { formatForDateTimeLocal, toUtcIsoString } from "../../utils/datetime.js"
+import { formatForDateTimeLocal, toUtcIsoString } from "../../utils/dateTime.js"
 import {
     ArrowLeft,
     CheckCircle,

@@ -15,7 +15,7 @@ import {
     Brain,
 } from "lucide-react"
 import { api } from "../../services/api.js"
-import { toUtcIsoString } from "../../utils/datetime.js"
+import { toUtcIsoString } from "../../utils/dateTime.js"
 import { showToast } from "../../components/Toast.jsx"
 
 const MAX_PDF_SIZE_BYTES = 10 * 1024 * 1024
