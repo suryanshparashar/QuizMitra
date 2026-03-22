@@ -6,7 +6,6 @@ import {
     FileText,
     Play,
     Plus,
-    Eye,
     Calendar,
     TrendingUp,
     Clock,
@@ -353,104 +352,32 @@ export default function FacultyDashboard() {
                     </div>
                 </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                    {/* Your Classes */}
-                    <div className="lg:col-span-3">
-                        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-                            <div className="p-6 border-b border-slate-200 bg-slate-50/80">
-                                <div className="flex items-center justify-between">
-                                    <h2 className="text-xl font-semibold text-slate-900 flex items-center">
-                                        <BookOpen className="h-5 w-5 mr-2 text-blue-600" />
-                                        Your Classes
-                                    </h2>
-                                    <Link to="/classes/create">
-                                        <button className="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 cursor-pointer">
-                                            <Plus className="h-4 w-4 mr-2" />
-                                            Create New Class
-                                        </button>
-                                    </Link>
-                                </div>
-                            </div>
-
-                            <div className="p-6">
-                                {dashboardData?.classes?.length === 0 ? (
-                                    <div className="text-center py-8">
-                                        <BookOpen className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-                                        <p className="text-gray-500">
-                                            No classes created yet
-                                        </p>
-                                    </div>
-                                ) : (
-                                    <div className="space-y-4">
-                                        {dashboardData?.classes?.map(
-                                            (classItem) => (
-                                                <div
-                                                    key={classItem._id}
-                                                    className="border border-slate-200 rounded-xl p-4 bg-gradient-to-r from-white to-slate-50/80 hover:shadow-sm transition-shadow duration-200"
-                                                >
-                                                    <div className="flex items-start justify-between">
-                                                        <div className="flex-1">
-                                                            <h3 className="text-lg font-semibold text-gray-900 mb-1">
-                                                                {
-                                                                    classItem.subjectName
-                                                                }
-                                                            </h3>
-                                                            <p className="text-sm text-gray-600 mb-3">
-                                                                Code:{" "}
-                                                                <span className="font-mono font-medium">
-                                                                    {
-                                                                        classItem.subjectCode
-                                                                    }
-                                                                </span>
-                                                            </p>
-
-                                                            <div className="flex items-center space-x-6 text-sm text-gray-500">
-                                                                <div className="flex items-center">
-                                                                    <Users className="h-4 w-4 mr-1" />
-                                                                    {
-                                                                        classItem.totalStudents
-                                                                    }{" "}
-                                                                    Students
-                                                                </div>
-                                                                <div className="flex items-center">
-                                                                    <FileText className="h-4 w-4 mr-1" />
-                                                                    {
-                                                                        classItem.totalQuizzes
-                                                                    }{" "}
-                                                                    Quizzes
-                                                                </div>
-                                                            </div>
-                                                        </div>
-
-                                                        <div className="flex flex-col sm:flex-row gap-2 ml-4">
-                                                            <Link
-                                                                to={`/classes/${classItem._id}`}
-                                                            >
-                                                                <button className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-md transition-colors duration-200 cursor-pointer">
-                                                                    <Eye className="h-4 w-4 mr-1" />
-                                                                    View Details
-                                                                </button>
-                                                            </Link>
-                                                            <Link
-                                                                to={`/quizzes/create?classId=${classItem._id}`}
-                                                            >
-                                                                <button className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-green-600 hover:text-green-700 hover:bg-green-50 rounded-md transition-colors duration-200 cursor-pointer">
-                                                                    <Plus className="h-4 w-4 mr-1" />
-                                                                    Create Quiz
-                                                                </button>
-                                                            </Link>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            )
-                                        )}
-                                    </div>
-                                )}
-                            </div>
+                <div className="rounded-2xl border border-slate-200 bg-white/80 backdrop-blur-sm p-6 shadow-sm">
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                            <h2 className="text-xl font-semibold text-slate-900 flex items-center">
+                                <BookOpen className="h-5 w-5 mr-2 text-blue-600" />
+                                Manage Classes
+                            </h2>
+                            <p className="text-sm text-slate-600 mt-1">
+                                Use the dedicated classes page to manage
+                                students, quizzes, and class details.
+                            </p>
+                        </div>
+                        <div className="flex items-center gap-3">
+                            <Link to="/classes">
+                                <button className="inline-flex items-center px-4 py-2 bg-white text-slate-700 text-sm font-medium rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors duration-200 cursor-pointer">
+                                    View Classes
+                                </button>
+                            </Link>
+                            <Link to="/classes/create">
+                                <button className="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors duration-200 cursor-pointer">
+                                    <Plus className="h-4 w-4 mr-2" />
+                                    Create New Class
+                                </button>
+                            </Link>
                         </div>
                     </div>
-
-                    {/* Old Activity Section was here, removed in favor of new layout above */}
                 </div>
             </div>
         </div>
