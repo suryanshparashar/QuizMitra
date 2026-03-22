@@ -20,6 +20,7 @@ import {
     Play,
     Eye,
     ChevronDown,
+    Loader2,
 } from "lucide-react"
 
 export default function QuizDetails() {
@@ -227,15 +228,23 @@ export default function QuizDetails() {
         0
     const averageScore =
         quizStats?.averageScore ?? quiz?.averageScore ?? quiz?.avgScore ?? 0
+    const negativeMarkingEnabled =
+        quiz?.settings?.negativeMarkingEnabled === true
+    const negativeMarkingRatio = Number(quiz?.settings?.negativeMarkingRatio)
+    const safeNegativeMarkingRatio = Number.isFinite(negativeMarkingRatio)
+        ? Math.max(0, negativeMarkingRatio)
+        : 0
 
     return (
-        <div className="min-h-screen bg-gray-50 pt-3 pb-8 sm:pt-4">
-            <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="min-h-screen bg-gradient-to-b from-slate-50 via-blue-50/40 to-white pt-3 pb-8 sm:pt-4">
+            <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 relative">
+                <div className="pointer-events-none absolute -top-8 -left-10 h-28 w-28 rounded-full bg-cyan-200/30 blur-3xl" />
+                <div className="pointer-events-none absolute top-20 -right-10 h-36 w-36 rounded-full bg-indigo-200/30 blur-3xl" />
                 {/* Header */}
-                <div className="mb-8">
+                <div className="mb-8 rounded-2xl border border-white/80 bg-white/75 backdrop-blur-md shadow-sm p-5 sm:p-6">
                     <button
                         onClick={() => window.history.back()}
-                        className="inline-flex items-center text-sm font-medium text-gray-500 hover:text-gray-700 mb-4 transition-colors duration-200"
+                        className="inline-flex items-center text-sm font-medium text-slate-500 hover:text-slate-700 mb-4 transition-colors duration-200"
                     >
                         <ArrowLeft className="h-4 w-4 mr-1" />
                         Back
@@ -243,17 +252,17 @@ export default function QuizDetails() {
 
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
                         <div className="flex-1">
-                            <h1 className="text-3xl font-bold text-gray-900 mb-2">
+                            <h1 className="text-3xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-slate-900 via-blue-800 to-indigo-700 mb-2">
                                 {quiz.title}
                             </h1>
-                            <p className="text-gray-600 text-lg">
+                            <p className="text-slate-600 text-base sm:text-lg leading-relaxed">
                                 {quiz.description}
                             </p>
                         </div>
 
                         <div className="mt-4 sm:mt-0 sm:ml-6">
                             <div
-                                className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border ${getStatusColor(
+                                className={`inline-flex items-center px-3.5 py-1.5 rounded-full text-sm font-semibold border shadow-sm ${getStatusColor(
                                     quiz.status
                                 )}`}
                             >
@@ -270,68 +279,116 @@ export default function QuizDetails() {
                     {/* Main Content */}
                     <div className="lg:col-span-2 space-y-8">
                         {/* Quiz Information */}
-                        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                            <h2 className="text-xl font-semibold text-gray-900 mb-6 flex items-center">
-                                <FileText className="h-5 w-5 mr-2 text-blue-600" />
-                                Quiz Information
-                            </h2>
+                        <div className="bg-white/90 rounded-2xl shadow-sm border border-slate-200/70 ring-1 ring-white p-6">
+                            <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
+                                <h2 className="text-xl font-semibold text-gray-900 flex items-center">
+                                    <FileText className="h-5 w-5 mr-2 text-blue-600" />
+                                    Quiz Information
+                                </h2>
+                                <span className="inline-flex items-center rounded-full bg-slate-100 text-slate-700 border border-slate-200 px-3 py-1 text-xs font-semibold">
+                                    Quick Summary
+                                </span>
+                            </div>
 
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <div className="flex items-center space-x-3">
-                                    <div className="h-10 w-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                                        <Timer className="h-5 w-5 text-blue-600" />
-                                    </div>
-                                    <div>
-                                        <p className="text-sm font-medium text-gray-600">
-                                            Duration
-                                        </p>
-                                        <p className="text-lg font-semibold text-gray-900">
-                                            {quiz.duration} minutes
-                                        </p>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="rounded-xl border border-blue-100 bg-gradient-to-br from-blue-50 to-white p-4">
+                                    <div className="flex items-center space-x-3">
+                                        <div className="h-10 w-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                                            <Timer className="h-5 w-5 text-blue-600" />
+                                        </div>
+                                        <div>
+                                            <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">
+                                                Duration
+                                            </p>
+                                            <p className="text-lg font-bold text-slate-900">
+                                                {quiz.duration} minutes
+                                            </p>
+                                        </div>
                                     </div>
                                 </div>
 
-                                <div className="flex items-center space-x-3">
-                                    <div className="h-10 w-10 bg-green-100 rounded-lg flex items-center justify-center">
-                                        <FileText className="h-5 w-5 text-green-600" />
-                                    </div>
-                                    <div>
-                                        <p className="text-sm font-medium text-gray-600">
-                                            Questions
-                                        </p>
-                                        <p className="text-lg font-semibold text-gray-900">
-                                            {quiz.questions?.length || 0}
-                                        </p>
-                                    </div>
-                                </div>
-
-                                <div className="flex items-center space-x-3">
-                                    <div className="h-10 w-10 bg-purple-100 rounded-lg flex items-center justify-center">
-                                        <Target className="h-5 w-5 text-purple-600" />
-                                    </div>
-                                    <div>
-                                        <p className="text-sm font-medium text-gray-600">
-                                            Total Marks
-                                        </p>
-                                        <p className="text-lg font-semibold text-gray-900">
-                                            {quiz.requirements?.totalMarks || 0}
-                                        </p>
+                                <div className="rounded-xl border border-emerald-100 bg-gradient-to-br from-emerald-50 to-white p-4">
+                                    <div className="flex items-center space-x-3">
+                                        <div className="h-10 w-10 bg-green-100 rounded-lg flex items-center justify-center">
+                                            <FileText className="h-5 w-5 text-green-600" />
+                                        </div>
+                                        <div>
+                                            <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
+                                                Questions
+                                            </p>
+                                            <p className="text-lg font-bold text-slate-900">
+                                                {quiz.questions?.length || 0}
+                                            </p>
+                                        </div>
                                     </div>
                                 </div>
 
-                                <div className="flex items-center space-x-3">
-                                    <div className="h-10 w-10 bg-orange-100 rounded-lg flex items-center justify-center">
-                                        <Calendar className="h-5 w-5 text-orange-600" />
+                                <div className="rounded-xl border border-violet-100 bg-gradient-to-br from-violet-50 to-white p-4">
+                                    <div className="flex items-center space-x-3">
+                                        <div className="h-10 w-10 bg-purple-100 rounded-lg flex items-center justify-center">
+                                            <Target className="h-5 w-5 text-purple-600" />
+                                        </div>
+                                        <div>
+                                            <p className="text-xs font-semibold uppercase tracking-wide text-violet-700">
+                                                Total Marks
+                                            </p>
+                                            <p className="text-lg font-bold text-slate-900">
+                                                {quiz.requirements
+                                                    ?.totalMarks || 0}
+                                            </p>
+                                        </div>
                                     </div>
-                                    <div>
-                                        <p className="text-sm font-medium text-gray-600">
-                                            Scheduled
-                                        </p>
-                                        <p className="text-sm font-semibold text-gray-900">
-                                            {new Date(
-                                                quiz.scheduledAt
-                                            ).toLocaleString()}
-                                        </p>
+                                </div>
+
+                                <div className="rounded-xl border border-amber-100 bg-gradient-to-br from-amber-50 to-white p-4">
+                                    <div className="flex items-center space-x-3">
+                                        <div className="h-10 w-10 bg-orange-100 rounded-lg flex items-center justify-center">
+                                            <Calendar className="h-5 w-5 text-orange-600" />
+                                        </div>
+                                        <div>
+                                            <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">
+                                                Scheduled
+                                            </p>
+                                            <p className="text-sm font-semibold text-slate-900">
+                                                {new Date(
+                                                    quiz.scheduledAt
+                                                ).toLocaleString()}
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="md:col-span-2 rounded-xl border border-rose-100 bg-gradient-to-r from-rose-50 to-white p-4">
+                                    <div className="flex items-center justify-between gap-3">
+                                        <div className="flex items-center space-x-3">
+                                            <div className="h-10 w-10 bg-rose-100 rounded-lg flex items-center justify-center">
+                                                <AlertCircle className="h-5 w-5 text-rose-600" />
+                                            </div>
+                                            <div>
+                                                <p className="text-xs font-semibold uppercase tracking-wide text-rose-700">
+                                                    Negative Marking
+                                                </p>
+                                                <p className="text-sm font-semibold text-slate-900">
+                                                    {negativeMarkingEnabled &&
+                                                    safeNegativeMarkingRatio > 0
+                                                        ? `Enabled (${safeNegativeMarkingRatio}x per wrong answer)`
+                                                        : "Disabled"}
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <span
+                                            className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${
+                                                negativeMarkingEnabled &&
+                                                safeNegativeMarkingRatio > 0
+                                                    ? "bg-rose-100 text-rose-700 border border-rose-200"
+                                                    : "bg-slate-100 text-slate-600 border border-slate-200"
+                                            }`}
+                                        >
+                                            {negativeMarkingEnabled &&
+                                            safeNegativeMarkingRatio > 0
+                                                ? "Active"
+                                                : "Off"}
+                                        </span>
                                     </div>
                                 </div>
                             </div>
@@ -355,23 +412,31 @@ export default function QuizDetails() {
 
                         {/* Quiz Questions Preview (Faculty Only) */}
                         {user?.role === "faculty" && quiz.questions && (
-                            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                                <h2 className="text-xl font-semibold text-gray-900 mb-6 flex items-center">
-                                    <BookOpen className="h-5 w-5 mr-2 text-blue-600" />
-                                    Questions Preview
-                                </h2>
+                            <div className="bg-white/90 rounded-2xl shadow-sm border border-slate-200/70 ring-1 ring-white p-6">
+                                <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
+                                    <h2 className="text-xl font-semibold text-gray-900 flex items-center">
+                                        <BookOpen className="h-5 w-5 mr-2 text-blue-600" />
+                                        Questions Preview
+                                    </h2>
+                                    <span className="inline-flex items-center rounded-full bg-blue-50 text-blue-700 border border-blue-200 px-3 py-1 text-xs font-semibold">
+                                        {quiz.questions?.length || 0} Total
+                                    </span>
+                                </div>
 
                                 <div className="space-y-6">
                                     {quiz.questions?.map((question, index) => (
                                         <div
                                             key={index}
-                                            className="border border-gray-200 rounded-lg p-4"
+                                            className="group relative overflow-hidden border border-slate-200 rounded-2xl p-4 sm:p-5 bg-gradient-to-br from-white via-slate-50/70 to-blue-50/40 hover:shadow-md hover:border-blue-200 transition-all duration-200"
                                         >
-                                            <div className="flex items-start justify-between mb-3">
-                                                <h3 className="text-lg font-semibold text-gray-900">
+                                            <div className="flex items-start justify-between mb-3 gap-3">
+                                                <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                                                    <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-slate-900 to-blue-900 text-white text-xs font-bold shadow-sm">
+                                                        {index + 1}
+                                                    </span>
                                                     Question {index + 1}
                                                 </h3>
-                                                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                                <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-100/90 text-blue-800 border border-blue-200 shadow-sm">
                                                     {question.marks || 1} mark
                                                     {(question.marks || 1) !== 1
                                                         ? "s"
@@ -379,53 +444,95 @@ export default function QuizDetails() {
                                                 </span>
                                             </div>
 
-                                            <p className="text-gray-700 mb-4 leading-relaxed">
+                                            <p className="text-slate-700 mb-4 leading-relaxed text-[15px]">
                                                 {question.questionText}
                                             </p>
 
-                                            {question.options && (
-                                                <div className="mb-4">
-                                                    <p className="text-sm font-medium text-gray-600 mb-2">
-                                                        Options:
-                                                    </p>
-                                                    <ul className="space-y-2">
-                                                        {question.options?.map(
-                                                            (
-                                                                option,
-                                                                optIndex
-                                                            ) => (
-                                                                <li
-                                                                    key={
-                                                                        optIndex
-                                                                    }
-                                                                    className="flex items-center space-x-2"
-                                                                >
-                                                                    <span className="inline-flex items-center justify-center h-6 w-6 rounded-full bg-gray-100 text-gray-600 text-sm font-medium">
-                                                                        {String.fromCharCode(
+                                            {Array.isArray(question.options) &&
+                                                question.options.length > 0 && (
+                                                    <div className="mb-4">
+                                                        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2.5">
+                                                            Options:
+                                                        </p>
+                                                        <ul className="space-y-2">
+                                                            {question.options?.map(
+                                                                (
+                                                                    option,
+                                                                    optIndex
+                                                                ) => {
+                                                                    const optionLabel =
+                                                                        String.fromCharCode(
                                                                             65 +
                                                                                 optIndex
-                                                                        )}
-                                                                    </span>
-                                                                    <span className="text-gray-700">
-                                                                        {option}
-                                                                    </span>
-                                                                </li>
-                                                            )
-                                                        )}
-                                                    </ul>
+                                                                        )
+                                                                    const isCorrectOption =
+                                                                        question.correctAnswer ===
+                                                                            option ||
+                                                                        question.correctAnswer ===
+                                                                            optionLabel
+
+                                                                    return (
+                                                                        <li
+                                                                            key={
+                                                                                optIndex
+                                                                            }
+                                                                            className={`flex items-center justify-between gap-2 rounded-lg px-2.5 py-2 border transition-colors duration-200 ${
+                                                                                isCorrectOption
+                                                                                    ? "bg-emerald-50 border-emerald-200"
+                                                                                    : "bg-white/80 border-slate-200 hover:bg-slate-50"
+                                                                            }`}
+                                                                        >
+                                                                            <div className="flex items-center space-x-2 min-w-0">
+                                                                                <span
+                                                                                    className={`inline-flex items-center justify-center h-6 w-6 rounded-full text-sm font-medium ${
+                                                                                        isCorrectOption
+                                                                                            ? "bg-emerald-200 text-emerald-800"
+                                                                                            : "bg-gray-100 text-gray-600"
+                                                                                    }`}
+                                                                                >
+                                                                                    {
+                                                                                        optionLabel
+                                                                                    }
+                                                                                </span>
+                                                                                <span className="text-slate-700 truncate">
+                                                                                    {
+                                                                                        option
+                                                                                    }
+                                                                                </span>
+                                                                            </div>
+
+                                                                            {isCorrectOption && (
+                                                                                <span className="inline-flex items-center rounded-full bg-emerald-100 text-emerald-700 border border-emerald-200 px-2 py-0.5 text-[10px] font-semibold">
+                                                                                    Correct
+                                                                                </span>
+                                                                            )}
+                                                                        </li>
+                                                                    )
+                                                                }
+                                                            )}
+                                                        </ul>
+                                                    </div>
+                                                )}
+
+                                            {!(
+                                                Array.isArray(
+                                                    question.options
+                                                ) && question.options.length > 0
+                                            ) && (
+                                                <div className="p-3 bg-gradient-to-r from-emerald-50 to-green-50/80 rounded-lg border border-green-200">
+                                                    <p className="text-sm flex items-center gap-1.5">
+                                                        <CheckCircle className="h-4 w-4 text-emerald-600" />
+                                                        <span className="font-medium text-green-900">
+                                                            Correct Answer:
+                                                        </span>{" "}
+                                                        <span className="text-green-700">
+                                                            {
+                                                                question.correctAnswer
+                                                            }
+                                                        </span>
+                                                    </p>
                                                 </div>
                                             )}
-
-                                            <div className="p-3 bg-green-50 rounded-lg border border-green-200">
-                                                <p className="text-sm">
-                                                    <span className="font-medium text-green-900">
-                                                        Correct Answer:
-                                                    </span>{" "}
-                                                    <span className="text-green-700">
-                                                        {question.correctAnswer}
-                                                    </span>
-                                                </p>
-                                            </div>
                                         </div>
                                     ))}
                                 </div>
@@ -582,11 +689,19 @@ export default function QuizDetails() {
                                                             />
                                                         </span>
                                                     </button>
-                                                    {savingVisibility && (
-                                                        <p className="mt-2 text-[11px] text-slate-500">
+                                                    <div
+                                                        aria-live="polite"
+                                                        className={`mt-2 min-h-[14px] transition-opacity duration-150 flex items-center gap-1.5 ${
+                                                            savingVisibility
+                                                                ? "text-slate-500 opacity-100"
+                                                                : "opacity-0"
+                                                        }`}
+                                                    >
+                                                        <Loader2 className="h-3 w-3 animate-spin" />
+                                                        <span className="text-[11px]">
                                                             Saving...
-                                                        </p>
-                                                    )}
+                                                        </span>
+                                                    </div>
                                                 </div>
                                             </details>
 
@@ -740,9 +855,12 @@ export default function QuizDetails() {
                                                         "shuffleQuestions" ||
                                                         savingSettingKey ===
                                                             "shuffleOptions") && (
-                                                        <p className="text-[11px] text-slate-500">
-                                                            Saving...
-                                                        </p>
+                                                        <div className="flex items-center gap-1.5 text-slate-500 mt-2">
+                                                            <Loader2 className="h-3 w-3 animate-spin" />
+                                                            <span className="text-[11px]">
+                                                                Saving...
+                                                            </span>
+                                                        </div>
                                                     )}
                                                 </div>
                                             </details>
