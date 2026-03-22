@@ -148,7 +148,7 @@ export default function LandingPage() {
                         className="flex items-center gap-2 text-xl font-bold bg-gradient-to-r from-primary-600 to-accent-600 bg-clip-text text-transparent"
                     >
                         <img
-                            src="/quizmitra.png"
+                            src="/logo.png"
                             alt="QuizMitra"
                             className="w-8 h-8 rounded-lg"
                         />
@@ -394,7 +394,7 @@ export default function LandingPage() {
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
                     <div className="flex items-center gap-2 text-white font-semibold">
                         <img
-                            src="/quizmitra.png"
+                            src="/logo.png"
                             alt="QuizMitra"
                             className="w-6 h-6 rounded"
                         />

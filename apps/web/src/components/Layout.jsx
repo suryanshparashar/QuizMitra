@@ -93,7 +93,7 @@ export default function Layout() {
                     >
                         <div className="w-9 h-9 rounded-xl bg-white shadow-sm border border-white/70 flex items-center justify-center group-hover:shadow-md transition">
                             <img
-                                src="/quizmitra.png"
+                                src="/logo.png"
                                 alt="QuizMitra Logo"
                                 className="w-8 h-8 rounded-lg"
                             />
