@@ -24,6 +24,8 @@ import {
     Video,
     Expand,
     X,
+    ChevronLeft,
+    ChevronRight,
 } from "lucide-react"
 
 // ─── Static data ──────────────────────────────────────────────────────────────
@@ -312,6 +314,37 @@ export default function LandingPage() {
     const [showcaseItems, setShowcaseItems] = useState([])
     const [showcaseLoading, setShowcaseLoading] = useState(true)
     const [activeMedia, setActiveMedia] = useState(null)
+    const [showcaseIndex, setShowcaseIndex] = useState(0)
+
+    const goToShowcase = (nextIndex) => {
+        const total = showcaseItems.length
+        if (!total) return
+        const normalized = ((nextIndex % total) + total) % total
+        setShowcaseIndex(normalized)
+    }
+
+    const goPrevShowcase = () => goToShowcase(showcaseIndex - 1)
+    const goNextShowcase = () => goToShowcase(showcaseIndex + 1)
+
+    useEffect(() => {
+        if (showcaseItems.length === 0) {
+            setShowcaseIndex(0)
+            return
+        }
+        if (showcaseIndex > showcaseItems.length - 1) {
+            setShowcaseIndex(0)
+        }
+    }, [showcaseItems.length, showcaseIndex])
+
+    useEffect(() => {
+        if (showcaseItems.length <= 1 || activeMedia) return
+
+        const timer = window.setInterval(() => {
+            setShowcaseIndex((prev) => (prev + 1) % showcaseItems.length)
+        }, 4500)
+
+        return () => window.clearInterval(timer)
+    }, [showcaseItems.length, activeMedia])
 
     useEffect(() => {
         if (!activeMedia) return
@@ -347,7 +380,7 @@ export default function LandingPage() {
     }, [])
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-950 via-indigo-950 to-blue-950 font-sans text-slate-100">
+        <div className="min-h-screen overflow-x-hidden bg-gradient-to-br from-slate-950 via-indigo-950 to-blue-950 font-sans text-slate-100">
             {/* ── Navbar ─────────────────────────────────────────────────── */}
             <header className="sticky top-0 z-50 bg-slate-950/70 backdrop-blur border-b border-white/10 shadow-sm">
                 <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
@@ -491,14 +524,71 @@ export default function LandingPage() {
                             Showcase will appear here once media is published.
                         </div>
                     ) : (
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                            {showcaseItems.map((item) => (
-                                <ShowcaseCard
-                                    key={item._id || item.mediaUrl}
-                                    item={item}
-                                    onOpen={() => setActiveMedia(item)}
-                                />
-                            ))}
+                        <div className="space-y-3">
+                            <div className="relative rounded-3xl border border-cyan-400/15 bg-white/5 backdrop-blur-sm px-3 pt-3 pb-3 sm:px-4 sm:pt-4 sm:pb-3 lg:px-5 lg:pt-5 lg:pb-3">
+                                <div className="mb-3 flex items-center justify-between gap-3 sm:mb-4">
+                                    <div className="rounded-full border border-cyan-300/25 bg-cyan-500/10 px-2 py-0.5 text-[10px] uppercase tracking-[0.15em] text-cyan-200">
+                                        Live Showcase
+                                    </div>
+                                </div>
+
+                                <button
+                                    type="button"
+                                    onClick={goPrevShowcase}
+                                    className="absolute left-2 top-1/2 -translate-y-1/2 z-10 h-9 w-9 sm:h-10 sm:w-10 inline-flex items-center justify-center rounded-xl border border-white/25 bg-slate-900/65 text-slate-100 hover:bg-slate-800/80 transition"
+                                    aria-label="Previous media"
+                                >
+                                    <ChevronLeft className="w-5 h-5" />
+                                </button>
+
+                                <button
+                                    type="button"
+                                    onClick={goNextShowcase}
+                                    className="absolute right-2 top-1/2 -translate-y-1/2 z-10 h-9 w-9 sm:h-10 sm:w-10 inline-flex items-center justify-center rounded-xl border border-white/25 bg-slate-900/65 text-slate-100 hover:bg-slate-800/80 transition"
+                                    aria-label="Next media"
+                                >
+                                    <ChevronRight className="w-5 h-5" />
+                                </button>
+
+                                <div className="overflow-hidden rounded-2xl">
+                                    <div
+                                        className="flex transition-transform duration-500 ease-out"
+                                        style={{
+                                            transform: `translateX(-${showcaseIndex * 100}%)`,
+                                        }}
+                                    >
+                                        {showcaseItems.map((item) => (
+                                            <div
+                                                key={item._id || item.mediaUrl}
+                                                className="w-full shrink-0 px-8 sm:px-11 lg:px-12"
+                                            >
+                                                <ShowcaseCard
+                                                    item={item}
+                                                    onOpen={() =>
+                                                        setActiveMedia(item)
+                                                    }
+                                                />
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="flex items-center justify-center gap-1.5">
+                                {showcaseItems.map((item, idx) => (
+                                    <button
+                                        key={`dot-${item._id || item.mediaUrl || idx}`}
+                                        type="button"
+                                        onClick={() => goToShowcase(idx)}
+                                        className={`h-1.5 rounded-full transition-all ${
+                                            idx === showcaseIndex
+                                                ? "w-5 bg-cyan-300"
+                                                : "w-1.5 bg-slate-500 hover:bg-slate-400"
+                                        }`}
+                                        aria-label={`Go to showcase item ${idx + 1}`}
+                                    />
+                                ))}
+                            </div>
                         </div>
                     )}
                 </div>
