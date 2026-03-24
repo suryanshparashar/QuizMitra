@@ -21,6 +21,7 @@ import {
     EyeOff,
     Save,
     X,
+    DownloadCloud,
 } from "lucide-react"
 import { api } from "../../services/api.js"
 import { DashboardSkeleton } from "../../components/LoadingStates"
@@ -322,7 +323,7 @@ function ManageAdminsTab() {
                             {loading ? (
                                 <tr>
                                     <td
-                                        colSpan={7}
+                                        colSpan={8}
                                         className="px-4 py-8 text-center text-gray-400"
                                     >
                                         Loading…
@@ -379,7 +380,7 @@ function ManageAdminsTab() {
                                         </td>
                                         <td className="px-4 py-3">
                                             {admin.role !== "superadmin" ? (
-                                                <div className="flex flex-col gap-1.5">
+                                                <div className="flex flex-col gap-2 min-w-[100px]">
                                                     <button
                                                         onClick={() =>
                                                             handleMediaPermissionChange(
@@ -395,7 +396,7 @@ function ManageAdminsTab() {
                                                         disabled={
                                                             !!actionLoading
                                                         }
-                                                        className={`px-2.5 py-1 text-xs rounded-lg border disabled:opacity-50 transition-colors text-left ${
+                                                        className={`w-25 inline-flex items-center justify-between px-2.5 py-1.5 text-xs rounded-lg border disabled:opacity-50 transition-colors ${
                                                             admin
                                                                 ?.mediaPermissions
                                                                 ?.canView
@@ -403,11 +404,28 @@ function ManageAdminsTab() {
                                                                 : "bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100"
                                                         }`}
                                                     >
-                                                        View:{" "}
-                                                        {admin?.mediaPermissions
-                                                            ?.canView
-                                                            ? "Allowed"
-                                                            : "Blocked"}
+                                                        <span>
+                                                            <Eye className="w-4 h-4 inline-block mr-1" />
+                                                        </span>
+                                                        <span
+                                                            className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
+                                                                admin
+                                                                    ?.mediaPermissions
+                                                                    ?.canView
+                                                                    ? "bg-emerald-500"
+                                                                    : "bg-gray-300"
+                                                            }`}
+                                                        >
+                                                            <span
+                                                                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                                                                    admin
+                                                                        ?.mediaPermissions
+                                                                        ?.canView
+                                                                        ? "translate-x-4"
+                                                                        : "translate-x-0.5"
+                                                                }`}
+                                                            />
+                                                        </span>
                                                     </button>
                                                     <button
                                                         onClick={() =>
@@ -427,7 +445,7 @@ function ManageAdminsTab() {
                                                                 ?.mediaPermissions
                                                                 ?.canView
                                                         }
-                                                        className={`px-2.5 py-1 text-xs rounded-lg border disabled:opacity-50 transition-colors text-left ${
+                                                        className={`w-25 inline-flex items-center justify-between px-2.5 py-1.5 text-xs rounded-lg border disabled:opacity-50 transition-colors ${
                                                             admin
                                                                 ?.mediaPermissions
                                                                 ?.canDownload
@@ -435,11 +453,28 @@ function ManageAdminsTab() {
                                                                 : "bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100"
                                                         }`}
                                                     >
-                                                        Download:{" "}
-                                                        {admin?.mediaPermissions
-                                                            ?.canDownload
-                                                            ? "Allowed"
-                                                            : "Blocked"}
+                                                        <span>
+                                                            <DownloadCloud className="w-4 h-4 inline-block mr-1" />
+                                                        </span>
+                                                        <span
+                                                            className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
+                                                                admin
+                                                                    ?.mediaPermissions
+                                                                    ?.canDownload
+                                                                    ? "bg-indigo-500"
+                                                                    : "bg-gray-300"
+                                                            }`}
+                                                        >
+                                                            <span
+                                                                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                                                                    admin
+                                                                        ?.mediaPermissions
+                                                                        ?.canDownload
+                                                                        ? "translate-x-4"
+                                                                        : "translate-x-0.5"
+                                                                }`}
+                                                            />
+                                                        </span>
                                                     </button>
                                                 </div>
                                             ) : (

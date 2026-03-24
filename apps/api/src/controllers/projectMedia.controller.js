@@ -1,4 +1,5 @@
 import { asyncHandler, ApiError, ApiResponse } from "../utils/index.js"
+import { Readable } from "node:stream"
 import { ProjectMedia } from "../models/projectMedia.model.js"
 import {
     uploadMediaBufferOnCloudinary,
@@ -33,6 +34,25 @@ const ensureMediaPermission = (req, permission) => {
     if (permission === "download" && !permissions.canDownload) {
         throw new ApiError(403, "You are not allowed to download media")
     }
+}
+
+const sanitizeFileName = (value) => {
+    const safe = String(value || "project-media")
+        .trim()
+        .replace(/[^a-zA-Z0-9-_ ]+/g, "")
+        .replace(/\s+/g, "-")
+    return safe || "project-media"
+}
+
+const extensionFromContentType = (contentType, mediaType) => {
+    const type = String(contentType || "").toLowerCase()
+    if (type.includes("image/png")) return "png"
+    if (type.includes("image/webp")) return "webp"
+    if (type.includes("image/gif")) return "gif"
+    if (type.includes("image/jpeg") || type.includes("image/jpg")) return "jpg"
+    if (type.includes("video/webm")) return "webm"
+    if (type.includes("video/mp4")) return "mp4"
+    return mediaType === "video" ? "mp4" : "jpg"
 }
 
 const uploadProjectMedia = asyncHandler(async (req, res) => {
@@ -140,6 +160,57 @@ const getAdminMediaDownloadLink = asyncHandler(async (req, res) => {
             "Download link generated"
         )
     )
+})
+
+const downloadAdminProjectMedia = asyncHandler(async (req, res) => {
+    ensureAdminOrSuperAdmin(req)
+    ensureMediaPermission(req, "download")
+
+    const { id } = req.params
+    const media = await ProjectMedia.findById(id).select(
+        "title mediaType mediaUrl isPublished"
+    )
+
+    if (!media) {
+        throw new ApiError(404, "Project media not found")
+    }
+
+    if (req.user?.role !== "superadmin" && !media.isPublished) {
+        throw new ApiError(403, "You are not allowed to access this media")
+    }
+
+    const upstream = await fetch(media.mediaUrl)
+    if (!upstream.ok) {
+        throw new ApiError(502, "Failed to fetch media from storage")
+    }
+
+    if (!upstream.body) {
+        throw new ApiError(502, "Media stream is unavailable")
+    }
+
+    const contentType =
+        upstream.headers.get("content-type") ||
+        (media.mediaType === "video" ? "video/mp4" : "image/jpeg")
+    const fileExt = extensionFromContentType(contentType, media.mediaType)
+    const fileName = `${sanitizeFileName(media.title)}.${fileExt}`
+
+    res.setHeader("Content-Type", contentType)
+    const contentLength = upstream.headers.get("content-length")
+    if (contentLength) {
+        res.setHeader("Content-Length", contentLength)
+    }
+    res.setHeader("Content-Disposition", `attachment; filename="${fileName}"`)
+
+    const stream = Readable.fromWeb(upstream.body)
+    stream.on("error", () => {
+        if (!res.headersSent) {
+            res.status(502).end("Failed to stream media")
+        } else {
+            res.end()
+        }
+    })
+
+    return stream.pipe(res)
 })
 
 const getAdminProjectMedia = asyncHandler(async (req, res) => {
@@ -298,6 +369,7 @@ export {
     getPublicProjectMedia,
     getAdminAllowedProjectMedia,
     getAdminMediaDownloadLink,
+    downloadAdminProjectMedia,
     getAdminProjectMedia,
     updateProjectMedia,
     unpublishProjectMedia,

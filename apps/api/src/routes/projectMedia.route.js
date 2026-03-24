@@ -6,6 +6,7 @@ import {
     getPublicProjectMedia,
     getAdminAllowedProjectMedia,
     getAdminMediaDownloadLink,
+    downloadAdminProjectMedia,
     getAdminProjectMedia,
     updateProjectMedia,
     unpublishProjectMedia,
@@ -21,6 +22,7 @@ router.route("/public").get(getPublicProjectMedia)
 // Superadmin-only upload route
 router.use(verifyJWT)
 router.route("/admin").get(getAdminAllowedProjectMedia)
+router.route("/admin/:id/download").get(downloadAdminProjectMedia)
 router.route("/admin/:id/download-link").get(getAdminMediaDownloadLink)
 
 router
