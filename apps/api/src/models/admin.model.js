@@ -76,6 +76,16 @@ const adminSchema = new Schema(
         lastLogin: {
             type: Date,
         },
+        mediaPermissions: {
+            canView: {
+                type: Boolean,
+                default: true,
+            },
+            canDownload: {
+                type: Boolean,
+                default: false,
+            },
+        },
     },
     {
         timestamps: true,

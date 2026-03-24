@@ -126,4 +126,90 @@ const deleteFromCloudinary = async (publicId) => {
     }
 }
 
-export { uploadOnCloudinary, deleteLocalFile, deleteFromCloudinary }
+const uploadMediaBufferOnCloudinary = async ({
+    fileBuffer,
+    folder,
+    resourceType = "auto",
+}) => {
+    if (!fileBuffer) return null
+
+    const hasConfig =
+        process.env.CLOUDINARY_CLOUD_NAME &&
+        process.env.CLOUDINARY_API_KEY &&
+        process.env.CLOUDINARY_API_SECRET
+
+    if (!hasConfig) {
+        throw new ApiError(
+            500,
+            "Cloudinary credentials are not fully configured"
+        )
+    }
+
+    try {
+        const response = await new Promise((resolve, reject) => {
+            const stream = cloudinary.uploader.upload_stream(
+                {
+                    folder,
+                    resource_type: resourceType,
+                },
+                (error, result) => {
+                    if (error) return reject(error)
+                    resolve(result)
+                }
+            )
+
+            stream.end(fileBuffer)
+        })
+
+        return response
+    } catch (error) {
+        console.error("Cloudinary media upload error:", {
+            message: error?.message,
+            http_code: error?.http_code,
+            name: error?.name,
+        })
+
+        if (error?.http_code === 403) {
+            throw new ApiError(
+                502,
+                "Cloudinary denied upload (403). Verify API key type/permissions and product environment credentials."
+            )
+        }
+
+        throw new ApiError(
+            502,
+            error?.message || "Cloudinary media upload failed unexpectedly"
+        )
+    }
+}
+
+const deleteMediaFromCloudinary = async ({
+    publicId,
+    resourceType = "image",
+}) => {
+    try {
+        if (!publicId) return null
+
+        const response = await cloudinary.uploader.destroy(publicId, {
+            resource_type: resourceType,
+        })
+
+        return response
+    } catch (error) {
+        console.error("Cloudinary media delete error:", {
+            message: error?.message,
+            http_code: error?.http_code,
+            name: error?.name,
+        })
+
+        return null
+    }
+}
+
+export {
+    uploadOnCloudinary,
+    uploadMediaBufferOnCloudinary,
+    deleteMediaFromCloudinary,
+    deleteLocalFile,
+    deleteFromCloudinary,
+}

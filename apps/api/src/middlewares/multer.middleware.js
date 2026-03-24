@@ -31,7 +31,22 @@ const uploadImage = createUploader({
         "Invalid file type. Only JPEG, PNG, and WebP images are allowed.",
 })
 
+const uploadFeatureMedia = createUploader({
+    allowedTypes: [
+        "image/jpeg",
+        "image/jpg",
+        "image/png",
+        "image/webp",
+        "video/mp4",
+        "video/webm",
+        "video/quicktime",
+    ],
+    maxFileSize: 100 * 1024 * 1024,
+    errorMessage:
+        "Invalid file type. Allowed: JPEG, PNG, WebP, MP4, WebM, MOV.",
+})
+
 // Backward compatibility for existing imports
 const upload = uploadPdf
 
-export { upload, uploadPdf, uploadImage }
+export { upload, uploadPdf, uploadImage, uploadFeatureMedia }

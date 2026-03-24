@@ -1,6 +1,8 @@
+import { useEffect, useRef, useState } from "react"
 import { Link } from "react-router-dom"
 import { useAuthStore } from "../store/authStore.js"
 import { getDashboardPath } from "../utils/getDashboardPath.js"
+import { api } from "../services/api.js"
 import {
     GraduationCap,
     Brain,
@@ -18,6 +20,10 @@ import {
     LineChart,
     Layers,
     Lock,
+    Image as ImageIcon,
+    Video,
+    Expand,
+    X,
 } from "lucide-react"
 
 // ─── Static data ──────────────────────────────────────────────────────────────
@@ -153,10 +159,192 @@ function StepCard({ num, title, desc }) {
     )
 }
 
+function ProtectedVideo({ src, className, autoPlay = false }) {
+    const videoRef = useRef(null)
+
+    useEffect(() => {
+        const video = videoRef.current
+        if (!video) return
+
+        try {
+            if (video.controlsList?.add) {
+                video.controlsList.add("nodownload")
+                video.controlsList.add("noremoteplayback")
+                video.controlsList.add("noplaybackrate")
+            } else {
+                video.setAttribute(
+                    "controlsList",
+                    "nodownload noremoteplayback noplaybackrate"
+                )
+            }
+            video.disablePictureInPicture = true
+        } catch {
+            // Browser may not support controlsList/disablePictureInPicture.
+        }
+    }, [])
+
+    return (
+        <video
+            ref={videoRef}
+            src={src}
+            controls
+            autoPlay={autoPlay}
+            disablePictureInPicture
+            controlsList="nodownload noplaybackrate noremoteplayback"
+            className={className}
+            onContextMenu={(e) => e.preventDefault()}
+        />
+    )
+}
+
+function ShowcaseCard({ item, onOpen }) {
+    return (
+        <article className="rounded-2xl border border-white/15 bg-white/6 backdrop-blur overflow-hidden shadow-sm">
+            <div className="relative aspect-video bg-slate-900/60">
+                <button
+                    type="button"
+                    onClick={onOpen}
+                    className="absolute top-2 right-2 z-10 inline-flex items-center justify-center h-8 w-8 rounded-lg border border-cyan-300 bg-slate-900/75 text-cyan-300 hover:bg-cyan-500/10 transition-colors cursor-pointer"
+                    title="Enlarge & View"
+                    aria-label="Enlarge and view media"
+                >
+                    <Expand className="w-4 h-4" />
+                </button>
+                {item.mediaType === "video" ? (
+                    <ProtectedVideo
+                        src={item.mediaUrl}
+                        className="w-full h-full object-cover"
+                    />
+                ) : (
+                    <img
+                        src={item.mediaUrl}
+                        alt={item.title}
+                        className="w-full h-full object-cover"
+                        loading="lazy"
+                        draggable={false}
+                        onContextMenu={(e) => e.preventDefault()}
+                    />
+                )}
+            </div>
+            <div className="p-4 sm:p-5">
+                <div className="flex items-center gap-2 mb-2">
+                    {item.mediaType === "video" ? (
+                        <Video className="w-4 h-4 text-cyan-300" />
+                    ) : (
+                        <ImageIcon className="w-4 h-4 text-cyan-300" />
+                    )}
+                    <span className="text-xs uppercase tracking-wide font-semibold text-cyan-200">
+                        {item.mediaType}
+                    </span>
+                </div>
+                <h3 className="font-semibold text-slate-100 mb-1">
+                    {item.title}
+                </h3>
+                <p className="text-sm text-slate-300 leading-relaxed">
+                    {item.description || "Feature highlight"}
+                </p>
+            </div>
+        </article>
+    )
+}
+
+function MediaViewerModal({ item, onClose }) {
+    if (!item) return null
+
+    return (
+        <div
+            className="fixed inset-0 z-[100] bg-black/85 backdrop-blur-sm p-4 sm:p-8"
+            onClick={onClose}
+        >
+            <div
+                className="max-w-5xl mx-auto h-full flex items-center justify-center"
+                onClick={(e) => e.stopPropagation()}
+            >
+                <div className="w-full rounded-2xl border border-white/20 bg-slate-950 overflow-hidden shadow-2xl">
+                    <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
+                        <div>
+                            <p className="text-sm font-semibold text-slate-100">
+                                {item.title}
+                            </p>
+                            <p className="text-xs text-slate-400 mt-0.5">
+                                Protected preview mode
+                            </p>
+                        </div>
+                        <button
+                            onClick={onClose}
+                            className="p-2 rounded-lg border border-white/20 text-slate-300 hover:bg-white/10"
+                            title="Close"
+                        >
+                            <X className="w-4 h-4" />
+                        </button>
+                    </div>
+
+                    <div
+                        className="bg-black/70"
+                        onContextMenu={(e) => e.preventDefault()}
+                    >
+                        {item.mediaType === "video" ? (
+                            <ProtectedVideo
+                                src={item.mediaUrl}
+                                autoPlay
+                                className="w-full max-h-[75vh] object-contain"
+                            />
+                        ) : (
+                            <img
+                                src={item.mediaUrl}
+                                alt={item.title}
+                                className="w-full max-h-[75vh] object-contain"
+                                draggable={false}
+                                onContextMenu={(e) => e.preventDefault()}
+                            />
+                        )}
+                    </div>
+                </div>
+            </div>
+        </div>
+    )
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function LandingPage() {
     const { isAuthenticated, user } = useAuthStore()
+    const [showcaseItems, setShowcaseItems] = useState([])
+    const [showcaseLoading, setShowcaseLoading] = useState(true)
+    const [activeMedia, setActiveMedia] = useState(null)
+
+    useEffect(() => {
+        if (!activeMedia) return
+
+        const previousOverflow = document.body.style.overflow
+        document.body.style.overflow = "hidden"
+
+        return () => {
+            document.body.style.overflow = previousOverflow
+        }
+    }, [activeMedia])
+
+    useEffect(() => {
+        let active = true
+
+        api.get("/project-media/public")
+            .then((res) => {
+                if (!active) return
+                setShowcaseItems(res.data?.data || [])
+            })
+            .catch(() => {
+                if (!active) return
+                setShowcaseItems([])
+            })
+            .finally(() => {
+                if (!active) return
+                setShowcaseLoading(false)
+            })
+
+        return () => {
+            active = false
+        }
+    }, [])
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-slate-950 via-indigo-950 to-blue-950 font-sans text-slate-100">
@@ -280,6 +468,46 @@ export default function LandingPage() {
                     ))}
                 </div>
             </section>
+
+            {/* ── Product Showcase ─────────────────────────────────────── */}
+            <section className="py-24 bg-slate-900/40 border-y border-white/10 backdrop-blur">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                    <div className="text-center mb-12">
+                        <h2 className="text-3xl sm:text-4xl font-bold text-slate-100 mb-4">
+                            Product Showcase
+                        </h2>
+                        <p className="text-slate-300 max-w-2xl mx-auto">
+                            Screenshots and feature videos published by the
+                            platform team.
+                        </p>
+                    </div>
+
+                    {showcaseLoading ? (
+                        <div className="text-center text-slate-400 text-sm">
+                            Loading showcase...
+                        </div>
+                    ) : showcaseItems.length === 0 ? (
+                        <div className="text-center text-slate-400 text-sm">
+                            Showcase will appear here once media is published.
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            {showcaseItems.map((item) => (
+                                <ShowcaseCard
+                                    key={item._id || item.mediaUrl}
+                                    item={item}
+                                    onOpen={() => setActiveMedia(item)}
+                                />
+                            ))}
+                        </div>
+                    )}
+                </div>
+            </section>
+
+            <MediaViewerModal
+                item={activeMedia}
+                onClose={() => setActiveMedia(null)}
+            />
 
             {/* ── Academic Pillars ──────────────────────────────────────── */}
             <section className="py-20 bg-slate-900/40 border-y border-white/10 backdrop-blur">

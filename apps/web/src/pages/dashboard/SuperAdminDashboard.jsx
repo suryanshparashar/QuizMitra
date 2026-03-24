@@ -13,6 +13,14 @@ import {
     ChevronRight,
     Trash2,
     RefreshCw,
+    Upload,
+    Image as ImageIcon,
+    Video,
+    Pencil,
+    Eye,
+    EyeOff,
+    Save,
+    X,
 } from "lucide-react"
 import { api } from "../../services/api.js"
 import { DashboardSkeleton } from "../../components/LoadingStates"
@@ -235,6 +243,25 @@ function ManageAdminsTab() {
         }
     }
 
+    const handleMediaPermissionChange = async (id, payload) => {
+        setActionLoading(id + "media")
+        try {
+            await api.patch(
+                `/admin/superadmin/admins/${id}/media-permissions`,
+                payload
+            )
+            showToast.success("Media permissions updated")
+            fetchAdmins()
+        } catch (err) {
+            showToast.error(
+                err.response?.data?.message ||
+                    "Failed to update media permissions"
+            )
+        } finally {
+            setActionLoading(null)
+        }
+    }
+
     return (
         <div className="space-y-4">
             <div className="flex gap-3 items-center">
@@ -284,6 +311,9 @@ function ManageAdminsTab() {
                                     Last Login
                                 </th>
                                 <th className="text-left px-4 py-3 font-semibold">
+                                    Media Permissions
+                                </th>
+                                <th className="text-left px-4 py-3 font-semibold">
                                     Actions
                                 </th>
                             </tr>
@@ -301,7 +331,7 @@ function ManageAdminsTab() {
                             ) : admins.length === 0 ? (
                                 <tr>
                                     <td
-                                        colSpan={7}
+                                        colSpan={8}
                                         className="px-4 py-8 text-center text-gray-400"
                                     >
                                         No admins found
@@ -346,6 +376,77 @@ function ManageAdminsTab() {
                                                       admin.lastLogin
                                                   ).toLocaleDateString()
                                                 : "Never"}
+                                        </td>
+                                        <td className="px-4 py-3">
+                                            {admin.role !== "superadmin" ? (
+                                                <div className="flex flex-col gap-1.5">
+                                                    <button
+                                                        onClick={() =>
+                                                            handleMediaPermissionChange(
+                                                                admin._id,
+                                                                {
+                                                                    canView:
+                                                                        !admin
+                                                                            ?.mediaPermissions
+                                                                            ?.canView,
+                                                                }
+                                                            )
+                                                        }
+                                                        disabled={
+                                                            !!actionLoading
+                                                        }
+                                                        className={`px-2.5 py-1 text-xs rounded-lg border disabled:opacity-50 transition-colors text-left ${
+                                                            admin
+                                                                ?.mediaPermissions
+                                                                ?.canView
+                                                                ? "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100"
+                                                                : "bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100"
+                                                        }`}
+                                                    >
+                                                        View:{" "}
+                                                        {admin?.mediaPermissions
+                                                            ?.canView
+                                                            ? "Allowed"
+                                                            : "Blocked"}
+                                                    </button>
+                                                    <button
+                                                        onClick={() =>
+                                                            handleMediaPermissionChange(
+                                                                admin._id,
+                                                                {
+                                                                    canDownload:
+                                                                        !admin
+                                                                            ?.mediaPermissions
+                                                                            ?.canDownload,
+                                                                }
+                                                            )
+                                                        }
+                                                        disabled={
+                                                            !!actionLoading ||
+                                                            !admin
+                                                                ?.mediaPermissions
+                                                                ?.canView
+                                                        }
+                                                        className={`px-2.5 py-1 text-xs rounded-lg border disabled:opacity-50 transition-colors text-left ${
+                                                            admin
+                                                                ?.mediaPermissions
+                                                                ?.canDownload
+                                                                ? "bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100"
+                                                                : "bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100"
+                                                        }`}
+                                                    >
+                                                        Download:{" "}
+                                                        {admin?.mediaPermissions
+                                                            ?.canDownload
+                                                            ? "Allowed"
+                                                            : "Blocked"}
+                                                    </button>
+                                                </div>
+                                            ) : (
+                                                <span className="text-xs text-gray-400">
+                                                    Protected
+                                                </span>
+                                            )}
                                         </td>
                                         <td className="px-4 py-3">
                                             <div className="flex items-center gap-2">
@@ -676,11 +777,505 @@ function ManageUsersTab() {
     )
 }
 
+// ─── Tab: Manage Media ───────────────────────────────────────────────────────
+function ManageMediaTab() {
+    const [items, setItems] = useState([])
+    const [loading, setLoading] = useState(true)
+    const [submitting, setSubmitting] = useState(false)
+    const [actionLoading, setActionLoading] = useState("")
+    const [editingId, setEditingId] = useState("")
+
+    const [uploadForm, setUploadForm] = useState({
+        title: "",
+        description: "",
+        order: 0,
+        isPublished: true,
+        file: null,
+    })
+
+    const [editForm, setEditForm] = useState({
+        title: "",
+        description: "",
+        order: 0,
+        isPublished: true,
+        file: null,
+    })
+
+    const fetchMedia = useCallback(() => {
+        setLoading(true)
+        api.get("/project-media/superadmin")
+            .then((r) => setItems(r.data?.data || []))
+            .catch((err) => {
+                showToast.error(
+                    err.response?.data?.message || "Failed to load media"
+                )
+            })
+            .finally(() => setLoading(false))
+    }, [])
+
+    useEffect(() => {
+        fetchMedia()
+    }, [fetchMedia])
+
+    const handleUpload = async (e) => {
+        e.preventDefault()
+
+        if (!uploadForm.file) {
+            showToast.error("Please select a media file")
+            return
+        }
+
+        setSubmitting(true)
+        try {
+            const formData = new FormData()
+            formData.append("media", uploadForm.file)
+            formData.append("title", uploadForm.title)
+            formData.append("description", uploadForm.description)
+            formData.append("order", String(uploadForm.order || 0))
+            formData.append("isPublished", String(uploadForm.isPublished))
+
+            await api.post("/project-media/superadmin/upload", formData, {
+                headers: {
+                    "Content-Type": "multipart/form-data",
+                },
+            })
+
+            showToast.success("Media uploaded")
+            setUploadForm({
+                title: "",
+                description: "",
+                order: 0,
+                isPublished: true,
+                file: null,
+            })
+            fetchMedia()
+        } catch (err) {
+            showToast.error(err.response?.data?.message || "Upload failed")
+        } finally {
+            setSubmitting(false)
+        }
+    }
+
+    const startEdit = (item) => {
+        setEditingId(item._id)
+        setEditForm({
+            title: item.title || "",
+            description: item.description || "",
+            order: item.order || 0,
+            isPublished: item.isPublished !== false,
+            file: null,
+        })
+    }
+
+    const cancelEdit = () => {
+        setEditingId("")
+        setEditForm({
+            title: "",
+            description: "",
+            order: 0,
+            isPublished: true,
+            file: null,
+        })
+    }
+
+    const saveEdit = async (itemId) => {
+        setActionLoading(`save-${itemId}`)
+        try {
+            const formData = new FormData()
+            formData.append("title", editForm.title)
+            formData.append("description", editForm.description)
+            formData.append("order", String(editForm.order || 0))
+            formData.append("isPublished", String(editForm.isPublished))
+
+            if (editForm.file) {
+                formData.append("media", editForm.file)
+            }
+
+            await api.patch(`/project-media/superadmin/${itemId}`, formData, {
+                headers: {
+                    "Content-Type": "multipart/form-data",
+                },
+            })
+
+            showToast.success("Media updated")
+            cancelEdit()
+            fetchMedia()
+        } catch (err) {
+            showToast.error(err.response?.data?.message || "Update failed")
+        } finally {
+            setActionLoading("")
+        }
+    }
+
+    const togglePublish = async (item) => {
+        const action = item.isPublished ? "unpublish" : "publish"
+        setActionLoading(`${action}-${item._id}`)
+        try {
+            await api.patch(`/project-media/superadmin/${item._id}/${action}`)
+            showToast.success(
+                item.isPublished ? "Media unpublished" : "Media published"
+            )
+            fetchMedia()
+        } catch (err) {
+            showToast.error(
+                err.response?.data?.message || "Failed to update visibility"
+            )
+        } finally {
+            setActionLoading("")
+        }
+    }
+
+    const handleDelete = async (item) => {
+        if (!window.confirm(`Delete media \"${item.title}\"?`)) return
+
+        setActionLoading(`delete-${item._id}`)
+        try {
+            await api.delete(`/project-media/superadmin/${item._id}`)
+            showToast.success("Media deleted")
+            fetchMedia()
+        } catch (err) {
+            showToast.error(err.response?.data?.message || "Delete failed")
+        } finally {
+            setActionLoading("")
+        }
+    }
+
+    return (
+        <div className="space-y-5">
+            <form
+                onSubmit={handleUpload}
+                className="bg-white border border-gray-200 rounded-xl p-4 sm:p-5 shadow-sm"
+            >
+                <div className="flex items-center gap-2 mb-4">
+                    <Upload className="w-4 h-4 text-red-600" />
+                    <h3 className="font-semibold text-gray-900">
+                        Upload Feature Media
+                    </h3>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <input
+                        type="text"
+                        placeholder="Title"
+                        required
+                        value={uploadForm.title}
+                        onChange={(e) =>
+                            setUploadForm((p) => ({
+                                ...p,
+                                title: e.target.value,
+                            }))
+                        }
+                        className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                    />
+                    <input
+                        type="number"
+                        placeholder="Display order"
+                        value={uploadForm.order}
+                        onChange={(e) =>
+                            setUploadForm((p) => ({
+                                ...p,
+                                order: Number(e.target.value) || 0,
+                            }))
+                        }
+                        className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                    />
+                    <textarea
+                        placeholder="Description"
+                        value={uploadForm.description}
+                        onChange={(e) =>
+                            setUploadForm((p) => ({
+                                ...p,
+                                description: e.target.value,
+                            }))
+                        }
+                        className="md:col-span-2 px-3 py-2 border border-gray-300 rounded-lg text-sm min-h-[80px]"
+                    />
+                    <input
+                        type="file"
+                        accept="image/*,video/mp4,video/webm,video/quicktime"
+                        required
+                        onChange={(e) =>
+                            setUploadForm((p) => ({
+                                ...p,
+                                file: e.target.files?.[0] || null,
+                            }))
+                        }
+                        className="md:col-span-2 text-sm file:mr-3 file:px-3 file:py-1.5 file:rounded-md file:border file:border-gray-300 file:bg-gray-50"
+                    />
+                    <label className="md:col-span-2 inline-flex items-center gap-2 text-sm text-gray-700">
+                        <input
+                            type="checkbox"
+                            checked={uploadForm.isPublished}
+                            onChange={(e) =>
+                                setUploadForm((p) => ({
+                                    ...p,
+                                    isPublished: e.target.checked,
+                                }))
+                            }
+                        />
+                        Publish immediately
+                    </label>
+                </div>
+
+                <div className="mt-4">
+                    <button
+                        type="submit"
+                        disabled={submitting}
+                        className="inline-flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-60"
+                    >
+                        <Upload className="w-4 h-4" />
+                        {submitting ? "Uploading..." : "Upload Media"}
+                    </button>
+                </div>
+            </form>
+
+            <div className="bg-white border border-gray-200 rounded-xl shadow-sm">
+                <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+                    <h3 className="font-semibold text-gray-900">
+                        Uploaded Media
+                    </h3>
+                    <button
+                        onClick={fetchMedia}
+                        className="p-2 rounded-lg border border-gray-200 hover:bg-gray-50"
+                        title="Refresh"
+                    >
+                        <RefreshCw className="w-4 h-4 text-gray-500" />
+                    </button>
+                </div>
+
+                {loading ? (
+                    <div className="px-4 py-10 text-sm text-center text-gray-400">
+                        Loading media...
+                    </div>
+                ) : items.length === 0 ? (
+                    <div className="px-4 py-10 text-sm text-center text-gray-400">
+                        No media uploaded yet
+                    </div>
+                ) : (
+                    <div className="p-4 grid grid-cols-1 lg:grid-cols-2 gap-4">
+                        {items.map((item) => {
+                            const isEditing = editingId === item._id
+                            return (
+                                <div
+                                    key={item._id}
+                                    className="rounded-xl border border-gray-200 overflow-hidden"
+                                >
+                                    <div className="aspect-video bg-gray-50 border-b border-gray-100">
+                                        {item.mediaType === "video" ? (
+                                            <video
+                                                src={item.mediaUrl}
+                                                controls
+                                                className="w-full h-full object-cover"
+                                            />
+                                        ) : (
+                                            <img
+                                                src={item.mediaUrl}
+                                                alt={item.title}
+                                                className="w-full h-full object-cover"
+                                            />
+                                        )}
+                                    </div>
+
+                                    <div className="p-3 space-y-3">
+                                        <div className="flex items-center justify-between gap-3">
+                                            <div className="flex items-center gap-2">
+                                                {item.mediaType === "video" ? (
+                                                    <Video className="w-4 h-4 text-indigo-600" />
+                                                ) : (
+                                                    <ImageIcon className="w-4 h-4 text-indigo-600" />
+                                                )}
+                                                <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                                                    {item.mediaType}
+                                                </span>
+                                            </div>
+                                            <span
+                                                className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+                                                    item.isPublished
+                                                        ? "bg-emerald-100 text-emerald-700"
+                                                        : "bg-gray-100 text-gray-600"
+                                                }`}
+                                            >
+                                                {item.isPublished
+                                                    ? "Published"
+                                                    : "Unpublished"}
+                                            </span>
+                                        </div>
+
+                                        {isEditing ? (
+                                            <div className="space-y-2">
+                                                <input
+                                                    type="text"
+                                                    value={editForm.title}
+                                                    onChange={(e) =>
+                                                        setEditForm((p) => ({
+                                                            ...p,
+                                                            title: e.target
+                                                                .value,
+                                                        }))
+                                                    }
+                                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                                                />
+                                                <textarea
+                                                    value={editForm.description}
+                                                    onChange={(e) =>
+                                                        setEditForm((p) => ({
+                                                            ...p,
+                                                            description:
+                                                                e.target.value,
+                                                        }))
+                                                    }
+                                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm min-h-[70px]"
+                                                />
+                                                <input
+                                                    type="number"
+                                                    value={editForm.order}
+                                                    onChange={(e) =>
+                                                        setEditForm((p) => ({
+                                                            ...p,
+                                                            order:
+                                                                Number(
+                                                                    e.target
+                                                                        .value
+                                                                ) || 0,
+                                                        }))
+                                                    }
+                                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                                                />
+                                                <input
+                                                    type="file"
+                                                    accept="image/*,video/mp4,video/webm,video/quicktime"
+                                                    onChange={(e) =>
+                                                        setEditForm((p) => ({
+                                                            ...p,
+                                                            file:
+                                                                e.target
+                                                                    .files?.[0] ||
+                                                                null,
+                                                        }))
+                                                    }
+                                                    className="text-sm"
+                                                />
+                                                <label className="inline-flex items-center gap-2 text-sm text-gray-700">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={
+                                                            editForm.isPublished
+                                                        }
+                                                        onChange={(e) =>
+                                                            setEditForm(
+                                                                (p) => ({
+                                                                    ...p,
+                                                                    isPublished:
+                                                                        e.target
+                                                                            .checked,
+                                                                })
+                                                            )
+                                                        }
+                                                    />
+                                                    Published
+                                                </label>
+
+                                                <div className="flex items-center gap-2">
+                                                    <button
+                                                        onClick={() =>
+                                                            saveEdit(item._id)
+                                                        }
+                                                        disabled={
+                                                            !!actionLoading
+                                                        }
+                                                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-60"
+                                                    >
+                                                        <Save className="w-3.5 h-3.5" />
+                                                        Save
+                                                    </button>
+                                                    <button
+                                                        onClick={cancelEdit}
+                                                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50"
+                                                    >
+                                                        <X className="w-3.5 h-3.5" />
+                                                        Cancel
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <>
+                                                <div>
+                                                    <p className="font-semibold text-gray-900">
+                                                        {item.title}
+                                                    </p>
+                                                    <p className="text-sm text-gray-600 mt-1 line-clamp-2">
+                                                        {item.description ||
+                                                            "No description"}
+                                                    </p>
+                                                    <p className="text-xs text-gray-500 mt-1">
+                                                        Order: {item.order}
+                                                    </p>
+                                                </div>
+
+                                                <div className="flex items-center gap-2 flex-wrap">
+                                                    <button
+                                                        onClick={() =>
+                                                            startEdit(item)
+                                                        }
+                                                        className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50"
+                                                    >
+                                                        <Pencil className="w-3.5 h-3.5" />
+                                                        Edit
+                                                    </button>
+                                                    <button
+                                                        onClick={() =>
+                                                            togglePublish(item)
+                                                        }
+                                                        disabled={
+                                                            !!actionLoading
+                                                        }
+                                                        className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-xs rounded-lg border disabled:opacity-60 ${
+                                                            item.isPublished
+                                                                ? "border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100"
+                                                                : "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                                                        }`}
+                                                    >
+                                                        {item.isPublished ? (
+                                                            <EyeOff className="w-3.5 h-3.5" />
+                                                        ) : (
+                                                            <Eye className="w-3.5 h-3.5" />
+                                                        )}
+                                                        {item.isPublished
+                                                            ? "Unpublish"
+                                                            : "Publish"}
+                                                    </button>
+                                                    <button
+                                                        onClick={() =>
+                                                            handleDelete(item)
+                                                        }
+                                                        disabled={
+                                                            !!actionLoading
+                                                        }
+                                                        className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs rounded-lg border border-red-200 bg-red-50 text-red-700 hover:bg-red-100 disabled:opacity-60"
+                                                    >
+                                                        <Trash2 className="w-3.5 h-3.5" />
+                                                        Delete
+                                                    </button>
+                                                </div>
+                                            </>
+                                        )}
+                                    </div>
+                                </div>
+                            )
+                        })}
+                    </div>
+                )}
+            </div>
+        </div>
+    )
+}
+
 // ─── Root component ───────────────────────────────────────────────────────────
 const TABS = [
     { id: "overview", label: "Overview" },
     { id: "admins", label: "Manage Admins" },
     { id: "users", label: "Manage Users" },
+    { id: "media", label: "Manage Media" },
 ]
 
 export default function SuperAdminDashboard() {
@@ -728,6 +1323,7 @@ export default function SuperAdminDashboard() {
             {activeTab === "overview" && <OverviewTab />}
             {activeTab === "admins" && <ManageAdminsTab />}
             {activeTab === "users" && <ManageUsersTab />}
+            {activeTab === "media" && <ManageMediaTab />}
         </div>
     )
 }

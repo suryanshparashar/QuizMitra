@@ -10,6 +10,7 @@ import {
     deleteAdmin,
     listUsers,
     updateUserStatus,
+    updateAdminMediaPermissions,
 } from "../controllers/admin.controller.js"
 import { ApiResponse } from "../utils/ApiResponse.js"
 
@@ -56,6 +57,9 @@ router.route("/dashboard").get(getAdminDashboard)
 router.route("/superadmin/dashboard").get(getSuperAdminDashboard)
 router.route("/superadmin/admins").get(listAdmins)
 router.route("/superadmin/admins/:id/status").patch(updateAdminStatus)
+router
+    .route("/superadmin/admins/:id/media-permissions")
+    .patch(updateAdminMediaPermissions)
 router.route("/superadmin/admins/:id").delete(deleteAdmin)
 router.route("/superadmin/users").get(listUsers)
 router.route("/superadmin/users/:id/status").patch(updateUserStatus)

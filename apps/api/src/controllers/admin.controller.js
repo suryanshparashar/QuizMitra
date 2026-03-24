@@ -459,7 +459,7 @@ const listAdmins = asyncHandler(async (req, res) => {
     const [admins, total] = await Promise.all([
         Admin.find(filter)
             .select(
-                "name email role adminId superAdminId accountStatus lastLogin createdAt"
+                "name email role adminId superAdminId accountStatus lastLogin createdAt mediaPermissions"
             )
             .sort({ createdAt: -1 })
             .skip((page - 1) * limit)
@@ -616,6 +616,61 @@ const updateUserStatus = asyncHandler(async (req, res) => {
         )
 })
 
+// ─── Update admin media permissions ──────────────────────────────────────────
+const updateAdminMediaPermissions = asyncHandler(async (req, res) => {
+    ensureSuperAdmin(req)
+
+    const { id } = req.params
+    const { canView, canDownload } = req.body
+
+    if (typeof canView === "undefined" && typeof canDownload === "undefined") {
+        throw new ApiError(
+            400,
+            "At least one permission field (canView/canDownload) is required"
+        )
+    }
+
+    const target = await Admin.findById(id)
+    if (!target) {
+        throw new ApiError(404, "Admin not found")
+    }
+
+    if (target.role === "superadmin") {
+        throw new ApiError(403, "Cannot modify another superadmin")
+    }
+
+    const currentPermissions = target.mediaPermissions || {
+        canView: true,
+        canDownload: false,
+    }
+
+    if (typeof canView !== "undefined") {
+        currentPermissions.canView = Boolean(canView)
+    }
+
+    if (typeof canDownload !== "undefined") {
+        currentPermissions.canDownload = Boolean(canDownload)
+    }
+
+    // Download permission should not stay enabled when view is disabled.
+    if (!currentPermissions.canView) {
+        currentPermissions.canDownload = false
+    }
+
+    target.mediaPermissions = currentPermissions
+    await target.save({ validateBeforeSave: false })
+
+    return res
+        .status(200)
+        .json(
+            new ApiResponse(
+                200,
+                { mediaPermissions: target.mediaPermissions },
+                "Admin media permissions updated"
+            )
+        )
+})
+
 export {
     getAdminDashboard,
     registerAdmin,
@@ -626,4 +681,5 @@ export {
     deleteAdmin,
     listUsers,
     updateUserStatus,
+    updateAdminMediaPermissions,
 }
