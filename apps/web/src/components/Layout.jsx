@@ -36,6 +36,8 @@ export default function Layout() {
         .map((word) => word[0]?.toUpperCase())
         .join("")
 
+    const landingPageURL = "/"
+
     const navItemClass =
         "hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium text-gray-700 hover:text-primary-700 hover:bg-white/80 hover:shadow-sm transition"
     const facultyActionClass =
@@ -88,7 +90,7 @@ export default function Layout() {
                 <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-[72px] flex items-center justify-between">
                     {/* Brand */}
                     <Link
-                        to={dashboardPath}
+                        to={landingPageURL}
                         className="group flex items-center gap-3"
                     >
                         <div className="w-9 h-9 rounded-xl bg-white shadow-sm border border-white/70 flex items-center justify-center group-hover:shadow-md transition">
@@ -113,7 +115,7 @@ export default function Layout() {
                         <div className="flex items-center gap-2 sm:gap-3 rounded-2xl bg-white/55 border border-white/80 px-2 py-1.5 shadow-sm backdrop-blur">
                             <div className="flex items-center gap-1.5">
                                 <Link
-                                    to={dashboardPath}
+                                    to={landingPageURL}
                                     className={`${navItemClass} ${isRouteActive(dashboardPath, true) ? activeNavClass : ""}`}
                                 >
                                     {["admin", "superadmin"].includes(
