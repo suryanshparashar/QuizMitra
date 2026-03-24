@@ -44,6 +44,21 @@ export default function AdminDashboard() {
     const [mediaError, setMediaError] = useState("")
     const [downloadingId, setDownloadingId] = useState(null)
 
+    const extensionFromMimeType = (mimeType) => {
+        const type = String(mimeType || "").toLowerCase()
+        if (type.includes("image/png")) return "png"
+        if (type.includes("image/webp")) return "webp"
+        if (type.includes("image/gif")) return "gif"
+        if (type.includes("image/jpeg") || type.includes("image/jpg"))
+            return "jpg"
+        if (type.includes("video/mp4")) return "mp4"
+        if (type.includes("video/webm")) return "webm"
+        if (type.includes("audio/mpeg")) return "mp3"
+        if (type.includes("audio/wav")) return "wav"
+        if (type.includes("audio/ogg")) return "ogg"
+        return "dat"
+    }
+
     const loadMedia = async () => {
         setMediaLoading(true)
         setMediaError("")
@@ -75,8 +90,11 @@ export default function AdminDashboard() {
             const fileNameMatch = contentDisposition.match(
                 /filename="?([^\"]+)"?/
             )
+            const mimeType = response?.data?.type || ""
+            const fallbackExt = extensionFromMimeType(mimeType)
             const fileName =
-                fileNameMatch?.[1] || `project-media-${String(itemId)}.bin`
+                fileNameMatch?.[1] ||
+                `project-media-${String(itemId)}.${fallbackExt}`
 
             const blobUrl = window.URL.createObjectURL(
                 new Blob([response.data])
