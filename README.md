@@ -10,7 +10,7 @@
 
 [![Status](https://img.shields.io/badge/Status-Beta-blue?style=flat-square)](https://github.com/suryanshparashar/quizmitra)
 [![License](https://img.shields.io/badge/License-All%20Rights%20Reserved-red?style=flat-square)](./LICENSE)
-[![Node](https://img.shields.io/badge/Node.js-20%20LTS-339933?style=flat-square&logo=node.js&logoColor=white)](https://nodejs.org)
+[![Node](https://img.shields.io/badge/Node.js-22%20LTS-339933?style=flat-square&logo=node.js&logoColor=white)](https://nodejs.org)
 [![React](https://img.shields.io/badge/React-18-61DAFB?style=flat-square&logo=react&logoColor=black)](https://react.dev)
 [![MongoDB](https://img.shields.io/badge/MongoDB-Atlas-47A248?style=flat-square&logo=mongodb&logoColor=white)](https://mongodb.com)
 [![AI](https://img.shields.io/badge/AI-Sarvam--M%20%7C%20LangGraph-8B5CF6?style=flat-square)](https://sarvam.ai)
@@ -119,15 +119,15 @@ Agent        Agent       (Wrong Options)  Agent (OCR)      Agent             (Ev
 ![Recharts](https://img.shields.io/badge/Recharts-FF6384?style=flat-square)
 
 ### Backend
-![Node.js](https://img.shields.io/badge/Node.js_20_LTS-339933?style=flat-square&logo=node.js&logoColor=white)
+![Node.js](https://img.shields.io/badge/Node.js_22_LTS-339933?style=flat-square&logo=node.js&logoColor=white)
 ![Express](https://img.shields.io/badge/Express.js-000000?style=flat-square&logo=express&logoColor=white)
 ![MongoDB](https://img.shields.io/badge/MongoDB_Atlas-47A248?style=flat-square&logo=mongodb&logoColor=white)
 ![JWT](https://img.shields.io/badge/JWT-000000?style=flat-square&logo=jsonwebtokens&logoColor=white)
 
 ### AI & Orchestration
-![LangChain](https://img.shields.io/badge/LangChain-1C3C3C?style=flat-square)
-![LangGraph](https://img.shields.io/badge/LangGraph-8B5CF6?style=flat-square)
-![Sarvam](https://img.shields.io/badge/Sarvam--M_%7C_Vision-FF6B35?style=flat-square)
+![LangChain](https://img.shields.io/badge/LangChain-1C3C3C?style=flat-square&logo=langchain&logoColor=white)
+![LangGraph](https://img.shields.io/badge/LangGraph-8B5CF6?style=flat-square&logo=langgraph&logoColor=white)
+![Sarvam](https://img.shields.io/badge/Sarvam-M_%7C_Vision-FF6B35?style=flat-square&logo=sarvam&logoColor=white)
 ![Vector Search](https://img.shields.io/badge/MongoDB_Vector_Search-47A248?style=flat-square&logo=mongodb&logoColor=white)
 
 ### Infrastructure
