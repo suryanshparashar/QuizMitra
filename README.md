@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="./frontend/public/logo.png" alt="QuizMitra Logo" width="120" />
+<img src=".apps/web/public/logo.png" alt="QuizMitra Logo" width="120" />
 
 # QuizMitra
 
