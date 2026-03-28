@@ -115,7 +115,7 @@ export default function Layout() {
                         <div className="flex items-center gap-2 sm:gap-3 rounded-2xl bg-white/55 border border-white/80 px-2 py-1.5 shadow-sm backdrop-blur">
                             <div className="flex items-center gap-1.5">
                                 <Link
-                                    to={landingPageURL}
+                                    to={getDashboardPath(user.role)}
                                     className={`${navItemClass} ${isRouteActive(dashboardPath, true) ? activeNavClass : ""}`}
                                 >
                                     {["admin", "superadmin"].includes(
