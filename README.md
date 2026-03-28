@@ -4,7 +4,7 @@
 
 # QuizMitra
 
-### AI-Powered Academic Assessment Platform
+### Multi-Agentic Academic Assessment Platform
 
 **Automate quiz creation. Evaluate every answer. Deliver personalized guidance at the classroom scale.**
 
