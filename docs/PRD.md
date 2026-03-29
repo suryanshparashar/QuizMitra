@@ -590,7 +590,8 @@ QuizMitra is a multi-agent AI system that automates the entire quiz lifecycle - 
 
 - LangChain (Agents)
 - LangGraph (Orchestration)
-- Gemini 2.0 Flash / Gemma 3 27B
+- Gemini 2.0 Flash / Gemma 3 27B (Older Architecture)
+- Sarvam M & Sarvam Vision (Newer Architecture)
 - MongoDB Atlas Vector Search
 - LangSmith (Tracing - future)
 
