@@ -79,16 +79,17 @@ QuizMitra's core novelty is its **modular AI pipeline**, not a single monolithic
 
 ```
 
-                                           Content Input
-                                                ↓
-┌────────────────────────────────────────────────────────────────────────────────────────────────────────┐
-│                                   Orchestrator Agent (LangGraph)                                       │
-│                           Manages state, routing, retries, and fail paths                              │
-└────┬────────────┬─────────────┬─────────────┬───────────────┬────────────────────┬────────────┬────────┘
-     ↓            ↓             ↓             ↓               ↓                    ↓            ↓
-Objective    Subjective     Distractor    Document         Quality  →  Merge  →  Answer  →  Advisory Agent
-Generator    Generator      Agent         Intelligence     Checker               Checker   (Personalized Report)
-Agent        Agent       (Wrong Options)  Agent (OCR)      Agent             (Evaluation)
+                                         Content Input
+                                              ↓
+┌───────────────────────────────────────────────────────────────────────────────────────────────────┐
+│                                 Orchestrator Agent (LangGraph)                                    │
+│                         Manages state, routing, retries, and fail paths                           │
+└────┬──────────┬─────────────┬─────────────┬─────────────┬────────────────────┬────────────┬───────┘
+     ↓          ↓             ↓             ↓             ↓                    ↓            ↓
+Objective  Subjective     Distractor    Document       Quality  →  Merge  →  Answer  →  Advisory
+Generator  Generator      Agent         Intelligence   Checker               Checker    Agent
+Agent      Agent       (Wrong Options)  Agent (OCR)    Agent            (Evaluation)  (Personalized 
+                                                                                           Report)
 
 
 ```
