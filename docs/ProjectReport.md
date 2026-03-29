@@ -1,5 +1,15 @@
 # QuizMitra Project Report
 
+## Document Information
+
+- **Product Name**: QuizMitra
+- **Version**: 1.0.0
+- **Date**: March 29, 2026
+- **Author**: Suryansh Parashar
+- **Status**: Approved
+
+---
+
 ## CHAPTER-1: PROJECT DESCRIPTION AND OUTLINE
 
 ### 1.1 Introduction
