@@ -232,6 +232,7 @@ export const runQuestionGenerationAgent = async ({
 
         return {
             [responseKey]: [],
+            status: "failed",
             errors: [
                 `${agentLabel} generation failed: ${error?.message || "Unknown"}`,
             ],

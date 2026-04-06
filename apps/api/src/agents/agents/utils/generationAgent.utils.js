@@ -1,6 +1,7 @@
 import { PromptTemplate } from "@langchain/core/prompts"
 
 const CONTENT_BUDGET_STEPS = [7000, 5000, 3500, 2500]
+const OUTPUT_TOKEN_BUDGET_STEPS = [2048, 1536, 1024, 768, 512, 384, 256]
 
 export const buildPromptContent = (sourceContent, maxChars) => {
     const normalized = String(sourceContent || "")
@@ -20,6 +21,45 @@ export const isPromptTooLongError = (error) => {
     )
 }
 
+const parseMaxOutputFromContextError = (error) => {
+    const message = String(error?.message || "")
+    const match = message.match(
+        /prompt_tokens\s*\((\d+)\)\s*\+\s*max_tokens\s*\((\d+)\)\s*=\s*(\d+)\s*exceeds[^\d]*(\d+)/i
+    )
+
+    if (!match) return null
+
+    const promptTokens = Number(match[1])
+    const modelWindow = Number(match[4])
+
+    if (!Number.isFinite(promptTokens) || !Number.isFinite(modelWindow)) {
+        return null
+    }
+
+    // Reserve a small safety buffer for provider-side accounting variance.
+    const allowed = modelWindow - promptTokens - 32
+    if (!Number.isFinite(allowed) || allowed < 128) {
+        return null
+    }
+
+    return Math.floor(allowed)
+}
+
+const getModelMaxOutputTokens = (model) => {
+    const raw = Number(model?.maxOutputTokens)
+    return Number.isFinite(raw) ? raw : null
+}
+
+const setModelMaxOutputTokens = (model, maxOutputTokens) => {
+    if (!model || !Number.isFinite(maxOutputTokens) || maxOutputTokens < 1) {
+        return
+    }
+
+    if (Object.prototype.hasOwnProperty.call(model, "maxOutputTokens")) {
+        model.maxOutputTokens = Math.floor(maxOutputTokens)
+    }
+}
+
 export const invokeWithAdaptiveBudget = async ({
     model,
     promptTemplate,
@@ -28,23 +68,51 @@ export const invokeWithAdaptiveBudget = async ({
     onRetry,
 }) => {
     let lastError = null
+    let dynamicMaxOutputTokens = getModelMaxOutputTokens(model)
+
+    if (!Number.isFinite(dynamicMaxOutputTokens)) {
+        dynamicMaxOutputTokens = OUTPUT_TOKEN_BUDGET_STEPS[0]
+    }
 
     for (const budget of CONTENT_BUDGET_STEPS) {
-        try {
-            const formattedPrompt = await promptTemplate.format({
-                ...promptData,
-                content: buildPromptContent(sourceContent, budget),
-            })
-            return await model.invoke(formattedPrompt)
-        } catch (error) {
-            lastError = error
+        const formattedPrompt = await promptTemplate.format({
+            ...promptData,
+            content: buildPromptContent(sourceContent, budget),
+        })
 
-            if (!isPromptTooLongError(error)) {
-                throw error
-            }
+        for (const tokenBudget of OUTPUT_TOKEN_BUDGET_STEPS) {
+            const appliedMaxTokens = Math.min(
+                dynamicMaxOutputTokens,
+                tokenBudget
+            )
+            setModelMaxOutputTokens(model, appliedMaxTokens)
 
-            if (typeof onRetry === "function") {
-                onRetry({ budget, error })
+            try {
+                return await model.invoke(formattedPrompt)
+            } catch (error) {
+                lastError = error
+
+                if (!isPromptTooLongError(error)) {
+                    throw error
+                }
+
+                const parsedMax = parseMaxOutputFromContextError(error)
+                if (
+                    Number.isFinite(parsedMax) &&
+                    parsedMax > 0 &&
+                    parsedMax < dynamicMaxOutputTokens
+                ) {
+                    dynamicMaxOutputTokens = parsedMax
+                }
+
+                if (typeof onRetry === "function") {
+                    onRetry({
+                        budget,
+                        maxOutputTokens: appliedMaxTokens,
+                        nextMaxOutputTokens: dynamicMaxOutputTokens,
+                        error,
+                    })
+                }
             }
         }
     }

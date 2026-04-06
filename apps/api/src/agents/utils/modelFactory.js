@@ -6,6 +6,7 @@ export const createModel = (config = {}) => {
         ...config,
         purpose: config.purpose || "quizGeneration",
         temperature: config.temperature ?? 0.2,
-        maxOutputTokens: config.maxOutputTokens ?? 8192,
+        // Keep default output budget conservative so it fits common context windows.
+        maxOutputTokens: config.maxOutputTokens ?? 2048,
     })
 }
