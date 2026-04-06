@@ -47,8 +47,8 @@ export const generateQuestions = async (
             },
             requirements: requirements,
             sourceContent: "",
-            draftQuestions: [],
-            verifiedQuestions: [],
+            draftQuestions: null,
+            verifiedQuestions: null,
             errors: [],
             status: "generating",
         }
