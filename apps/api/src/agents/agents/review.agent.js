@@ -3,6 +3,7 @@ import { z } from "zod"
 import { StructuredOutputParser } from "@langchain/core/output_parsers"
 import { PromptTemplate } from "@langchain/core/prompts"
 import { createDevLogger } from "../../utils/devLogger.js"
+import { getPrompt, PROMPT_KEYS } from "../../utils/promptStore.js"
 
 const devLog = createDevLogger("agent.review")
 const OUTPUT_PARSING_TROUBLESHOOTING_URL =
@@ -339,36 +340,9 @@ export const reviewAgent = async (state) => {
         requestedCount: requirements?.numQuestions,
     })
 
-    const reviewPrompt = PromptTemplate.fromTemplate(`
-        You are a quiz review agent. Review each question against the reference content.
-
-        RULES:
-        1. Set keep=false if a question is ambiguous, factually wrong, or unfixable.
-        2. If kept with no changes, omit corrected fields.
-        3. Return exactly one review object per question, in the same order.
-
-        BY TYPE:
-        - multiple-choice / true-false:
-        · correctedAnswer = exactly one valid option
-        · correctedOptions = full option list (if changed)
-        - multiple-select:
-        · correctedOptions = full option list
-        · correctedCorrectOptions = 2+ correct options (all must exist in correctedOptions)
-        - short-answer / long-answer:
-        · correctedAnswer = model answer aligned with reference content
-
-        DIFFICULTY: {difficulty}
-        TOPICS: {topics}
-
-        REFERENCE CONTENT:
-        {referenceContent}
-
-        QUESTIONS:
-        {questionsJson}
-
-        OUTPUT FORMAT:
-        {format_instructions}
-  `)
+    const reviewPrompt = PromptTemplate.fromTemplate(
+        getPrompt(PROMPT_KEYS.REVIEW_AGENT_TEMPLATE)
+    )
 
     let reviewItems = []
     let reviewRawContent = ""

@@ -20,6 +20,11 @@ import {
 import { createModel } from "../agents/utils/modelFactory.js"
 import { sanitizeQuestionWithFormattingAgent } from "../agents/agents/formatting.agent.js"
 import { createDevLogger } from "../utils/devLogger.js"
+import {
+    getPrompt,
+    PROMPT_KEYS,
+    renderPromptTemplate,
+} from "../utils/promptStore.js"
 
 const MIN_DEADLINE_BUFFER_MINUTES = 10
 const MAX_TOTAL_MARKS = 100
@@ -1612,41 +1617,22 @@ const regenerateQuizQuestion = asyncHandler(async (req, res) => {
         maxOutputTokens: 4096,
     })
 
-    const prompt = `
-Regenerate ONE improved quiz question with options while keeping it aligned to the same topic and difficulty.
-
-Quiz title: ${quiz.title}
-Quiz description: ${quiz.description || "N/A"}
-Difficulty target: ${quiz.requirements?.difficultyLevel || "medium"}
-Question type target: ${currentQuestion.questionType || "multiple-choice"}
-
-Current question text:
-${currentQuestion.questionText}
-
-Current options:
-${(currentQuestion.options || []).map((opt, i) => `${i + 1}. ${opt}`).join("\n")}
-
-Current correct answer:
-${currentQuestion.correctAnswer || ""}
-
-Faculty instruction (optional):
-${String(instruction || "").slice(0, 500)}
-
-Return ONLY valid JSON object with this shape:
-{
-  "questionText": "...",
-  "options": ["...", "...", "...", "..."],
-  "correctAnswer": "...",
-  "difficulty": "easy|medium|hard",
-  "topic": "...",
-  "explanation": "..."
-}
-
-Rules:
-- Ensure correctAnswer exactly matches one of options.
-- options must be concise and unambiguous.
-- questionText should be clear and exam-ready.
-`.trim()
+    const prompt = renderPromptTemplate(
+        getPrompt(PROMPT_KEYS.QUIZ_REGENERATE_QUESTION_TEMPLATE),
+        {
+            quizTitle: quiz.title,
+            quizDescription: quiz.description || "N/A",
+            difficultyTarget: quiz.requirements?.difficultyLevel || "medium",
+            questionTypeTarget:
+                currentQuestion.questionType || "multiple-choice",
+            currentQuestionText: currentQuestion.questionText,
+            currentOptions: (currentQuestion.options || [])
+                .map((opt, i) => `${i + 1}. ${opt}`)
+                .join("\n"),
+            currentCorrectAnswer: currentQuestion.correctAnswer || "",
+            facultyInstruction: String(instruction || "").slice(0, 500),
+        }
+    )
 
     let parsed
     try {
@@ -1737,36 +1723,17 @@ const generateNewQuizQuestion = asyncHandler(async (req, res) => {
         maxOutputTokens: 4096,
     })
 
-    const prompt = `
-Generate ONE new quiz question with options that fits this quiz and does not duplicate existing questions.
-
-Quiz title: ${quiz.title}
-Quiz description: ${quiz.description || "N/A"}
-Difficulty target: ${quiz.requirements?.difficultyLevel || "medium"}
-Question type target: ${questionTypeTarget}
-
-Existing question stems to avoid repeating:
-${existingQuestionStems || "None"}
-
-Faculty instruction (optional):
-${String(instruction || "").slice(0, 500)}
-
-Return ONLY valid JSON object with this shape:
-{
-  "questionText": "...",
-  "options": ["...", "...", "...", "..."],
-  "correctAnswer": "...",
-  "difficulty": "easy|medium|hard",
-  "topic": "...",
-  "explanation": "..."
-}
-
-Rules:
-- Ensure correctAnswer exactly matches one of options.
-- options must be concise and unambiguous.
-- questionText should be clear and exam-ready.
-- must not duplicate existing stems.
-`.trim()
+    const prompt = renderPromptTemplate(
+        getPrompt(PROMPT_KEYS.QUIZ_GENERATE_NEW_QUESTION_TEMPLATE),
+        {
+            quizTitle: quiz.title,
+            quizDescription: quiz.description || "N/A",
+            difficultyTarget: quiz.requirements?.difficultyLevel || "medium",
+            questionTypeTarget,
+            existingQuestionStems: existingQuestionStems || "None",
+            facultyInstruction: String(instruction || "").slice(0, 500),
+        }
+    )
 
     let parsed
     try {

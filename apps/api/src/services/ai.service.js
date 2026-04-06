@@ -1,6 +1,11 @@
 import pdfParse from "pdf-parse"
 import { ApiError } from "../utils/index.js"
 import { createChatModel } from "../utils/llmClient.js"
+import {
+    getPrompt,
+    PROMPT_KEYS,
+    renderPromptTemplate,
+} from "../utils/promptStore.js"
 
 const generateQuestionsFromPDF = async (pdfBuffer, requirements) => {
     const model = createChatModel({
@@ -12,41 +17,18 @@ const generateQuestionsFromPDF = async (pdfBuffer, requirements) => {
     const pdfData = await pdfParse(pdfBuffer)
     const extractedContent = pdfData.text.replace(/\n\s*\n/g, "\n").trim()
 
-    const prompt = `
-    Analyze the provided PDF content and generate ${requirements.numQuestions} high-quality educational questions.
-
-    REQUIREMENTS:
-    - Difficulty Level: ${requirements.difficultyLevel}
-    - Question Types: ${requirements.questionTypes.join(", ")}
-    - Topics to Focus: ${requirements.topics.join(", ")}
-    - Marks per Question: ${requirements.marksPerQuestion}
-    - Total Marks: ${requirements.totalMarks}
-
-    SOURCE CONTENT:
-    ${extractedContent.slice(0, 30000)}
-
-    IMPORTANT: Return ONLY a valid JSON array with NO additional text, explanations, or markdown formatting.
-
-    Use this EXACT format:
-    [
+    const prompt = renderPromptTemplate(
+        getPrompt(PROMPT_KEYS.PDF_QUESTION_GENERATION_TEMPLATE),
         {
-            "questionText": "Clear, specific question based on PDF content",
-            "options": ["Option A", "Option B", "Option C", "Option D"],
-            "correctAnswer": "Exact text of the correct option",
-            "difficulty": "${requirements.difficultyLevel}",
-            "explanation": "Brief explanation of why this answer is correct",
-            "topic": "Specific topic from the PDF content"
+            numQuestions: requirements.numQuestions,
+            difficultyLevel: requirements.difficultyLevel,
+            questionTypes: requirements.questionTypes.join(", "),
+            topics: requirements.topics.join(", "),
+            marksPerQuestion: requirements.marksPerQuestion,
+            totalMarks: requirements.totalMarks,
+            sourceContent: extractedContent.slice(0, 30000),
         }
-    ]
-
-    RULES:
-    1. Each question must be directly related to the PDF content
-    2. All options must be plausible but only one correct
-    3. correctAnswer must exactly match one of the options
-    4. Questions should test understanding, not just memorization
-    5. Vary question difficulty within the specified level
-    6. Ensure questions cover different sections of the PDF
-    `
+    )
 
     let rawResponseText = ""
 

@@ -3,6 +3,7 @@ import { z } from "zod"
 import { StructuredOutputParser } from "@langchain/core/output_parsers"
 import { PromptTemplate } from "@langchain/core/prompts"
 import { createDevLogger } from "../../utils/devLogger.js"
+import { getPrompt, PROMPT_KEYS } from "../../utils/promptStore.js"
 
 const devLog = createDevLogger("agent.options")
 
@@ -175,20 +176,9 @@ export const optionsAgent = async (state) => {
             .describe("Three incorrect but plausible options")
     )
 
-    const prompt = PromptTemplate.fromTemplate(`
-        Generate exactly 3 wrong but plausible answer options for the question below.
-
-        Question: {question}
-        Correct Answer: {correctAnswer}
-        Difficulty: {difficulty}
-
-        Rules:
-        - Each distractor must be clearly wrong but believable.
-        - No distractor may overlap with or hint at the correct answer.
-        - No vague or trick options.
-
-        {format_instructions}
-  `)
+    const prompt = PromptTemplate.fromTemplate(
+        getPrompt(PROMPT_KEYS.OPTIONS_AGENT_TEMPLATE)
+    )
 
     const buildTrueFalseQuestion = (question) => {
         const primaryCorrectAnswer = getPrimaryCorrectAnswer(question)

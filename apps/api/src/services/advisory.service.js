@@ -1,5 +1,10 @@
 import { HumanMessage, SystemMessage } from "@langchain/core/messages"
 import { createChatModel } from "../utils/llmClient.js"
+import {
+    getPrompt,
+    PROMPT_KEYS,
+    renderPromptTemplate,
+} from "../utils/promptStore.js"
 
 const getAdvisoryModel = () => {
     return createChatModel({
@@ -94,46 +99,24 @@ export const AdvisoryService = {
             `
 
             // 2. Construct Prompt
-            const prompt = `
-                You are an empathetic and expert academic advisor (QuizMitra). 
-                Analyze the student's overall preparation level for this quiz and generate a preparation review.
-                This is NOT answer-by-answer grading feedback. Do not explain whether a specific answer was right or wrong.
-                Focus on knowledge readiness, strong topics, weak topics, and how the student should improve before the next assessment.
-
-                **Performance Summary:**
-                ${performanceSummary}
-
-                **Topic-Level Performance Signals:**
-                ${JSON.stringify(topicPerformance, null, 2)}
-
-                **Potential Strong Areas:**
-                ${JSON.stringify(strongAreas, null, 2)}
-
-                **Potential Weak Areas:**
-                ${JSON.stringify(weakAreas, null, 2)}
-
-                **Requirements:**
-                1. Identify 2-3 specific Strengths in the student's preparation, preferably in terms of topics or skills.
-                2. Identify 2-3 specific Weaknesses or knowledge gaps, preferably in terms of topics or concepts needing revision.
-                3. Provide 2-3 actionable Recommendations focused on improving preparation for the next quiz.
-                4. Write a short, encouraging Motivational Message (2 sentences max).
-                5. Use preparation language such as "well prepared in", "needs revision in", "should practice", "should review".
-                6. Avoid phrasing like "you got this answer wrong" or detailed answer-correction commentary.
-
-                **Output Format:**
-                Return ONLY a valid JSON object with the following structure:
+            const prompt = renderPromptTemplate(
+                getPrompt(PROMPT_KEYS.ADVISORY_REPORT_USER),
                 {
-                    "strengths": ["string", "string"],
-                    "weaknesses": ["string", "string"],
-                    "recommendations": ["string", "string"],
-                    "motivationalMessage": "string"
+                    performanceSummary,
+                    topicPerformanceJson: JSON.stringify(
+                        topicPerformance,
+                        null,
+                        2
+                    ),
+                    strongAreasJson: JSON.stringify(strongAreas, null, 2),
+                    weakAreasJson: JSON.stringify(weakAreas, null, 2),
                 }
-            `
+            )
 
             // 3. Call AI Model
             const result = await getAdvisoryModel().invoke([
                 new SystemMessage(
-                    "You are a helpful AI academic advisor. Always output valid JSON."
+                    getPrompt(PROMPT_KEYS.ADVISORY_REPORT_SYSTEM)
                 ),
                 new HumanMessage(prompt),
             ])
@@ -344,47 +327,31 @@ export const AdvisoryService = {
         const deterministicInsights = buildTopicWiseInsights(mergedRecent)
 
         try {
-            const prompt = `
-You are QuizMitra's Student Performance Insight Agent.
-You are given:
-1) Previous performance insights of the student (if available)
-2) Latest quiz responses and scores
-3) Topic-level trends extracted from recent performances
-
-Generate updated and cumulative insights that reflect progress over time.
-
-Student: ${student?.fullName || "Student"}
-Quiz: ${quiz?.title || "Untitled Quiz"}
-Current Score: ${attempt?.marksObtained || 0}/${attempt?.maxMarks || 0}
-Current Percentage: ${attempt?.percentage || 0}
-
-Previous Insights:
-${JSON.stringify(previousInsights || {}, null, 2)}
-
-Latest Quiz Answers (with correctness signal):
-${JSON.stringify(currentAnswers, null, 2)}
-
-Recent Topic Trends:
-${JSON.stringify(deterministicInsights, null, 2)}
-
-Return ONLY valid JSON:
-{
-  "strongAreas": ["string", "string"],
-  "weakAreas": ["string", "string"],
-  "improvementRoadmap": ["string", "string"],
-  "practiceGuide": ["string", "string"],
-  "summary": "string"
-}
-
-Rules:
-- Keep recommendations actionable and topic-specific.
-- Consider previous insights and update them based on latest answers.
-- Do not include markdown or extra text.
-`.trim()
+            const prompt = renderPromptTemplate(
+                getPrompt(PROMPT_KEYS.PERFORMANCE_INSIGHTS_USER),
+                {
+                    studentName: student?.fullName || "Student",
+                    quizTitle: quiz?.title || "Untitled Quiz",
+                    marksObtained: attempt?.marksObtained || 0,
+                    maxMarks: attempt?.maxMarks || 0,
+                    percentage: attempt?.percentage || 0,
+                    previousInsightsJson: JSON.stringify(
+                        previousInsights || {},
+                        null,
+                        2
+                    ),
+                    currentAnswersJson: JSON.stringify(currentAnswers, null, 2),
+                    deterministicInsightsJson: JSON.stringify(
+                        deterministicInsights,
+                        null,
+                        2
+                    ),
+                }
+            )
 
             const result = await getAdvisoryModel().invoke([
                 new SystemMessage(
-                    "You are an expert learning coach. Always return strict JSON only."
+                    getPrompt(PROMPT_KEYS.PERFORMANCE_INSIGHTS_SYSTEM)
                 ),
                 new HumanMessage(prompt),
             ])

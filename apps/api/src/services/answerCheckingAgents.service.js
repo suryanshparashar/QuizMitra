@@ -1,5 +1,10 @@
 import { createChatModel } from "../utils/llmClient.js"
 import { createDevLogger } from "../utils/devLogger.js"
+import {
+    getPrompt,
+    PROMPT_KEYS,
+    renderPromptTemplate,
+} from "../utils/promptStore.js"
 
 const devLog = createDevLogger("answer-check.agent")
 
@@ -262,29 +267,19 @@ export const SubjectiveCheckingAgent = {
         }
 
         try {
-            const prompt = `
-You are the Subjective Answer Checking Agent for QuizMitra.
-Evaluate the student's answer strictly against the rubric/model answer.
-
-Question: "${question?.questionText || ""}"
-Question Type: "${question?.questionType || "short-answer"}"
-Max Marks: ${maxMarks}
-Model Answer / Rubric: "${question?.correctAnswer || question?.explanation || "Evaluate relevance, correctness, and completeness."}"
-Student Answer: "${givenAnswer}"
-
-Return ONLY valid JSON:
-{
-    "correctnessScore": number,
-  "feedback": "string",
-  "isCorrect": boolean
-}
-Rules:
-- correctnessScore must be between 0 and 1, where 0.2 means 20% correctness
-- if you compute percentage, convert to fraction before returning (e.g., 20% -> 0.2)
-- feedback must be concise and constructive
-- isCorrect can be true only if answer meets core rubric expectations
-- do not include markdown, backticks, commentary, or chain-of-thought
-`.trim()
+            const promptTemplate = getPrompt(
+                PROMPT_KEYS.SUBJECTIVE_EVALUATION_TEMPLATE
+            )
+            const prompt = renderPromptTemplate(promptTemplate, {
+                questionText: question?.questionText || "",
+                questionType: question?.questionType || "short-answer",
+                maxMarks,
+                rubric:
+                    question?.correctAnswer ||
+                    question?.explanation ||
+                    "Evaluate relevance, correctness, and completeness.",
+                studentAnswer: givenAnswer,
+            })
 
             const response = await getEvaluationModel().invoke(prompt)
             const parsed = parseJsonObjectFromText(response?.content)

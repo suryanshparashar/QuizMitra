@@ -2,6 +2,7 @@
 **/.env.*
 **/node_modules/
 **/dist/
+apps/api/prompts/
 
 .prettierignore
 .prettierrc
