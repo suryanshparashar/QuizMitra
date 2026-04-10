@@ -767,6 +767,12 @@ export default function LandingPage() {
                     </p>
                     <div className="flex items-center gap-4 text-sm">
                         <Link
+                            to="/privacy"
+                            className="hover:text-white transition-colors"
+                        >
+                            Privacy
+                        </Link>
+                        <Link
                             to="/login"
                             className="hover:text-white transition-colors"
                         >

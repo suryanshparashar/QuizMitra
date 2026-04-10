@@ -277,6 +277,17 @@ export default function Layout() {
                                         </button>
                                         <button
                                             type="button"
+                                            onClick={() => {
+                                                setIsProfileMenuOpen(false)
+                                                navigate("/privacy")
+                                            }}
+                                            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 rounded-lg hover:bg-primary-50 hover:text-primary-700 transition"
+                                        >
+                                            <Shield className="w-4 h-4" />
+                                            Privacy Policy
+                                        </button>
+                                        <button
+                                            type="button"
                                             onClick={handleLogout}
                                             className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 rounded-lg hover:bg-red-50 hover:text-red-700 transition"
                                         >

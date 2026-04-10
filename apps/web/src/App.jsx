@@ -18,6 +18,7 @@ import Login from "./pages/auth/Login"
 import AdminLogin from "./pages/auth/AdminLogin"
 import Register from "./pages/auth/Register"
 import VerifyEmail from "./pages/auth/VerifyEmail"
+import PrivacyPolicy from "./pages/legal/PrivacyPolicy"
 
 // Dashboard Pages
 import FacultyDashboard from "./pages/dashboard/FacultyDashboard"
@@ -126,6 +127,7 @@ function AppRoutes() {
                     }
                 />
                 <Route path="/verify-email/:token" element={<VerifyEmail />} />
+                <Route path="/privacy" element={<PrivacyPolicy />} />
 
                 {/* Protected Routes with Layout — pathless layout route */}
                 <Route
