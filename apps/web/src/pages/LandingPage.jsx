@@ -773,6 +773,12 @@ export default function LandingPage() {
                             Privacy
                         </Link>
                         <Link
+                            to="/terms"
+                            className="hover:text-white transition-colors"
+                        >
+                            Terms
+                        </Link>
+                        <Link
                             to="/login"
                             className="hover:text-white transition-colors"
                         >
