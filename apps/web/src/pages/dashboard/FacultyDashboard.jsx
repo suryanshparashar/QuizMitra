@@ -64,13 +64,13 @@ export default function FacultyDashboard() {
     const getStatusColor = (status) => {
         switch (status?.toLowerCase()) {
             case "active":
-                return "bg-green-100 text-green-800"
+                return "bg-green-100 text-green-800 dark:bg-green-200/80 dark:text-green-900"
             case "completed":
-                return "bg-blue-100 text-blue-800"
+                return "bg-blue-100 text-blue-800 dark:bg-blue-200/80 dark:text-blue-900"
             case "draft":
-                return "bg-yellow-100 text-yellow-800"
+                return "bg-yellow-100 text-yellow-800 dark:bg-yellow-200/80 dark:text-yellow-900"
             default:
-                return "bg-gray-100 text-gray-800"
+                return "bg-gray-100 text-gray-800 dark:bg-gray-200/80 dark:text-gray-900"
         }
     }
 
@@ -87,7 +87,7 @@ export default function FacultyDashboard() {
 
     return (
         <div
-            className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-indigo-50/30 py-8"
+            className="qm-page min-h-screen bg-gradient-to-b from-slate-50 via-white to-indigo-50/30 py-8"
             style={{
                 backgroundImage: `
                   radial-gradient(circle at 20% 50%, rgba(59, 130, 246, 0.08) 0%, transparent 50%),
@@ -150,7 +150,7 @@ export default function FacultyDashboard() {
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                         {/* Total Classes Card */}
                         <div className="group relative overflow-hidden rounded-2xl shadow-sm border border-blue-100/50 bg-gradient-to-br from-blue-50/80 to-white p-6 hover:shadow-xl hover:border-blue-200 transition-all duration-300 hover:-translate-y-1">
-                            <div className="pointer-events-none absolute -top-8 -right-8 h-24 w-24 rounded-full bg-blue-200/30 blur-2xl group-hover:bg-blue-300/40 transition-all duration-300" />
+                            <div className="pointer-events-none absolute -top-8 -right-8 h-24 w-24 rounded-full bg-blue-200/30 dark:bg-blue-400/50 blur-2xl group-hover:bg-blue-300/40 dark:group-hover:bg-blue-400/50 transition-all duration-300" />
                             <div className="relative z-10 flex items-center justify-between">
                                 <div>
                                     <p className="text-xs font-semibold uppercase tracking-wider text-blue-600 mb-1">
@@ -169,7 +169,7 @@ export default function FacultyDashboard() {
 
                         {/* Total Students Card */}
                         <div className="group relative overflow-hidden rounded-2xl shadow-sm border border-emerald-100/50 bg-gradient-to-br from-emerald-50/80 to-white p-6 hover:shadow-xl hover:border-emerald-200 transition-all duration-300 hover:-translate-y-1">
-                            <div className="pointer-events-none absolute -top-8 -right-8 h-24 w-24 rounded-full bg-emerald-200/30 blur-2xl group-hover:bg-emerald-300/40 transition-all duration-300" />
+                            <div className="pointer-events-none absolute -top-8 -right-8 h-24 w-24 rounded-full bg-emerald-200/30 dark:bg-emerald-400/50 blur-2xl group-hover:bg-emerald-300/40 dark:group-hover:bg-emerald-400/50 transition-all duration-300" />
                             <div className="relative z-10 flex items-center justify-between">
                                 <div>
                                     <p className="text-xs font-semibold uppercase tracking-wider text-emerald-600 mb-1">
@@ -187,8 +187,8 @@ export default function FacultyDashboard() {
                         </div>
 
                         {/* Total Quizzes Card */}
-                        <div className="group relative overflow-hidden rounded-2xl shadow-sm border border-violet-100/50 bg-gradient-to-br from-violet-50/80 to-white p-6 hover:shadow-xl hover:border-violet-200 transition-all duration-300 hover:-translate-y-1">
-                            <div className="pointer-events-none absolute -top-8 -right-8 h-24 w-24 rounded-full bg-violet-200/30 blur-2xl group-hover:bg-violet-300/40 transition-all duration-300" />
+                        <div className="group relative overflow-hidden rounded-2xl shadow-sm border border-violet-100/50 dark:border-slate-500/50 bg-gradient-to-br from-violet-50/80 to-white p-6 hover:shadow-xl hover:border-violet-200 dark:hover:border-slate-500/50 transition-all duration-300 hover:-translate-y-1">
+                            <div className="pointer-events-none absolute -top-8 -right-8 h-24 w-24 rounded-full bg-violet-200/30 dark:bg-violet-400/50 blur-2xl group-hover:bg-violet-300/40 dark:group-hover:bg-violet-400/50 transition-all duration-300" />
                             <div className="relative z-10 flex items-center justify-between">
                                 <div>
                                     <p className="text-xs font-semibold uppercase tracking-wider text-violet-600 mb-1">
@@ -207,7 +207,7 @@ export default function FacultyDashboard() {
 
                         {/* Avg Performance Card */}
                         <div className="group relative overflow-hidden rounded-2xl shadow-sm border border-amber-100/50 bg-gradient-to-br from-amber-50/80 to-white p-6 hover:shadow-xl hover:border-amber-200 transition-all duration-300 hover:-translate-y-1">
-                            <div className="pointer-events-none absolute -top-8 -right-8 h-24 w-24 rounded-full bg-amber-200/30 blur-2xl group-hover:bg-amber-300/40 transition-all duration-300" />
+                            <div className="pointer-events-none absolute -top-8 -right-8 h-24 w-24 rounded-full bg-amber-200/30 dark:bg-amber-400/50 blur-2xl group-hover:bg-amber-300/40 dark:group-hover:bg-amber-400/50 transition-all duration-300" />
                             <div className="relative z-10 flex items-center justify-between">
                                 <div>
                                     <p className="text-xs font-semibold uppercase tracking-wider text-amber-600 mb-1">
@@ -247,14 +247,14 @@ export default function FacultyDashboard() {
                             </div>
 
                             <div className="flex flex-wrap items-center gap-2 mb-5">
-                                <span className="inline-flex items-center rounded-full bg-blue-100 text-blue-700 px-3 py-1 text-xs font-semibold border border-blue-200">
+                                <span className="inline-flex items-center rounded-full bg-blue-100 text-blue-700 px-3 py-1 text-xs font-semibold border border-blue-200 dark:bg-blue-800/60 dark:text-blue-900 dark:border-blue-300">
                                     Latest Avg: {latestAvgScore.toFixed(1)}%
                                 </span>
                                 <span
                                     className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold border ${
                                         trendDelta >= 0
-                                            ? "bg-emerald-100 text-emerald-700 border-emerald-200"
-                                            : "bg-rose-100 text-rose-700 border-rose-200"
+                                            ? "bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-800/60 dark:text-emerald-900 dark:border-emerald-300"
+                                            : "bg-rose-100 text-rose-700 border-rose-200 dark:bg-rose-800/60 dark:text-rose-900 dark:border-rose-300"
                                     }`}
                                 >
                                     Trend: {trendDelta >= 0 ? "+" : ""}

@@ -19,14 +19,14 @@ export const showToast = {
     success: (message) =>
         toast.success(message, {
             style: {
-                borderRadius: "12px",
+                borderRadius: "14px",
                 padding: "16px",
                 fontSize: "14px",
-                fontWeight: 500,
+                fontWeight: 600,
                 borderLeft: "4px solid #16A34A",
-                background: "#fff",
+                background: "rgba(255,255,255,0.94)",
                 color: "#111827",
-                boxShadow: "0 10px 15px rgba(0, 0, 0, 0.1)",
+                boxShadow: "0 16px 28px rgba(26, 40, 78, 0.16)",
             },
             iconTheme: { primary: "#16A34A", secondary: "#fff" },
         }),
@@ -35,14 +35,14 @@ export const showToast = {
         logToastErrorInDev(message)
         return toast.error(message, {
             style: {
-                borderRadius: "12px",
+                borderRadius: "14px",
                 padding: "16px",
                 fontSize: "14px",
-                fontWeight: 500,
+                fontWeight: 600,
                 borderLeft: "4px solid #DC2626",
-                background: "#fff",
+                background: "rgba(255,255,255,0.94)",
                 color: "#111827",
-                boxShadow: "0 10px 15px rgba(0, 0, 0, 0.1)",
+                boxShadow: "0 16px 28px rgba(26, 40, 78, 0.16)",
             },
             iconTheme: { primary: "#DC2626", secondary: "#fff" },
         })
@@ -51,14 +51,14 @@ export const showToast = {
     info: (message) =>
         toast(message, {
             style: {
-                borderRadius: "12px",
+                borderRadius: "14px",
                 padding: "16px",
                 fontSize: "14px",
-                fontWeight: 500,
-                borderLeft: "4px solid #2563EB",
-                background: "#fff",
+                fontWeight: 600,
+                borderLeft: "4px solid #335DE8",
+                background: "rgba(255,255,255,0.94)",
                 color: "#111827",
-                boxShadow: "0 10px 15px rgba(0, 0, 0, 0.1)",
+                boxShadow: "0 16px 28px rgba(26, 40, 78, 0.16)",
             },
             icon: "ℹ️",
         }),
@@ -66,14 +66,14 @@ export const showToast = {
     warning: (message) =>
         toast(message, {
             style: {
-                borderRadius: "12px",
+                borderRadius: "14px",
                 padding: "16px",
                 fontSize: "14px",
-                fontWeight: 500,
+                fontWeight: 600,
                 borderLeft: "4px solid #EA580C",
-                background: "#fff",
+                background: "rgba(255,255,255,0.94)",
                 color: "#111827",
-                boxShadow: "0 10px 15px rgba(0, 0, 0, 0.1)",
+                boxShadow: "0 16px 28px rgba(26, 40, 78, 0.16)",
             },
             icon: "⚠️",
         }),

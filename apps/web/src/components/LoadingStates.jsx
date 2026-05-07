@@ -35,7 +35,7 @@ export function Skeleton({
  */
 export function SkeletonCard({ lines = 3 }) {
     return (
-        <div className="bg-white rounded-xl border border-gray-200 p-6 space-y-4">
+        <div className="qm-surface bg-white rounded-xl border border-gray-200 p-6 space-y-4">
             <Skeleton height="1.25rem" width="60%" />
             {Array.from({ length: lines }).map((_, i) => (
                 <Skeleton
@@ -53,13 +53,13 @@ export function SkeletonCard({ lines = 3 }) {
  */
 export function DashboardSkeleton() {
     return (
-        <div className="min-h-screen bg-gray-50 p-6 md:p-8 space-y-8 animate-pulse">
+        <div className="qm-page qm-shell min-h-screen p-6 md:p-8 space-y-8 animate-pulse">
             {/* Stat Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                 {[1, 2, 3, 4].map((i) => (
                     <div
                         key={i}
-                        className="bg-white rounded-2xl p-6 border border-gray-200"
+                        className="qm-surface bg-white rounded-2xl p-6 border border-gray-200"
                     >
                         <div className="flex items-center justify-between mb-4">
                             <Skeleton height="3rem" width="3rem" circle />
@@ -112,7 +112,7 @@ export function Spinner({ size = "md", className = "" }) {
  */
 export function FullPageSpinner({ message = "Loading..." }) {
     return (
-        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="qm-page qm-shell min-h-screen flex items-center justify-center">
             <div className="flex flex-col items-center space-y-4">
                 <Spinner size="lg" />
                 <p className="text-gray-600 font-medium">{message}</p>

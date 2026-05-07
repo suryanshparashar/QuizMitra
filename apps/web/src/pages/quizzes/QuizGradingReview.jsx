@@ -93,7 +93,7 @@ export default function QuizGradingReview() {
 
     if (loading) {
         return (
-            <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+            <div className="qm-page min-h-screen bg-gray-50 flex items-center justify-center">
                 <div className="flex flex-col items-center space-y-4">
                     <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
                     <p className="text-gray-600 font-medium">
@@ -106,7 +106,7 @@ export default function QuizGradingReview() {
 
     if (!reviewData) {
         return (
-            <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center">
+            <div className="qm-page min-h-screen bg-gray-50 flex flex-col items-center justify-center">
                 <AlertCircle className="w-12 h-12 text-red-500 mb-4" />
                 <h2 className="text-2xl font-bold text-gray-900 mb-2">
                     Attempt Not Found
@@ -125,7 +125,7 @@ export default function QuizGradingReview() {
     }
 
     return (
-        <div className="min-h-screen bg-gray-50 py-8">
+        <div className="qm-page min-h-screen bg-gray-50 py-8">
             <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
                 {/* Header */}
                 <div className="mb-6">

@@ -57,6 +57,15 @@ import Notifications from "./pages/Notifications"
 import { ToastProvider } from "./components/Toast"
 import { api } from "./services/api"
 
+const THEME_STORAGE_KEY = "quizmitra-theme-mode"
+const THEME_MODES = ["light", "dark", "system"]
+
+const getStoredThemeMode = () => {
+    if (typeof window === "undefined") return "system"
+    const stored = window.localStorage.getItem(THEME_STORAGE_KEY)
+    return THEME_MODES.includes(stored) ? stored : "system"
+}
+
 function ScrollToTop() {
     const location = useLocation()
 
@@ -316,6 +325,58 @@ function AppRoutes() {
 }
 
 function App() {
+    useEffect(() => {
+        if (typeof window === "undefined") return
+
+        const root = document.documentElement
+        const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)")
+
+        const applyTheme = () => {
+            const mode = getStoredThemeMode()
+            const resolved =
+                mode === "system"
+                    ? mediaQuery.matches
+                        ? "dark"
+                        : "light"
+                    : mode
+            root.setAttribute("data-theme", resolved)
+        }
+
+        applyTheme()
+
+        const handleSystemThemeChange = () => {
+            if (getStoredThemeMode() === "system") {
+                applyTheme()
+            }
+        }
+
+        const handleStorage = (event) => {
+            if (event.key === THEME_STORAGE_KEY) {
+                applyTheme()
+            }
+        }
+
+        if (typeof mediaQuery.addEventListener === "function") {
+            mediaQuery.addEventListener("change", handleSystemThemeChange)
+        } else {
+            mediaQuery.addListener(handleSystemThemeChange)
+        }
+
+        window.addEventListener("storage", handleStorage)
+
+        return () => {
+            if (typeof mediaQuery.removeEventListener === "function") {
+                mediaQuery.removeEventListener(
+                    "change",
+                    handleSystemThemeChange
+                )
+            } else {
+                mediaQuery.removeListener(handleSystemThemeChange)
+            }
+            window.removeEventListener("storage", handleStorage)
+        }
+    }, [])
+
     useEffect(() => {
         const sessionWakeKey = "quizmitra-healthcheck-sent"
 

@@ -96,7 +96,7 @@ export default function StudentDashboard() {
 
     return (
         <div
-            className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-blue-50/40 py-8"
+            className="qm-page min-h-screen bg-gradient-to-b from-slate-50 via-white to-blue-50/40 py-8"
             style={{
                 backgroundImage: `
                   radial-gradient(circle at 20% 50%, rgba(99, 102, 241, 0.08) 0%, transparent 50%),
@@ -232,19 +232,25 @@ export default function StudentDashboard() {
                                     <CartesianGrid
                                         strokeDasharray="3 3"
                                         vertical={false}
-                                        stroke="#E2E8F0"
+                                        stroke="var(--qm-border)"
                                     />
                                     <XAxis
                                         dataKey="shortName"
                                         axisLine={false}
                                         tickLine={false}
-                                        tick={{ fontSize: 12, fill: "#64748B" }}
+                                        tick={{
+                                            fontSize: 12,
+                                            fill: "var(--qm-muted)",
+                                        }}
                                     />
                                     <YAxis
                                         axisLine={false}
                                         tickLine={false}
                                         domain={[0, 100]}
-                                        tick={{ fontSize: 12, fill: "#64748B" }}
+                                        tick={{
+                                            fontSize: 12,
+                                            fill: "var(--qm-muted)",
+                                        }}
                                     />
                                     <Tooltip
                                         labelFormatter={(_, payload) =>
@@ -259,15 +265,16 @@ export default function StudentDashboard() {
                                         }}
                                         contentStyle={{
                                             borderRadius: "12px",
-                                            border: "1px solid #E2E8F0",
-                                            background: "#FFFFFF",
-                                            boxShadow:
-                                                "0 10px 15px -3px rgb(15 23 42 / 0.12)",
+                                            border: "1px solid var(--qm-border)",
+                                            background:
+                                                "var(--qm-surface-strong)",
+                                            boxShadow: "var(--qm-shadow-soft)",
+                                            color: "var(--qm-text)",
                                         }}
                                     />
                                     <ReferenceLine
                                         y={averageScore}
-                                        stroke="#94A3B8"
+                                        stroke="var(--qm-border)"
                                         strokeDasharray="5 5"
                                     />
                                     <Area
@@ -445,7 +452,7 @@ function StatCard({ title, value, icon: Icon, color }) {
             border: "border-blue-100/50",
             label: "text-blue-600",
             icon: "from-blue-500 to-blue-600",
-            gradient: "bg-blue-200/30",
+            gradient: "bg-blue-200/30 dark:bg-blue-400/50",
             hoverGradient: "group-hover:bg-blue-300/40",
         },
         green: {
@@ -453,15 +460,15 @@ function StatCard({ title, value, icon: Icon, color }) {
             border: "border-emerald-100/50",
             label: "text-emerald-600",
             icon: "from-emerald-500 to-emerald-600",
-            gradient: "bg-emerald-200/30",
+            gradient: "bg-emerald-200/30 dark:bg-emerald-400/50",
             hoverGradient: "group-hover:bg-emerald-300/40",
         },
         purple: {
             bg: "from-violet-50/80 to-white",
-            border: "border-violet-100/50",
+            border: "border-violet-100/50 dark:border-slate-500/50",
             label: "text-violet-600",
             icon: "from-violet-500 to-violet-600",
-            gradient: "bg-violet-200/30",
+            gradient: "bg-violet-200/30 dark:bg-violet-400/50",
             hoverGradient: "group-hover:bg-violet-300/40",
         },
         indigo: {
@@ -469,7 +476,7 @@ function StatCard({ title, value, icon: Icon, color }) {
             border: "border-indigo-100/50",
             label: "text-indigo-600",
             icon: "from-indigo-500 to-indigo-600",
-            gradient: "bg-indigo-200/30",
+            gradient: "bg-indigo-200/30 dark:bg-indigo-400/50",
             hoverGradient: "group-hover:bg-indigo-300/40",
         },
         orange: {
@@ -477,7 +484,7 @@ function StatCard({ title, value, icon: Icon, color }) {
             border: "border-amber-100/50",
             label: "text-amber-600",
             icon: "from-amber-500 to-amber-600",
-            gradient: "bg-amber-200/30",
+            gradient: "bg-amber-200/30 dark:bg-amber-400/50",
             hoverGradient: "group-hover:bg-amber-300/40",
         },
     }

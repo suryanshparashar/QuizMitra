@@ -101,7 +101,7 @@ export default function CreateClass() {
     ]
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
+        <div className="qm-page min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
             {/* Header */}
             <div className="bg-gradient-to-r from-blue-50 to-indigo-50 shadow-sm border-b border-blue-100">
                 <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">

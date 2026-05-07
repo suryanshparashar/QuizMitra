@@ -143,6 +143,22 @@ classSchema.methods.isStudent = function (userId) {
     })
 }
 
+classSchema.methods.isClassRepresentative = function (userId) {
+    if (!this.classRepresentative) {
+        return false
+    }
+
+    const classRepId =
+        this.classRepresentative?._id || this.classRepresentative
+
+    if (classRepId?.toString() !== userId.toString()) {
+        return false
+    }
+
+    // Keep CR access tied to active student enrollment.
+    return this.isStudent(userId)
+}
+
 classSchema.methods.generateClassCode = async function () {
     const characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
     let code

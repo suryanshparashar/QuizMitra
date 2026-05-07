@@ -56,7 +56,7 @@ const createMessage = asyncHandler(async (req, res) => {
     await message.populate([
         {
             path: "sender",
-            select: "fullName role facultyId studentId",
+            select: "fullName role facultyId studentId avatar",
         },
         {
             path: "class",
@@ -64,9 +64,9 @@ const createMessage = asyncHandler(async (req, res) => {
         },
     ])
 
-    return res.status(201).json(
-        new ApiResponse(201, message, "Message created successfully")
-    )
+    return res
+        .status(201)
+        .json(new ApiResponse(201, message, "Message created successfully"))
 })
 
 // Get all messages in a class
@@ -118,6 +118,7 @@ const getClassMessages = asyncHandler(async (req, res) => {
                             role: 1,
                             facultyId: 1,
                             studentId: 1,
+                            avatar: 1,
                         },
                     },
                 ],
@@ -175,6 +176,9 @@ const getClassMessages = asyncHandler(async (req, res) => {
                                         },
                                         studentId: {
                                             $first: "$$commenter.studentId",
+                                        },
+                                        avatar: {
+                                            $first: "$$commenter.avatar",
                                         },
                                     },
                                 },
@@ -386,9 +390,9 @@ const getMessage = asyncHandler(async (req, res) => {
         throw new ApiError(403, "Access denied")
     }
 
-    return res.status(200).json(
-        new ApiResponse(200, message, "Message retrieved successfully")
-    )
+    return res
+        .status(200)
+        .json(new ApiResponse(200, message, "Message retrieved successfully"))
 })
 
 // Add comment to message (Everyone in class can comment)
@@ -483,9 +487,9 @@ const deleteMessage = asyncHandler(async (req, res) => {
 
     await ClassMessage.findByIdAndDelete(messageId)
 
-    return res.status(200).json(
-        new ApiResponse(200, null, "Message deleted successfully")
-    )
+    return res
+        .status(200)
+        .json(new ApiResponse(200, null, "Message deleted successfully"))
 })
 
 // Delete comment (Commenter only)
@@ -522,13 +526,15 @@ const deleteComment = asyncHandler(async (req, res) => {
     comment.deleteOne()
     await message.save()
 
-    return res.status(200).json(
-        new ApiResponse(
-            200,
-            { totalComments: message.comments.length },
-            "Comment deleted successfully"
+    return res
+        .status(200)
+        .json(
+            new ApiResponse(
+                200,
+                { totalComments: message.comments.length },
+                "Comment deleted successfully"
+            )
         )
-    )
 })
 
 // Get user's recent messages across all classes

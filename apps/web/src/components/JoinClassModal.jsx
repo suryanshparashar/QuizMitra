@@ -55,46 +55,49 @@ export default function JoinClassModal({ isOpen, onClose, initialCode = "" }) {
     if (!isOpen) return null
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm">
-            <div className="bg-white rounded-3xl shadow-2xl border border-gray-100 w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
-                <div className="flex items-center justify-between p-6 border-b border-gray-100">
-                    <h2 className="text-xl font-bold text-gray-900 flex items-center">
-                        <UserPlus className="w-5 h-5 mr-2 text-indigo-600" />
-                        Join a Class
-                    </h2>
-                    <button
-                        onClick={onClose}
-                        className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors"
-                    >
-                        <X className="w-5 h-5" />
-                    </button>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 p-4 backdrop-blur-md">
+            <div className="w-full max-w-md overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-[0_30px_60px_rgba(15,23,42,0.3)] animate-in fade-in zoom-in duration-200">
+                <div className="bg-gradient-to-r from-slate-50 to-indigo-50/80 border-b border-slate-200 p-6">
+                    <div className="flex items-center justify-between">
+                        <h2 className="flex items-center text-xl font-black tracking-tight text-slate-900">
+                            <UserPlus className="mr-2 h-5 w-5 text-primary-600" />
+                            Join Classroom
+                        </h2>
+                        <button
+                            onClick={onClose}
+                            className="rounded-full p-2 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
+                        >
+                            <X className="h-5 w-5" />
+                        </button>
+                    </div>
+                    <p className="mt-2 text-sm text-slate-600">
+                        Enter your class code to join and access classwork.
+                    </p>
                 </div>
 
                 <div className="p-6">
-                    {/* Success Message */}
                     {success && (
-                        <div className="mb-6 bg-green-50 border border-green-200 rounded-xl p-4 flex items-start space-x-3">
-                            <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" />
+                        <div className="mb-6 flex items-start space-x-3 rounded-xl border border-green-200 bg-green-50 p-4">
+                            <CheckCircle className="h-5 w-5 flex-shrink-0 text-green-600" />
                             <div>
-                                <h3 className="text-green-800 font-medium text-sm">
-                                    Success!
+                                <h3 className="text-sm font-semibold text-green-800">
+                                    Joined successfully
                                 </h3>
-                                <p className="text-green-700 text-sm mt-0.5">
+                                <p className="mt-0.5 text-sm text-green-700">
                                     {success}
                                 </p>
                             </div>
                         </div>
                     )}
 
-                    {/* Error Message */}
                     {error && (
-                        <div className="mb-6 bg-red-50 border border-red-200 rounded-xl p-4 flex items-start space-x-3">
-                            <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0" />
+                        <div className="mb-6 flex items-start space-x-3 rounded-xl border border-red-200 bg-red-50 p-4">
+                            <AlertCircle className="h-5 w-5 flex-shrink-0 text-red-600" />
                             <div>
-                                <h3 className="text-red-800 font-medium text-sm">
-                                    Error
+                                <h3 className="text-sm font-semibold text-red-800">
+                                    Unable to join class
                                 </h3>
-                                <p className="text-red-700 text-sm mt-0.5">
+                                <p className="mt-0.5 text-sm text-red-700">
                                     {error}
                                 </p>
                             </div>
@@ -103,12 +106,12 @@ export default function JoinClassModal({ isOpen, onClose, initialCode = "" }) {
 
                     <form onSubmit={handleSubmit} className="space-y-6">
                         <div className="space-y-2">
-                            <label className="block text-sm font-medium text-gray-700">
+                            <label className="block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
                                 Class Code
                             </label>
                             <div className="relative">
-                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                    <Hash className="w-5 h-5 text-gray-400" />
+                                <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                                    <Hash className="h-5 w-5 text-slate-400" />
                                 </div>
                                 <input
                                     type="text"
@@ -116,30 +119,32 @@ export default function JoinClassModal({ isOpen, onClose, initialCode = "" }) {
                                     value={classCode}
                                     onChange={handleInputChange}
                                     required
-                                    className="block w-full pl-10 pr-3 py-3 text-base border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500 transition-all bg-gray-50 focus:bg-white text-gray-900 placeholder-gray-400 font-mono tracking-wide"
+                                    className="block w-full rounded-xl border border-slate-200 bg-slate-50 py-3 pl-10 pr-3 text-base font-mono tracking-wide text-slate-900 placeholder-slate-400 transition-all focus:border-primary-500 focus:bg-white focus:ring-2 focus:ring-primary-100"
                                     maxLength={10}
                                     style={{ textTransform: "uppercase" }}
                                 />
                             </div>
                         </div>
 
-                        <div className="flex space-x-3 pt-2">
+                        <div className="flex space-x-3 pt-1">
                             <button
                                 type="button"
                                 onClick={onClose}
-                                className="flex-1 py-3 px-4 bg-white border border-gray-300 text-gray-700 font-medium rounded-xl hover:bg-gray-50 transition-colors focus:ring-2 focus:ring-gray-100"
+                                className="flex-1 rounded-xl border border-slate-300 bg-white px-4 py-3 font-medium text-slate-700 transition-colors hover:bg-slate-50"
                             >
                                 Cancel
                             </button>
                             <button
                                 type="submit"
                                 disabled={loading || !classCode.trim()}
-                                className="flex-1 py-3 px-4 bg-indigo-600 text-white font-medium rounded-xl hover:bg-indigo-700 transition-all focus:ring-2 focus:ring-indigo-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center shadow-sm"
+                                className="flex-1 rounded-xl bg-primary-600 px-4 py-3 font-semibold text-white shadow-sm transition hover:bg-primary-700 disabled:cursor-not-allowed disabled:opacity-50"
                             >
                                 {loading ? (
-                                    <Loader2 className="w-5 h-5 animate-spin" />
+                                    <span className="flex items-center justify-center">
+                                        <Loader2 className="h-5 w-5 animate-spin" />
+                                    </span>
                                 ) : (
-                                    "Join Class"
+                                    "Join"
                                 )}
                             </button>
                         </div>

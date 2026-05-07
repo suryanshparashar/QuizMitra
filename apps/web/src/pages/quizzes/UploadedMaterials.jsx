@@ -190,7 +190,7 @@ export default function UploadedMaterials() {
     }, [hasProcessingMaterial])
 
     return (
-        <div className="min-h-screen bg-gray-50 py-8">
+        <div className="qm-page min-h-screen bg-gray-50 py-8">
             <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>

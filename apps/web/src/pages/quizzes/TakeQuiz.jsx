@@ -368,7 +368,7 @@ export default function TakeQuiz() {
 
     if (loading) {
         return (
-            <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 flex items-center justify-center">
+            <div className="qm-page min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 flex items-center justify-center">
                 <div className="flex flex-col items-center space-y-4">
                     <div className="animate-spin rounded-full h-12 w-12 border-4 border-indigo-500 border-t-transparent"></div>
                     <p className="text-gray-600 text-lg">Loading quiz...</p>
@@ -403,7 +403,7 @@ export default function TakeQuiz() {
         currentQuestion
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 pb-20">
+        <div className="qm-page min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 pb-20">
             {/* Header */}
             <div className="bg-white shadow-lg border-b border-gray-200 sticky top-0 z-10">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">

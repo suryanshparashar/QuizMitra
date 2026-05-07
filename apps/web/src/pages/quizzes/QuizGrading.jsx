@@ -39,7 +39,7 @@ export default function QuizGrading() {
 
     if (loading) {
         return (
-            <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+            <div className="qm-page min-h-screen bg-gray-50 flex items-center justify-center">
                 <div className="flex flex-col items-center space-y-4">
                     <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
                     <p className="text-gray-600 font-medium">
@@ -51,7 +51,7 @@ export default function QuizGrading() {
     }
 
     return (
-        <div className="min-h-screen bg-gray-50 py-8">
+        <div className="qm-page min-h-screen bg-gray-50 py-8">
             <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
                 {/* Header */}
                 <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between">

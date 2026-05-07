@@ -3,7 +3,7 @@ import { Home, ArrowLeft, Search, AlertTriangle, BookOpen } from "lucide-react"
 
 export default function NotFound() {
     return (
-        <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-blue-50 flex items-center justify-center p-4">
+        <div className="qm-page min-h-screen bg-gradient-to-br from-gray-50 via-white to-blue-50 flex items-center justify-center p-4">
             <div className="max-w-2xl w-full text-center">
                 {/* 404 Illustration */}
                 <div className="mb-8">

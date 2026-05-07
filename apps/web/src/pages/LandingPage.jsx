@@ -380,7 +380,7 @@ export default function LandingPage() {
     }, [])
 
     return (
-        <div className="min-h-screen overflow-x-hidden bg-gradient-to-br from-slate-950 via-indigo-950 to-blue-950 font-sans text-slate-100">
+        <div className="qm-page min-h-screen overflow-x-hidden bg-gradient-to-br from-slate-950 via-indigo-950 to-blue-950 font-sans text-slate-100">
             {/* ── Navbar ─────────────────────────────────────────────────── */}
             <header className="sticky top-0 z-50 bg-slate-950/70 backdrop-blur border-b border-white/10 shadow-sm">
                 <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">

@@ -1,406 +1,543 @@
-import { useState, useEffect } from "react"
-import { useParams, Link } from "react-router-dom"
+import { useEffect, useState } from "react"
+import { Link, useParams } from "react-router-dom"
 import {
-    Trophy,
-    Clock,
-    CheckCircle,
-    XCircle,
-    Target,
-    Award,
     ArrowLeft,
+    Award,
     BarChart3,
     Calendar,
+    Clock,
+    ShieldAlert,
+    Target,
+    Trophy,
 } from "lucide-react"
 import { api } from "../../services/api.js"
 
-export default function QuizResults() {
-    const { attemptId } = useParams()
-    const [results, setResults] = useState(null)
-    const [loading, setLoading] = useState(true)
+const formatNumber = (value) => Number(value || 0).toFixed(2)
 
-    useEffect(() => {
-        fetchResults()
-    }, [attemptId])
+const formatDateTime = (value) => {
+    if (!value) return "Not available"
+    const parsed = new Date(value)
+    if (Number.isNaN(parsed.getTime())) return "Invalid date"
+    return parsed.toLocaleString()
+}
 
-    const fetchResults = async () => {
+const formatAnswerValue = (value) => {
+    if (value === null || value === undefined || value === "") {
+        return "Not answered"
+    }
+
+    if (Array.isArray(value)) {
+        return value.length > 0 ? value.join(", ") : "Not answered"
+    }
+
+    if (typeof value === "object") {
         try {
-            const response = await api.get(
-                `/quiz-attempts/${attemptId}/details`
-            )
-            setResults(response.data.data)
-        } catch (error) {
-            console.error("Error fetching results:", error)
-        } finally {
-            setLoading(false)
+            return JSON.stringify(value)
+        } catch {
+            return "[Complex answer]"
         }
     }
 
+    return String(value)
+}
+
+const formatDuration = (seconds) => {
+    const value = Number(seconds || 0)
+    const minutes = Math.floor(value / 60)
+    const remaining = value % 60
+
+    if (minutes === 0) {
+        return `${remaining}s`
+    }
+
+    return `${minutes}m ${remaining}s`
+}
+
+const gradeStyleMap = {
+    S: "text-emerald-700 bg-emerald-100 border-emerald-200 dark:bg-emerald-900/10 dark:text-emerald-300 dark:border-emerald-700/50",
+    A: "text-blue-700 bg-blue-100 border-blue-200 dark:bg-blue-900/10 dark:text-blue-300 dark:border-blue-700/50",
+    B: "text-indigo-700 bg-indigo-100 border-indigo-200 dark:bg-indigo-900/10 dark:text-indigo-300 dark:border-indigo-700/50",
+    C: "text-amber-700 bg-amber-100 border-amber-200 dark:bg-amber-900/10 dark:text-amber-300 dark:border-amber-700/50",
+    D: "text-orange-700 bg-orange-100 border-orange-200 dark:bg-orange-900/10 dark:text-orange-300 dark:border-orange-700/50",
+    E: "text-rose-700 bg-rose-100 border-rose-200 dark:bg-rose-900/10 dark:text-rose-300 dark:border-rose-700/50",
+    F: "text-red-700 bg-red-100 border-red-200 dark:bg-red-900/10 dark:text-red-300 dark:border-red-700/50",
+    N: "text-red-800 bg-red-200 border-red-300 dark:bg-red-900/10 dark:text-red-300 dark:border-red-700/50",
+}
+
+function AdvisoryList({ title, items, tone }) {
+    if (!Array.isArray(items) || items.length === 0) return null
+
+    const toneClasses = {
+        green: {
+            card: "border-emerald-200 bg-emerald-50 dark:border-emerald-700/50 dark:bg-emerald-900/10",
+            dot: "bg-emerald-500 dark:bg-emerald-400",
+            text: "text-emerald-800 dark:text-emerald-300",
+            heading: "text-emerald-900 dark:text-emerald-300",
+        },
+        red: {
+            card: "border-rose-200 bg-rose-50 dark:border-rose-700/50 dark:bg-rose-900/10",
+            dot: "bg-rose-500 dark:bg-rose-400",
+            text: "text-rose-800 dark:text-rose-300",
+            heading: "text-rose-900 dark:text-rose-300",
+        },
+        blue: {
+            card: "border-blue-200 bg-blue-50 dark:border-blue-700/50 dark:bg-blue-900/10",
+            dot: "bg-blue-500 dark:bg-blue-400",
+            text: "text-blue-800 dark:text-blue-300",
+            heading: "text-blue-900 dark:text-blue-300",
+        },
+    }
+
+    const palette = toneClasses[tone] || toneClasses.blue
+
+    return (
+        <section className={`rounded-2xl border p-4 ${palette.card}`}>
+            <h4
+                className={`text-sm font-bold uppercase tracking-[0.08em] ${palette.heading}`}
+            >
+                {title}
+            </h4>
+            <ul className="mt-3 space-y-2">
+                {items.map((item, index) => (
+                    <li
+                        key={`${title}-${index}`}
+                        className={`flex items-start gap-2 text-sm ${palette.text}`}
+                    >
+                        <span
+                            className={`mt-1.5 h-1.5 w-1.5 rounded-full ${palette.dot}`}
+                        />
+                        <span>{item}</span>
+                    </li>
+                ))}
+            </ul>
+        </section>
+    )
+}
+
+export default function QuizResults() {
+    const { attemptId } = useParams()
+
+    const [results, setResults] = useState(null)
+    const [loading, setLoading] = useState(true)
+    const [error, setError] = useState("")
+
+    useEffect(() => {
+        let isMounted = true
+
+        const fetchResults = async () => {
+            setLoading(true)
+            setError("")
+
+            try {
+                const response = await api.get(
+                    `/quiz-attempts/${attemptId}/details`
+                )
+                if (!isMounted) return
+                setResults(response?.data?.data || null)
+            } catch (fetchError) {
+                console.error("Error fetching quiz results:", fetchError)
+                if (!isMounted) return
+                setResults(null)
+                setError(
+                    fetchError?.response?.data?.message ||
+                        "Unable to load quiz results"
+                )
+            } finally {
+                if (isMounted) {
+                    setLoading(false)
+                }
+            }
+        }
+
+        fetchResults()
+
+        return () => {
+            isMounted = false
+        }
+    }, [attemptId])
+
     if (loading) {
         return (
-            <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 flex items-center justify-center">
-                <div className="flex flex-col items-center space-y-4">
-                    <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent"></div>
-                    <p className="text-gray-600 text-lg">Loading results...</p>
+            <div className="qm-page min-h-screen flex items-center justify-center">
+                <div className="rounded-2xl border border-slate-200 bg-white px-6 py-5 text-sm font-medium text-slate-600 shadow-sm">
+                    Loading results...
                 </div>
             </div>
         )
     }
 
-    const getGradeColor = (grade) => {
-        switch (grade) {
-            case "S":
-                return "text-green-600 bg-green-100"
-            case "A":
-                return "text-blue-600 bg-blue-100"
-            case "B":
-                return "text-yellow-600 bg-yellow-100"
-            case "C":
-                return "text-orange-600 bg-orange-100"
-            case "D":
-                return "text-orange-700 bg-orange-200"
-            case "E":
-                return "text-rose-600 bg-rose-100"
-            case "F":
-                return "text-red-600 bg-red-100"
-            case "N":
-                return "text-red-800 bg-red-200"
-            default:
-                return "text-red-600 bg-red-100"
-        }
+    if (!results) {
+        return (
+            <div className="qm-page min-h-screen">
+                <div className="max-w-3xl mx-auto rounded-2xl border border-red-200 bg-red-50 px-5 py-4">
+                    <p className="text-sm font-semibold text-red-700">
+                        {error ||
+                            "Result data is unavailable for this attempt."}
+                    </p>
+                    <Link
+                        to="/dashboard"
+                        className="mt-3 inline-flex items-center gap-2 rounded-lg border border-red-300 bg-white px-3 py-2 text-sm font-semibold text-red-700 hover:bg-red-100"
+                    >
+                        <ArrowLeft className="h-4 w-4" />
+                        Back to Dashboard
+                    </Link>
+                </div>
+            </div>
+        )
     }
 
-    const getStatusColor = (isPassed) => {
-        return isPassed
-            ? "text-green-600 bg-green-100 border-green-200"
-            : "text-red-600 bg-red-100 border-red-200"
-    }
-
-    const isDebarred = results?.score?.grade === "N"
-    const statusPillClass = isDebarred
-        ? "text-rose-700 bg-rose-100 border-rose-300"
-        : getStatusColor(results.score.isPassed)
-
+    const score = results?.score || {}
+    const performance = results?.performance || {}
+    const timing = results?.timing || {}
+    const answers = Array.isArray(results?.answers) ? results.answers : []
+    const advisory = results?.advisory || {}
     const questionWiseVisibility = results?.questionWiseVisibility || {}
+
     const canViewAnyQuestionWise =
         questionWiseVisibility?.canViewAnyQuestionWise === true
 
+    const isDebarred = score?.grade === "N" || results?.isDebarred === true
+
+    const statusStyle = isDebarred
+        ? "bg-red-100 text-red-800 border-red-300 dark:bg-red-900/10 dark:text-red-300 dark:border-red-700/50"
+        : score?.isPassed
+          ? "bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-900/10 dark:text-emerald-300 dark:border-emerald-700/50"
+          : "bg-rose-100 text-rose-800 border-rose-300 dark:bg-rose-900/10 dark:text-rose-300 dark:border-rose-700/50"
+
+    const statusLabel = isDebarred
+        ? "Debarred"
+        : score?.isPassed
+          ? "Passed"
+          : "Failed"
+
+    const classLabel = results?.class
+        ? `${results.class.subjectName} (${results.class.subjectCode})`
+        : "Class details unavailable"
+
+    const strengths = Array.isArray(advisory?.strengths)
+        ? advisory.strengths
+        : []
+    const weaknesses = Array.isArray(advisory?.weaknesses)
+        ? advisory.weaknesses
+        : []
+    const recommendations = Array.isArray(advisory?.recommendations)
+        ? advisory.recommendations
+        : []
+
     return (
-        <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
-            {/* Header */}
-            <div className="bg-white shadow-sm border-b">
-                <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-4">
-                            <Link
-                                to="/dashboard"
-                                className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 transition-colors group"
-                            >
-                                <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
-                                <span>Back to Dashboard</span>
-                            </Link>
-                        </div>
-                        <div className="flex items-center space-x-2 text-blue-600">
-                            <Trophy className="w-5 h-5" />
-                            <span className="font-medium">Quiz Results</span>
-                        </div>
+        <div className="qm-page min-h-screen space-y-6">
+            <section className="relative overflow-hidden rounded-[28px] border border-slate-200 bg-gradient-to-br from-slate-900 via-indigo-900 to-blue-900 px-6 py-7 text-white shadow-[0_18px_42px_rgba(15,23,42,0.22)]">
+                <div className="pointer-events-none absolute -right-10 -top-10 h-52 w-52 rounded-full bg-white/10 blur-3xl" />
+                <div className="relative flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+                    <div>
+                        <p className="text-xs uppercase tracking-[0.18em] text-blue-100">
+                            Assessment Review
+                        </p>
+                        <h1 className="mt-1 flex items-center gap-2 text-2xl sm:text-3xl font-black tracking-tight">
+                            <Trophy className="h-7 w-7 text-blue-200" />
+                            Quiz Results
+                        </h1>
+                        <p className="mt-2 text-sm sm:text-base text-blue-100/95">
+                            {results?.quiz?.title || "Quiz"}
+                        </p>
+                        <p className="mt-1 text-sm text-blue-200">
+                            {classLabel}
+                        </p>
+                    </div>
+
+                    <div className="flex gap-2">
+                        <span
+                            className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-bold uppercase tracking-[0.08em] ${statusStyle}`}
+                        >
+                            {statusLabel}
+                        </span>
+                        <span
+                            className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-bold ${gradeStyleMap[score?.grade] || gradeStyleMap.F}`}
+                        >
+                            Grade {score?.grade || "-"}
+                        </span>
                     </div>
                 </div>
-            </div>
+            </section>
 
-            <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                {/* Quiz Title */}
-                <div className="text-center mb-8">
-                    <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-xl">
-                        <Trophy className="w-10 h-10 text-white" />
-                    </div>
-                    <h1 className="text-4xl font-bold text-gray-900 mb-2">
-                        Quiz Results
-                    </h1>
-                    <h2 className="text-2xl text-gray-600">
-                        {results.quiz.title}
-                    </h2>
+            {error && (
+                <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800">
+                    {error}
                 </div>
+            )}
 
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                    {/* Main Results */}
-                    <div className="lg:col-span-2 space-y-6">
-                        {/* Score Card */}
-                        <div className="bg-white rounded-3xl shadow-xl border border-gray-100 overflow-hidden">
-                            <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-8 text-white">
-                                <div className="flex items-center justify-between">
-                                    <div>
-                                        <h3 className="text-2xl font-bold mb-2">
-                                            Your Score
-                                        </h3>
-                                        <div className="text-4xl font-bold">
-                                            {results.score.marksObtained}/
-                                            {results.score.maxMarks}
-                                        </div>
-                                    </div>
-                                    <div className="text-right">
-                                        <div className="text-3xl font-bold">
-                                            {results.score.percentage}%
-                                        </div>
-                                        <div
-                                            className={`inline-flex items-center px-4 py-2 rounded-full text-sm font-semibold mt-2 ${getGradeColor(results.score.grade)}`}
-                                        >
-                                            Grade: {results.score.grade}
-                                        </div>
-                                    </div>
-                                </div>
-                                <div
-                                    className={`inline-flex items-center px-6 py-3 rounded-full text-lg font-bold mt-6 border-2 ${statusPillClass}`}
-                                >
-                                    {isDebarred ? (
-                                        <>
-                                            <XCircle className="w-5 h-5 mr-2" />
-                                            DEBARRED
-                                        </>
-                                    ) : results.score.isPassed ? (
-                                        <>
-                                            <CheckCircle className="w-5 h-5 mr-2" />
-                                            PASSED
-                                        </>
-                                    ) : (
-                                        <>
-                                            <XCircle className="w-5 h-5 mr-2" />
-                                            FAILED
-                                        </>
-                                    )}
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Performance Summary */}
-                        <div className="bg-white rounded-3xl shadow-xl border border-gray-100 p-8">
-                            <h3 className="text-2xl font-bold text-gray-900 mb-6 flex items-center">
-                                <BarChart3 className="w-6 h-6 mr-3 text-blue-600" />
-                                Performance Summary
-                            </h3>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <div className="bg-green-50 rounded-2xl p-6">
-                                    <div className="flex items-center justify-between">
-                                        <div className="flex items-center space-x-3">
-                                            <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
-                                                <CheckCircle className="w-6 h-6 text-green-600" />
-                                            </div>
-                                            <div>
-                                                <p className="text-green-900 font-semibold">
-                                                    Correct Answers
-                                                </p>
-                                                <p className="text-green-700 text-sm">
-                                                    Well done!
-                                                </p>
-                                            </div>
-                                        </div>
-                                        <span className="text-3xl font-bold text-green-600">
-                                            {results.performance.correctAnswers}
-                                        </span>
-                                    </div>
-                                </div>
-                                <div className="bg-red-50 rounded-2xl p-6">
-                                    <div className="flex items-center justify-between">
-                                        <div className="flex items-center space-x-3">
-                                            <div className="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center">
-                                                <XCircle className="w-6 h-6 text-red-600" />
-                                            </div>
-                                            <div>
-                                                <p className="text-red-900 font-semibold">
-                                                    Incorrect Answers
-                                                </p>
-                                                <p className="text-red-700 text-sm">
-                                                    Room for improvement
-                                                </p>
-                                            </div>
-                                        </div>
-                                        <span className="text-3xl font-bold text-red-600">
-                                            {
-                                                results.performance
-                                                    .incorrectAnswers
-                                            }
-                                        </span>
-                                    </div>
-                                </div>
-                                <div className="bg-blue-50 rounded-2xl p-6">
-                                    <div className="flex items-center justify-between">
-                                        <div className="flex items-center space-x-3">
-                                            <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
-                                                <Target className="w-6 h-6 text-blue-600" />
-                                            </div>
-                                            <div>
-                                                <p className="text-blue-900 font-semibold">
-                                                    Accuracy
-                                                </p>
-                                                <p className="text-blue-700 text-sm">
-                                                    Overall performance
-                                                </p>
-                                            </div>
-                                        </div>
-                                        <span className="text-3xl font-bold text-blue-600">
-                                            {results.performance.accuracy}%
-                                        </span>
-                                    </div>
-                                </div>
-                                <div className="bg-purple-50 rounded-2xl p-6">
-                                    <div className="flex items-center justify-between">
-                                        <div className="flex items-center space-x-3">
-                                            <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center">
-                                                <Clock className="w-6 h-6 text-purple-600" />
-                                            </div>
-                                            <div>
-                                                <p className="text-purple-900 font-semibold">
-                                                    Time Spent
-                                                </p>
-                                                <p className="text-purple-700 text-sm">
-                                                    Duration
-                                                </p>
-                                            </div>
-                                        </div>
-                                        <span className="text-3xl font-bold text-purple-600">
-                                            {Math.floor(
-                                                results.timing.timeSpent / 60
-                                            )}
-                                            m
-                                        </span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Answer Review */}
-                        <div className="bg-white rounded-3xl shadow-xl border border-gray-100 p-8">
-                            <h3 className="text-2xl font-bold text-gray-900 mb-4">
-                                Your Responses
-                            </h3>
-
-                            {!canViewAnyQuestionWise ? (
-                                <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-800">
-                                    {questionWiseVisibility?.releaseAfterDeadline &&
-                                    !questionWiseVisibility?.releaseGateOpen
-                                        ? "Question-wise results are locked until the quiz deadline."
-                                        : "Faculty has currently disabled question-wise result visibility for this quiz."}
-                                </div>
-                            ) : results.answers?.length > 0 ? (
-                                <div className="space-y-4">
-                                    {results.answers.map((answer, index) => (
-                                        <div
-                                            key={index}
-                                            className="rounded-xl border border-gray-200 p-4"
-                                        >
-                                            <p className="font-semibold text-gray-900 mb-2">
-                                                Q{answer.questionIndex + 1}:{" "}
-                                                {answer.questionText}
-                                            </p>
-                                            <p className="text-sm text-gray-700">
-                                                <span className="font-medium">
-                                                    Your Response:
-                                                </span>{" "}
-                                                {answer.selectedAnswer ||
-                                                    "Not answered"}
-                                            </p>
-
-                                            {questionWiseVisibility?.canViewCorrectAnswers && (
-                                                <p className="text-sm text-green-700 mt-1">
-                                                    <span className="font-medium">
-                                                        Correct Answer:
-                                                    </span>{" "}
-                                                    {answer.correctAnswer ||
-                                                        "Not available"}
-                                                </p>
-                                            )}
-
-                                            {questionWiseVisibility?.canViewScores && (
-                                                <p className="text-sm text-blue-700 mt-1">
-                                                    <span className="font-medium">
-                                                        Score:
-                                                    </span>{" "}
-                                                    {Number(
-                                                        answer.marksAwarded || 0
-                                                    ).toFixed(2)}{" "}
-                                                    /{" "}
-                                                    {Number(
-                                                        answer.maxMarks || 0
-                                                    ).toFixed(2)}
-                                                </p>
-                                            )}
-
-                                            {questionWiseVisibility?.canViewFeedback &&
-                                                answer.gradingNotes && (
-                                                    <p className="text-sm text-indigo-700 mt-1">
-                                                        <span className="font-medium">
-                                                            Feedback:
-                                                        </span>{" "}
-                                                        {answer.gradingNotes}
-                                                    </p>
-                                                )}
-                                        </div>
-                                    ))}
-                                </div>
-                            ) : (
-                                <p className="text-gray-500">
-                                    No question-wise responses available yet.
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+                <div className="space-y-6 lg:col-span-2">
+                    <section className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm">
+                        <h2 className="text-xl font-bold text-slate-900">
+                            Score Summary
+                        </h2>
+                        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+                            <article className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                                <p className="text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">
+                                    Marks
                                 </p>
-                            )}
+                                <p className="mt-1 text-2xl font-black text-slate-900">
+                                    {formatNumber(score?.marksObtained)} /
+                                    {formatNumber(score?.maxMarks)}
+                                </p>
+                            </article>
+                            <article className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                                <p className="text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">
+                                    Percentage
+                                </p>
+                                <p className="mt-1 text-2xl font-black text-indigo-700">
+                                    {formatNumber(score?.percentage)}%
+                                </p>
+                            </article>
+                            <article className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                                <p className="text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">
+                                    Accuracy
+                                </p>
+                                <p className="mt-1 text-2xl font-black text-blue-700">
+                                    {formatNumber(performance?.accuracy)}%
+                                </p>
+                            </article>
                         </div>
-                    </div>
+                    </section>
 
-                    {/* Sidebar */}
-                    <div className="space-y-6">
-                        {/* Quick Stats */}
-                        <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
-                            <h3 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
-                                <Award className="w-5 h-5 mr-2 text-blue-600" />
-                                Quick Stats
-                            </h3>
-                            <div className="space-y-4">
-                                <div className="flex justify-between items-center">
-                                    <span className="text-gray-600">
-                                        Total Questions
-                                    </span>
-                                    <span className="font-semibold text-gray-900">
-                                        {results.answers.length}
-                                    </span>
-                                </div>
-                                <div className="flex justify-between items-center">
-                                    <span className="text-gray-600">
-                                        Correct
-                                    </span>
-                                    <span className="font-semibold text-green-600">
-                                        {results.performance.correctAnswers}
-                                    </span>
-                                </div>
-                                <div className="flex justify-between items-center">
-                                    <span className="text-gray-600">
-                                        Incorrect
-                                    </span>
-                                    <span className="font-semibold text-red-600">
-                                        {results.performance.incorrectAnswers}
-                                    </span>
-                                </div>
-                                <div className="flex justify-between items-center pt-2 border-t border-gray-200">
-                                    <span className="text-gray-600">
-                                        Final Grade
-                                    </span>
-                                    <span
-                                        className={`font-bold px-3 py-1 rounded-full text-sm ${getGradeColor(results.score.grade)}`}
+                    <section className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm">
+                        <h2 className="flex items-center gap-2 text-xl font-bold text-slate-900">
+                            <BarChart3 className="h-5 w-5 text-primary-600" />
+                            Performance Breakdown
+                        </h2>
+                        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                            <article className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+                                <p className="text-sm font-semibold text-emerald-900">
+                                    Correct Answers
+                                </p>
+                                <p className="mt-1 text-2xl font-black text-emerald-700">
+                                    {performance?.correctAnswers || 0}
+                                </p>
+                            </article>
+                            <article className="rounded-2xl border border-rose-200 bg-rose-50 p-4">
+                                <p className="text-sm font-semibold text-rose-900">
+                                    Incorrect Answers
+                                </p>
+                                <p className="mt-1 text-2xl font-black text-rose-700">
+                                    {performance?.incorrectAnswers || 0}
+                                </p>
+                            </article>
+                            <article className="rounded-2xl border border-blue-200 bg-blue-50 p-4">
+                                <p className="text-sm font-semibold text-blue-900">
+                                    Total Questions
+                                </p>
+                                <p className="mt-1 text-2xl font-black text-blue-700">
+                                    {performance?.totalQuestions ||
+                                        answers.length ||
+                                        0}
+                                </p>
+                            </article>
+                            <article className="rounded-2xl border border-indigo-200 bg-indigo-50 p-4">
+                                <p className="text-sm font-semibold text-indigo-900">
+                                    Time Spent
+                                </p>
+                                <p className="mt-1 text-2xl font-black text-indigo-700">
+                                    {formatDuration(timing?.timeSpent)}
+                                </p>
+                            </article>
+                        </div>
+                    </section>
+
+                    <section className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm">
+                        <h2 className="text-xl font-bold text-slate-900">
+                            Advisory Insights
+                        </h2>
+                        {advisory?.motivationalMessage ? (
+                            <p className="mt-3 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900">
+                                {advisory.motivationalMessage}
+                            </p>
+                        ) : (
+                            <p className="mt-3 text-sm text-slate-600">
+                                Advisory is not available for this attempt yet.
+                            </p>
+                        )}
+                        <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-3">
+                            <AdvisoryList
+                                title="Strengths"
+                                items={strengths}
+                                tone="green"
+                            />
+                            <AdvisoryList
+                                title="Weaknesses"
+                                items={weaknesses}
+                                tone="red"
+                            />
+                            <AdvisoryList
+                                title="Recommendations"
+                                items={recommendations}
+                                tone="blue"
+                            />
+                        </div>
+                    </section>
+
+                    <section className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm">
+                        <h2 className="text-xl font-bold text-slate-900">
+                            Question-wise Review
+                        </h2>
+
+                        {!canViewAnyQuestionWise ? (
+                            <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                                {questionWiseVisibility?.releaseAfterDeadline &&
+                                !questionWiseVisibility?.releaseGateOpen
+                                    ? "Question-wise results are locked until the quiz deadline."
+                                    : "Faculty has currently disabled question-wise result visibility for this quiz."}
+                            </div>
+                        ) : answers.length === 0 ? (
+                            <p className="mt-4 text-sm text-slate-600">
+                                No question-wise responses are available for
+                                this attempt.
+                            </p>
+                        ) : (
+                            <div className="mt-4 space-y-3">
+                                {answers.map((answer, index) => (
+                                    <article
+                                        key={`${answer?.questionIndex ?? index}-${index}`}
+                                        className="rounded-2xl border border-slate-200 bg-slate-50 p-4"
                                     >
-                                        {results.score.grade}
-                                    </span>
-                                </div>
+                                        <p className="text-sm font-bold text-slate-900">
+                                            Q
+                                            {Number(
+                                                answer?.questionIndex ?? index
+                                            ) + 1}
+                                            :{" "}
+                                            {answer?.questionText || "Question"}
+                                        </p>
+                                        <p className="mt-2 text-sm text-slate-700">
+                                            <span className="font-semibold">
+                                                Your Response:
+                                            </span>{" "}
+                                            {formatAnswerValue(
+                                                answer?.selectedAnswer
+                                            )}
+                                        </p>
+
+                                        {questionWiseVisibility?.canViewCorrectAnswers && (
+                                            <p className="mt-1 text-sm text-emerald-700">
+                                                <span className="font-semibold">
+                                                    Correct Answer:
+                                                </span>{" "}
+                                                {formatAnswerValue(
+                                                    answer?.correctAnswer
+                                                )}
+                                            </p>
+                                        )}
+
+                                        {questionWiseVisibility?.canViewScores && (
+                                            <p className="mt-1 text-sm text-blue-700">
+                                                <span className="font-semibold">
+                                                    Score:
+                                                </span>{" "}
+                                                {formatNumber(
+                                                    answer?.marksAwarded
+                                                )}{" "}
+                                                /{" "}
+                                                {formatNumber(answer?.maxMarks)}
+                                            </p>
+                                        )}
+
+                                        {questionWiseVisibility?.canViewFeedback &&
+                                            answer?.gradingNotes && (
+                                                <p className="mt-1 text-sm text-indigo-700">
+                                                    <span className="font-semibold">
+                                                        Feedback:
+                                                    </span>{" "}
+                                                    {answer.gradingNotes}
+                                                </p>
+                                            )}
+                                    </article>
+                                ))}
+                            </div>
+                        )}
+                    </section>
+                </div>
+
+                <aside className="space-y-6">
+                    <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                        <h3 className="flex items-center gap-2 text-lg font-bold text-slate-900">
+                            <Award className="h-5 w-5 text-primary-600" />
+                            Attempt Stats
+                        </h3>
+                        <div className="mt-4 space-y-3 text-sm">
+                            <div className="flex items-center justify-between">
+                                <span className="text-slate-600">
+                                    Submitted
+                                </span>
+                                <span className="font-semibold text-slate-900">
+                                    {formatDateTime(timing?.submittedAt)}
+                                </span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                                <span className="text-slate-600">
+                                    Time Used
+                                </span>
+                                <span className="font-semibold text-slate-900">
+                                    {formatDuration(timing?.timeSpent)}
+                                </span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                                <span className="text-slate-600">
+                                    Late Submission
+                                </span>
+                                <span className="font-semibold text-slate-900">
+                                    {timing?.isLateSubmission ? "Yes" : "No"}
+                                </span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                                <span className="text-slate-600">
+                                    Time Exceeded
+                                </span>
+                                <span className="font-semibold text-slate-900">
+                                    {timing?.wasTimeExceeded ? "Yes" : "No"}
+                                </span>
                             </div>
                         </div>
+                    </section>
 
-                        {/* Action Button */}
-                        <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
-                            <Link to="/dashboard">
-                                <button className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-4 px-6 rounded-xl hover:from-blue-700 hover:to-indigo-700 focus:outline-none focus:ring-4 focus:ring-blue-100 transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 flex items-center justify-center space-x-2 font-semibold">
-                                    <ArrowLeft className="w-5 h-5" />
-                                    <span>Back to Dashboard</span>
-                                </button>
-                            </Link>
+                    {isDebarred && (
+                        <section className="rounded-2xl border border-red-200 bg-red-50 p-5 shadow-sm">
+                            <h3 className="flex items-center gap-2 text-lg font-bold text-red-900">
+                                <ShieldAlert className="h-5 w-5" />
+                                Debar Notice
+                            </h3>
+                            <p className="mt-2 text-sm text-red-800">
+                                {results?.debarReason ||
+                                    "This attempt was marked as debarred."}
+                            </p>
+                        </section>
+                    )}
+
+                    <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                        <div className="space-y-2 text-sm text-slate-600">
+                            <p className="flex items-center gap-2">
+                                <Target className="h-4 w-4 text-primary-600" />
+                                Keep reviewing weak areas to improve
+                                consistency.
+                            </p>
+                            <p className="flex items-center gap-2">
+                                <Calendar className="h-4 w-4 text-primary-600" />
+                                Compare this attempt with your upcoming quizzes.
+                            </p>
+                            <p className="flex items-center gap-2">
+                                <Clock className="h-4 w-4 text-primary-600" />
+                                Practice timed sessions for better pace control.
+                            </p>
                         </div>
-                    </div>
-                </div>
+
+                        <Link
+                            to="/dashboard"
+                            className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-primary-700"
+                        >
+                            <ArrowLeft className="h-4 w-4" />
+                            Back to Dashboard
+                        </Link>
+                    </section>
+                </aside>
             </div>
         </div>
     )

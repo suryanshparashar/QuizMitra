@@ -207,7 +207,7 @@ export default function QuizDetails() {
 
     if (loading) {
         return (
-            <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+            <div className="qm-page min-h-screen bg-gray-50 flex items-center justify-center">
                 <div className="flex flex-col items-center space-y-4">
                     <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
                     <p className="text-gray-600 font-medium">Loading quiz...</p>
@@ -236,7 +236,7 @@ export default function QuizDetails() {
         : 0
 
     return (
-        <div className="min-h-screen bg-gradient-to-b from-slate-50 via-blue-50/40 to-white pt-3 pb-8 sm:pt-4">
+        <div className="qm-page min-h-screen bg-gradient-to-b from-slate-50 via-blue-50/40 to-white pt-3 pb-8 sm:pt-4">
             <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 relative">
                 <div className="pointer-events-none absolute -top-8 -left-10 h-28 w-28 rounded-full bg-cyan-200/30 blur-3xl" />
                 <div className="pointer-events-none absolute top-20 -right-10 h-36 w-36 rounded-full bg-indigo-200/30 blur-3xl" />
