@@ -46,9 +46,7 @@ const InsightList = ({ title, items, tone = "blue" }) => {
 
     return (
         <section className={`rounded-2xl border p-4 ${palette.card}`}>
-            <h3
-                className={`text-sm font-bold uppercase tracking-[0.08em] ${palette.heading}`}
-            >
+            <h3 className={`text-sm font-bold uppercase tracking-[0.08em] ${palette.heading}`}>
                 {title}
             </h3>
 
@@ -253,9 +251,7 @@ export default function PerformanceInsights() {
                     <div className="relative">
                         <div className="flex items-center gap-2 text-blue-100">
                             <Brain className="h-5 w-5" />
-                            <h2 className="text-lg font-bold">
-                                Latest Summary
-                            </h2>
+                            <h2 className="text-lg font-bold">Latest Summary</h2>
                         </div>
                         <p className="mt-3 text-sm sm:text-base text-blue-50 leading-relaxed">
                             {safeSummary ||
@@ -429,12 +425,8 @@ export default function PerformanceInsights() {
                                     className="w-full rounded-xl border border-slate-300 px-3 py-2"
                                 >
                                     {classes.map((classDoc) => (
-                                        <option
-                                            key={classDoc._id}
-                                            value={classDoc._id}
-                                        >
-                                            {classDoc.subjectName} -{" "}
-                                            {classDoc.subjectCode}
+                                        <option key={classDoc._id} value={classDoc._id}>
+                                            {classDoc.subjectName} - {classDoc.subjectCode}
                                         </option>
                                     ))}
                                 </select>
@@ -452,10 +444,7 @@ export default function PerformanceInsights() {
                                     className="w-full rounded-xl border border-slate-300 px-3 py-2"
                                 >
                                     {facultyStudents.map((student) => (
-                                        <option
-                                            key={student._id}
-                                            value={student._id}
-                                        >
+                                        <option key={student._id} value={student._id}>
                                             {student.fullName}
                                             {student.studentId
                                                 ? ` (${student.studentId})`
@@ -468,8 +457,7 @@ export default function PerformanceInsights() {
 
                         <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
                             <Users className="h-3.5 w-3.5" />
-                            {facultyStudents.length} active students in selected
-                            class
+                            {facultyStudents.length} active students in selected class
                         </div>
                     </section>
 
