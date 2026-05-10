@@ -14,11 +14,11 @@ import { api } from "../../services/api.js"
 const STATUS_OPTIONS = ["all", "active", "upcoming", "completed", "missed"]
 
 const STATUS_STYLE = {
-    all: "bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-900/10 dark:text-slate-300 dark:border-slate-700/50",
-    active: "bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/10 dark:text-emerald-300 dark:border-emerald-700/50",
-    upcoming: "bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/10 dark:text-blue-300 dark:border-blue-700/50",
-    completed: "bg-indigo-100 text-indigo-700 border-indigo-200 dark:bg-indigo-900/10 dark:text-indigo-300 dark:border-indigo-700/50",
-    missed: "bg-rose-100 text-rose-700 border-rose-200 dark:bg-rose-900/10 dark:text-rose-300 dark:border-rose-700/50",
+    all: "bg-slate-100 text-slate-700 border-slate-200",
+    active: "bg-emerald-100 text-emerald-700 border-emerald-200",
+    upcoming: "bg-blue-100 text-blue-700 border-blue-200",
+    completed: "bg-indigo-100 text-indigo-700 border-indigo-200",
+    missed: "bg-rose-100 text-rose-700 border-rose-200",
 }
 
 const toTitleCase = (value) => {
@@ -112,9 +112,7 @@ export default function StudentQuizzesList() {
 
             try {
                 const query = status === "all" ? "" : `?status=${status}`
-                const response = await api.get(
-                    `/quizzes/student/quizzes${query}`
-                )
+                const response = await api.get(`/quizzes/student/quizzes${query}`)
                 if (!isMounted) return
                 setQuizzes(response?.data?.data || [])
             } catch (fetchError) {
@@ -147,9 +145,7 @@ export default function StudentQuizzesList() {
         return `No ${status} quizzes found.`
     }, [status])
 
-    const activeCount = quizzes.filter(
-        (quiz) => quiz.myStatus === "active"
-    ).length
+    const activeCount = quizzes.filter((quiz) => quiz.myStatus === "active").length
     const completedCount = quizzes.filter(
         (quiz) => quiz.myStatus === "completed"
     ).length
@@ -279,48 +275,34 @@ export default function StudentQuizzesList() {
                                                 <span
                                                     className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold capitalize ${STATUS_STYLE[quiz.myStatus] || STATUS_STYLE.all}`}
                                                 >
-                                                    {quiz.myStatus ||
-                                                        "upcoming"}
+                                                    {quiz.myStatus || "upcoming"}
                                                 </span>
                                             </div>
 
                                             <div className="mt-3 grid grid-cols-1 gap-2 text-sm text-slate-600 sm:grid-cols-2">
                                                 <p className="flex items-center gap-2">
                                                     <BookOpen className="h-4 w-4 text-slate-500" />
-                                                    {quiz.classId?.subjectName}{" "}
-                                                    ({quiz.classId?.subjectCode}
-                                                    )
+                                                    {quiz.classId?.subjectName} (
+                                                    {quiz.classId?.subjectCode})
                                                 </p>
                                                 <p className="flex items-center gap-2">
                                                     <Clock className="h-4 w-4 text-slate-500" />
-                                                    Duration: {quiz.duration}{" "}
-                                                    min
+                                                    Duration: {quiz.duration} min
                                                 </p>
                                                 <p className="flex items-center gap-2">
                                                     <Calendar className="h-4 w-4 text-slate-500" />
-                                                    Starts:{" "}
-                                                    {formatDateTime(
-                                                        quiz.scheduledAt
-                                                    )}
+                                                    Starts: {formatDateTime(quiz.scheduledAt)}
                                                 </p>
                                                 <p className="flex items-center gap-2">
                                                     <Calendar className="h-4 w-4 text-slate-500" />
-                                                    Deadline:{" "}
-                                                    {formatDateTime(
-                                                        quiz.deadline
-                                                    )}
+                                                    Deadline: {formatDateTime(quiz.deadline)}
                                                 </p>
                                             </div>
 
                                             {quiz.myStatus === "completed" &&
                                                 quiz?.attempt && (
                                                     <p className="mt-3 inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
-                                                        Score:{" "}
-                                                        {Number(
-                                                            quiz.attempt
-                                                                .percentage || 0
-                                                        ).toFixed(2)}
-                                                        %
+                                                        Score: {Number(quiz.attempt.percentage || 0).toFixed(2)}%
                                                     </p>
                                                 )}
                                         </div>
