@@ -7,6 +7,7 @@ import {
     BarChart3,
     Bell,
     BookOpen,
+    Check,
     ChevronDown,
     FileText,
     LayoutDashboard,
@@ -35,6 +36,7 @@ export default function Layout() {
     const location = useLocation()
 
     const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false)
+    const [isThemeMenuOpen, setIsThemeMenuOpen] = useState(false)
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
     const [resolvedTheme, setResolvedTheme] = useState("light")
     const [themeMode, setThemeMode] = useState(() => {
@@ -47,6 +49,7 @@ export default function Layout() {
     })
 
     const profileMenuRef = useRef(null)
+    const themeMenuRef = useRef(null)
     const mobileMenuRef = useRef(null)
     const mobileMenuButtonRef = useRef(null)
 
@@ -190,8 +193,20 @@ export default function Layout() {
 
     useEffect(() => {
         setIsMobileMenuOpen(false)
+        setIsThemeMenuOpen(false)
         setIsProfileMenuOpen(false)
     }, [location.pathname, location.search])
+
+    useEffect(() => {
+        if (isMobileMenuOpen) {
+            document.body.style.overflow = "hidden"
+        } else {
+            document.body.style.overflow = ""
+        }
+        return () => {
+            document.body.style.overflow = ""
+        }
+    }, [isMobileMenuOpen])
 
     useEffect(() => {
         const handleClickOutside = (event) => {
@@ -200,6 +215,13 @@ export default function Layout() {
                 !profileMenuRef.current.contains(event.target)
             ) {
                 setIsProfileMenuOpen(false)
+            }
+
+            if (
+                themeMenuRef.current &&
+                !themeMenuRef.current.contains(event.target)
+            ) {
+                setIsThemeMenuOpen(false)
             }
 
             if (
@@ -220,7 +242,18 @@ export default function Layout() {
 
     const handleThemeChange = (mode) => {
         setThemeMode(mode)
+        setIsThemeMenuOpen(false)
     }
+
+    const ThemeIcon =
+        themeMode === "light"
+            ? Sun
+            : themeMode === "dark"
+              ? Moon
+              : Monitor
+
+    const resolvedThemeLabel =
+        resolvedTheme === "dark" ? "Dark" : "Light"
 
     const handleLogout = () => {
         setIsProfileMenuOpen(false)
@@ -230,7 +263,7 @@ export default function Layout() {
 
     return (
         <div className="qm-page qm-shell min-h-screen font-sans text-slate-900">
-            <header className="qm-header sticky top-0 z-50 border-b relative">
+            <header className="qm-header sticky top-0 z-50 border-b backdrop-blur-xl">
                 <nav className="max-w-7xl mx-auto h-[74px] px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-3">
                     <div className="flex min-w-0 items-center gap-3">
                         <Link
@@ -298,7 +331,7 @@ export default function Layout() {
 
                             <Link
                                 to="/notifications"
-                                className={`relative inline-flex qm-header-icon-btn ${
+                                className={`relative qm-header-icon-btn flex items-center justify-center ${
                                     isRouteActive("/notifications")
                                         ? "qm-nav-active"
                                         : ""
@@ -329,9 +362,7 @@ export default function Layout() {
                                                 className="w-full h-full object-cover"
                                             />
                                         ) : (
-                                            initials || (
-                                                <User className="w-4 h-4" />
-                                            )
+                                            initials || <User className="w-4 h-4" />
                                         )}
                                     </div>
                                     <div className="hidden md:flex flex-col items-start leading-tight pr-1">
@@ -442,7 +473,7 @@ export default function Layout() {
                                 onClick={() =>
                                     setIsMobileMenuOpen((prev) => !prev)
                                 }
-                                className="inline-flex lg:hidden qm-header-icon-btn"
+                                className="lg:hidden qm-header-icon-btn flex items-center justify-center"
                                 title="Toggle menu"
                             >
                                 {isMobileMenuOpen ? (
@@ -499,49 +530,6 @@ export default function Layout() {
                                     <ChevronDown className="h-4 w-4 -rotate-90" />
                                 </Link>
                             ) : null}
-
-                            {/* <div className="rounded-2xl border border-slate-200/60 bg-white/75 px-3 py-3">
-                                <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500 font-semibold">
-                                    Theme
-                                </p>
-                                <div className="mt-2 grid grid-cols-3 gap-2">
-                                    {THEME_MODES.map((mode) => {
-                                        const ModeIcon =
-                                            mode === "light"
-                                                ? Sun
-                                                : mode === "dark"
-                                                  ? Moon
-                                                  : Monitor
-                                        const isActiveTheme =
-                                            themeMode === mode
-
-                                        return (
-                                            <button
-                                                key={`mobile-${mode}`}
-                                                type="button"
-                                                onClick={() =>
-                                                    handleThemeChange(mode)
-                                                }
-                                                className={`flex items-center justify-center gap-1 rounded-lg px-2 py-2 text-[11px] font-semibold transition ${
-                                                    isActiveTheme
-                                                        ? "qm-theme-option-active"
-                                                        : "qm-theme-option"
-                                                }`}
-                                            >
-                                                <ModeIcon className="h-3.5 w-3.5" />
-                                                {mode === "system"
-                                                    ? "System"
-                                                    : mode === "dark"
-                                                      ? "Dark"
-                                                      : "Light"}
-                                            </button>
-                                        )
-                                    })}
-                                </div>
-                                <p className="mt-2 text-[11px] text-slate-500">
-                                    Active: {resolvedTheme === "dark" ? "Dark" : "Light"}
-                                </p>
-                            </div> */}
 
                             <button
                                 type="button"
