@@ -246,14 +246,9 @@ export default function Layout() {
     }
 
     const ThemeIcon =
-        themeMode === "light"
-            ? Sun
-            : themeMode === "dark"
-              ? Moon
-              : Monitor
+        themeMode === "light" ? Sun : themeMode === "dark" ? Moon : Monitor
 
-    const resolvedThemeLabel =
-        resolvedTheme === "dark" ? "Dark" : "Light"
+    const resolvedThemeLabel = resolvedTheme === "dark" ? "Dark" : "Light"
 
     const handleLogout = () => {
         setIsProfileMenuOpen(false)
@@ -362,7 +357,9 @@ export default function Layout() {
                                                 className="w-full h-full object-cover"
                                             />
                                         ) : (
-                                            initials || <User className="w-4 h-4" />
+                                            initials || (
+                                                <User className="w-4 h-4" />
+                                            )
                                         )}
                                     </div>
                                     <div className="hidden md:flex flex-col items-start leading-tight pr-1">
