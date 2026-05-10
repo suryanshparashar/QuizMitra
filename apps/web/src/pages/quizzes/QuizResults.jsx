@@ -54,14 +54,14 @@ const formatDuration = (seconds) => {
 }
 
 const gradeStyleMap = {
-    S: "text-emerald-700 bg-emerald-100 border-emerald-200 dark:bg-emerald-900/10 dark:text-emerald-300 dark:border-emerald-700/50",
-    A: "text-blue-700 bg-blue-100 border-blue-200 dark:bg-blue-900/10 dark:text-blue-300 dark:border-blue-700/50",
-    B: "text-indigo-700 bg-indigo-100 border-indigo-200 dark:bg-indigo-900/10 dark:text-indigo-300 dark:border-indigo-700/50",
-    C: "text-amber-700 bg-amber-100 border-amber-200 dark:bg-amber-900/10 dark:text-amber-300 dark:border-amber-700/50",
-    D: "text-orange-700 bg-orange-100 border-orange-200 dark:bg-orange-900/10 dark:text-orange-300 dark:border-orange-700/50",
-    E: "text-rose-700 bg-rose-100 border-rose-200 dark:bg-rose-900/10 dark:text-rose-300 dark:border-rose-700/50",
-    F: "text-red-700 bg-red-100 border-red-200 dark:bg-red-900/10 dark:text-red-300 dark:border-red-700/50",
-    N: "text-red-800 bg-red-200 border-red-300 dark:bg-red-900/10 dark:text-red-300 dark:border-red-700/50",
+    S: "text-emerald-700 bg-emerald-100 border-emerald-200",
+    A: "text-blue-700 bg-blue-100 border-blue-200",
+    B: "text-indigo-700 bg-indigo-100 border-indigo-200",
+    C: "text-amber-700 bg-amber-100 border-amber-200",
+    D: "text-orange-700 bg-orange-100 border-orange-200",
+    E: "text-rose-700 bg-rose-100 border-rose-200",
+    F: "text-red-700 bg-red-100 border-red-200",
+    N: "text-red-800 bg-red-200 border-red-300",
 }
 
 function AdvisoryList({ title, items, tone }) {
@@ -69,22 +69,22 @@ function AdvisoryList({ title, items, tone }) {
 
     const toneClasses = {
         green: {
-            card: "border-emerald-200 bg-emerald-50 dark:border-emerald-700/50 dark:bg-emerald-900/10",
-            dot: "bg-emerald-500 dark:bg-emerald-400",
-            text: "text-emerald-800 dark:text-emerald-300",
-            heading: "text-emerald-900 dark:text-emerald-300",
+            card: "border-emerald-200 bg-emerald-50",
+            dot: "bg-emerald-500",
+            text: "text-emerald-800",
+            heading: "text-emerald-900",
         },
         red: {
-            card: "border-rose-200 bg-rose-50 dark:border-rose-700/50 dark:bg-rose-900/10",
-            dot: "bg-rose-500 dark:bg-rose-400",
-            text: "text-rose-800 dark:text-rose-300",
-            heading: "text-rose-900 dark:text-rose-300",
+            card: "border-rose-200 bg-rose-50",
+            dot: "bg-rose-500",
+            text: "text-rose-800",
+            heading: "text-rose-900",
         },
         blue: {
-            card: "border-blue-200 bg-blue-50 dark:border-blue-700/50 dark:bg-blue-900/10",
-            dot: "bg-blue-500 dark:bg-blue-400",
-            text: "text-blue-800 dark:text-blue-300",
-            heading: "text-blue-900 dark:text-blue-300",
+            card: "border-blue-200 bg-blue-50",
+            dot: "bg-blue-500",
+            text: "text-blue-800",
+            heading: "text-blue-900",
         },
     }
 
@@ -92,9 +92,7 @@ function AdvisoryList({ title, items, tone }) {
 
     return (
         <section className={`rounded-2xl border p-4 ${palette.card}`}>
-            <h4
-                className={`text-sm font-bold uppercase tracking-[0.08em] ${palette.heading}`}
-            >
+            <h4 className={`text-sm font-bold uppercase tracking-[0.08em] ${palette.heading}`}>
                 {title}
             </h4>
             <ul className="mt-3 space-y-2">
@@ -103,9 +101,7 @@ function AdvisoryList({ title, items, tone }) {
                         key={`${title}-${index}`}
                         className={`flex items-start gap-2 text-sm ${palette.text}`}
                     >
-                        <span
-                            className={`mt-1.5 h-1.5 w-1.5 rounded-full ${palette.dot}`}
-                        />
+                        <span className={`mt-1.5 h-1.5 w-1.5 rounded-full ${palette.dot}`} />
                         <span>{item}</span>
                     </li>
                 ))}
@@ -129,9 +125,7 @@ export default function QuizResults() {
             setError("")
 
             try {
-                const response = await api.get(
-                    `/quiz-attempts/${attemptId}/details`
-                )
+                const response = await api.get(`/quiz-attempts/${attemptId}/details`)
                 if (!isMounted) return
                 setResults(response?.data?.data || null)
             } catch (fetchError) {
@@ -171,8 +165,7 @@ export default function QuizResults() {
             <div className="qm-page min-h-screen">
                 <div className="max-w-3xl mx-auto rounded-2xl border border-red-200 bg-red-50 px-5 py-4">
                     <p className="text-sm font-semibold text-red-700">
-                        {error ||
-                            "Result data is unavailable for this attempt."}
+                        {error || "Result data is unavailable for this attempt."}
                     </p>
                     <Link
                         to="/dashboard"
@@ -199,10 +192,10 @@ export default function QuizResults() {
     const isDebarred = score?.grade === "N" || results?.isDebarred === true
 
     const statusStyle = isDebarred
-        ? "bg-red-100 text-red-800 border-red-300 dark:bg-red-900/10 dark:text-red-300 dark:border-red-700/50"
+        ? "bg-red-100 text-red-800 border-red-300"
         : score?.isPassed
-          ? "bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-900/10 dark:text-emerald-300 dark:border-emerald-700/50"
-          : "bg-rose-100 text-rose-800 border-rose-300 dark:bg-rose-900/10 dark:text-rose-300 dark:border-rose-700/50"
+          ? "bg-emerald-100 text-emerald-800 border-emerald-300"
+          : "bg-rose-100 text-rose-800 border-rose-300"
 
     const statusLabel = isDebarred
         ? "Debarred"
@@ -214,9 +207,7 @@ export default function QuizResults() {
         ? `${results.class.subjectName} (${results.class.subjectCode})`
         : "Class details unavailable"
 
-    const strengths = Array.isArray(advisory?.strengths)
-        ? advisory.strengths
-        : []
+    const strengths = Array.isArray(advisory?.strengths) ? advisory.strengths : []
     const weaknesses = Array.isArray(advisory?.weaknesses)
         ? advisory.weaknesses
         : []
@@ -240,9 +231,7 @@ export default function QuizResults() {
                         <p className="mt-2 text-sm sm:text-base text-blue-100/95">
                             {results?.quiz?.title || "Quiz"}
                         </p>
-                        <p className="mt-1 text-sm text-blue-200">
-                            {classLabel}
-                        </p>
+                        <p className="mt-1 text-sm text-blue-200">{classLabel}</p>
                     </div>
 
                     <div className="flex gap-2">
@@ -328,9 +317,7 @@ export default function QuizResults() {
                                     Total Questions
                                 </p>
                                 <p className="mt-1 text-2xl font-black text-blue-700">
-                                    {performance?.totalQuestions ||
-                                        answers.length ||
-                                        0}
+                                    {performance?.totalQuestions || answers.length || 0}
                                 </p>
                             </article>
                             <article className="rounded-2xl border border-indigo-200 bg-indigo-50 p-4">
@@ -390,8 +377,7 @@ export default function QuizResults() {
                             </div>
                         ) : answers.length === 0 ? (
                             <p className="mt-4 text-sm text-slate-600">
-                                No question-wise responses are available for
-                                this attempt.
+                                No question-wise responses are available for this attempt.
                             </p>
                         ) : (
                             <div className="mt-4 space-y-3">
@@ -401,20 +387,12 @@ export default function QuizResults() {
                                         className="rounded-2xl border border-slate-200 bg-slate-50 p-4"
                                     >
                                         <p className="text-sm font-bold text-slate-900">
-                                            Q
-                                            {Number(
-                                                answer?.questionIndex ?? index
-                                            ) + 1}
-                                            :{" "}
+                                            Q{Number(answer?.questionIndex ?? index) + 1}: {" "}
                                             {answer?.questionText || "Question"}
                                         </p>
                                         <p className="mt-2 text-sm text-slate-700">
-                                            <span className="font-semibold">
-                                                Your Response:
-                                            </span>{" "}
-                                            {formatAnswerValue(
-                                                answer?.selectedAnswer
-                                            )}
+                                            <span className="font-semibold">Your Response:</span>{" "}
+                                            {formatAnswerValue(answer?.selectedAnswer)}
                                         </p>
 
                                         {questionWiseVisibility?.canViewCorrectAnswers && (
@@ -422,21 +400,14 @@ export default function QuizResults() {
                                                 <span className="font-semibold">
                                                     Correct Answer:
                                                 </span>{" "}
-                                                {formatAnswerValue(
-                                                    answer?.correctAnswer
-                                                )}
+                                                {formatAnswerValue(answer?.correctAnswer)}
                                             </p>
                                         )}
 
                                         {questionWiseVisibility?.canViewScores && (
                                             <p className="mt-1 text-sm text-blue-700">
-                                                <span className="font-semibold">
-                                                    Score:
-                                                </span>{" "}
-                                                {formatNumber(
-                                                    answer?.marksAwarded
-                                                )}{" "}
-                                                /{" "}
+                                                <span className="font-semibold">Score:</span>{" "}
+                                                {formatNumber(answer?.marksAwarded)} / {" "}
                                                 {formatNumber(answer?.maxMarks)}
                                             </p>
                                         )}
@@ -465,33 +436,25 @@ export default function QuizResults() {
                         </h3>
                         <div className="mt-4 space-y-3 text-sm">
                             <div className="flex items-center justify-between">
-                                <span className="text-slate-600">
-                                    Submitted
-                                </span>
+                                <span className="text-slate-600">Submitted</span>
                                 <span className="font-semibold text-slate-900">
                                     {formatDateTime(timing?.submittedAt)}
                                 </span>
                             </div>
                             <div className="flex items-center justify-between">
-                                <span className="text-slate-600">
-                                    Time Used
-                                </span>
+                                <span className="text-slate-600">Time Used</span>
                                 <span className="font-semibold text-slate-900">
                                     {formatDuration(timing?.timeSpent)}
                                 </span>
                             </div>
                             <div className="flex items-center justify-between">
-                                <span className="text-slate-600">
-                                    Late Submission
-                                </span>
+                                <span className="text-slate-600">Late Submission</span>
                                 <span className="font-semibold text-slate-900">
                                     {timing?.isLateSubmission ? "Yes" : "No"}
                                 </span>
                             </div>
                             <div className="flex items-center justify-between">
-                                <span className="text-slate-600">
-                                    Time Exceeded
-                                </span>
+                                <span className="text-slate-600">Time Exceeded</span>
                                 <span className="font-semibold text-slate-900">
                                     {timing?.wasTimeExceeded ? "Yes" : "No"}
                                 </span>
@@ -506,8 +469,7 @@ export default function QuizResults() {
                                 Debar Notice
                             </h3>
                             <p className="mt-2 text-sm text-red-800">
-                                {results?.debarReason ||
-                                    "This attempt was marked as debarred."}
+                                {results?.debarReason || "This attempt was marked as debarred."}
                             </p>
                         </section>
                     )}
@@ -516,8 +478,7 @@ export default function QuizResults() {
                         <div className="space-y-2 text-sm text-slate-600">
                             <p className="flex items-center gap-2">
                                 <Target className="h-4 w-4 text-primary-600" />
-                                Keep reviewing weak areas to improve
-                                consistency.
+                                Keep reviewing weak areas to improve consistency.
                             </p>
                             <p className="flex items-center gap-2">
                                 <Calendar className="h-4 w-4 text-primary-600" />
