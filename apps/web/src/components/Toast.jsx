@@ -29,35 +29,41 @@ const isDarkMode = () => {
     const theme = document.documentElement.getAttribute("data-theme")
     if (theme === "dark") return true
     if (theme === "light") return false
-    // Fallback: check system preference if "system" mode
     return window.matchMedia("(prefers-color-scheme: dark)").matches
 }
 
 /**
  * Gets theme-aware colors for different toast types
+ * Using the Deep Indigo / Navy palette from the new design system
  */
 const getToastStyles = () => {
     const dark = isDarkMode()
     return {
         light: {
-            background: "rgba(255,255,255,0.98)",
-            color: "#111827",
-            boxShadow: "0 10px 15px rgba(0, 0, 0, 0.1)",
+            background: "rgba(255, 255, 255, 0.85)",
+            color: "#0F172A",
+            boxShadow: "0 20px 40px rgba(15, 23, 42, 0.12)",
+            borderColor: "rgba(15, 23, 42, 0.08)",
+            backdropFilter: "blur(16px)",
         },
         dark: {
-            background: "rgba(15,23,42,0.98)",
+            background: "rgba(15, 23, 42, 0.85)",
             color: "#F8FAFC",
-            boxShadow: "0 10px 15px rgba(0, 0, 0, 0.3)",
+            boxShadow: "0 20px 40px rgba(0, 0, 0, 0.4)",
+            borderColor: "rgba(255, 255, 255, 0.1)",
+            backdropFilter: "blur(16px)",
         },
     }[dark ? "dark" : "light"]
 }
 
 const baseStyle = {
-    borderRadius: "12px",
-    padding: "16px",
+    borderRadius: "20px",
+    padding: "16px 20px",
     fontSize: "14px",
     fontWeight: 600,
-    maxWidth: "360px",
+    maxWidth: "380px",
+    border: "1px solid",
+    transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
 }
 
 export const showToast = {
@@ -67,7 +73,8 @@ export const showToast = {
             style: {
                 ...baseStyle,
                 ...themeStyles,
-                borderLeft: "4px solid #16A34A",
+                borderColor: themeStyles.borderColor,
+                borderLeft: "6px solid #16A34A",
             },
             iconTheme: { primary: "#16A34A", secondary: "#fff" },
         })
@@ -80,7 +87,8 @@ export const showToast = {
             style: {
                 ...baseStyle,
                 ...themeStyles,
-                borderLeft: "4px solid #DC2626",
+                borderColor: themeStyles.borderColor,
+                borderLeft: "6px solid #DC2626",
             },
             iconTheme: { primary: "#DC2626", secondary: "#fff" },
         })
@@ -92,7 +100,8 @@ export const showToast = {
             style: {
                 ...baseStyle,
                 ...themeStyles,
-                borderLeft: "4px solid #0891B2",
+                borderColor: themeStyles.borderColor,
+                borderLeft: "6px solid #0891B2",
             },
             icon: "ℹ️",
         })
@@ -104,7 +113,8 @@ export const showToast = {
             style: {
                 ...baseStyle,
                 ...themeStyles,
-                borderLeft: "4px solid #EA580C",
+                borderColor: themeStyles.borderColor,
+                borderLeft: "6px solid #EA580C",
             },
             icon: "⚠️",
         })
