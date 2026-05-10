@@ -611,7 +611,7 @@ export default function ClassDetails() {
                             onClick={() => handleTabChange(tab.value)}
                             className={`rounded-xl px-4 py-2 text-sm font-semibold transition ${
                                 activeTab === tab.value
-                                    ? "bg-white text-primary-700 shadow-sm ring-1 ring-primary-200 dark:bg-slate-900/70 dark:text-indigo-400 dark:ring-indigo-900/10 dark:shadow-indigo-900/70"
+                                    ? "bg-white text-primary-700 shadow-sm ring-1 ring-primary-200 dark:bg-slate-900/70 dark:text-indigo-400 dark:ring-indigo-900/10 dark:ring-primary-700/70"
                                     : "text-slate-600 hover:bg-white hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-900/90 dark:hover:text-white"
                             }`}
                         >
@@ -1335,7 +1335,7 @@ export default function ClassDetails() {
                                                                 disabled={
                                                                     isActionBusy
                                                                 }
-                                                                className="inline-flex items-center gap-1 rounded-lg bg-amber-100 px-2.5 py-1.5 text-xs font-semibold text-amber-800 transition hover:bg-amber-200 disabled:cursor-not-allowed disabled:opacity-60"
+                                                                className="inline-flex items-center gap-1 rounded-lg bg-amber-100 px-2.5 py-1.5 text-xs font-semibold text-amber-800 dark:text-amber-400 dark:bg-amber-900/50 transition hover:bg-amber-200 dark:hover:bg-amber-200/20 disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
                                                             >
                                                                 <ShieldOff className="h-3.5 w-3.5" />
                                                                 Revoke CR
@@ -1351,7 +1351,7 @@ export default function ClassDetails() {
                                                                 disabled={
                                                                     isActionBusy
                                                                 }
-                                                                className="inline-flex items-center gap-1 rounded-lg bg-indigo-100 px-2.5 py-1.5 text-xs font-semibold text-indigo-800 transition hover:bg-indigo-200 disabled:cursor-not-allowed disabled:opacity-60"
+                                                                className="inline-flex items-center gap-1 rounded-lg bg-indigo-100 px-2.5 py-1.5 text-xs font-semibold text-indigo-800 dark:bg-indigo-900/50 transition hover:bg-indigo-200 dark:hover:bg-indigo-200/20 disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
                                                             >
                                                                 <Shield className="h-3.5 w-3.5" />
                                                                 Make CR
@@ -1368,7 +1368,7 @@ export default function ClassDetails() {
                                                             disabled={
                                                                 isActionBusy
                                                             }
-                                                            className="inline-flex items-center gap-1 rounded-lg bg-red-100 px-2.5 py-1.5 text-xs font-semibold text-red-700 transition hover:bg-red-200 disabled:cursor-not-allowed disabled:opacity-60"
+                                                            className="inline-flex items-center gap-1 rounded-lg bg-red-100 px-2.5 py-1.5 text-xs font-semibold text-red-700 dark:bg-red-900/50 transition hover:bg-red-200 dark:hover:bg-red-200/20 disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
                                                         >
                                                             <Trash2 className="h-3.5 w-3.5" />
                                                             Remove
